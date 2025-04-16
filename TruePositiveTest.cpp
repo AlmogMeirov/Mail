@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "BloomFilter.h"
+#include "HashFunction.h" // Include the header for the HashFunction interface
 
 // This test verifies the functionality of the BloomFilter class.
 // Specifically, it checks whether the BloomFilter correctly identifies
