@@ -6,7 +6,7 @@
 
 /**
  *
- * If the size is invalid (non‐numeric, zero, or >1,000,000), a default of 128 is used.
+ * If the size is invalid, a default of 128 is used.
  * If no valid hash function names are provided, std::hash is used by default.
  *
  * @param line A space‐separated string, e.g. "256 std double".
