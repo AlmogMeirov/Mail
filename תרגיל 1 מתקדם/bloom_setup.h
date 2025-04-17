@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 
-// בונה BloomFilter לפי קלט מהמשתמש (שורת קונפיגורציה)
+// return Configured BloomFilter instance.
 BloomFilter createFromConfigLine(const std::string& line);
 
 #endif
