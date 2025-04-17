@@ -5,44 +5,47 @@
 #include <cassert>
 #include <memory>
 
-// הצהרת הפונקציה שבודקת קלט
+// Declaration of the function that builds a BloomFilter from a configuration line
 BloomFilter createFromConfigLine(const std::string& line);
 
-// פונקציה פשוטה לבדיקת כמות הביטים (דרך טריק — נוסיף פונקציית עזר אם נרצה בעתיד)
+// Test 1: Valid configuration line
 void test_valid_input() {
     BloomFilter bf = createFromConfigLine("256 std double");
-    std::cout << "בדיקה 1: קלט תקין -> ";
+    std::cout << "Test 1: valid input -> ";
     assert(bf.possiblyContains("www.test.com") == false);
-    std::cout << "עבר\n";
+    std::cout << "PASSED\n";
 }
 
+// Test 2: Invalid size field
 void test_invalid_size() {
     BloomFilter bf = createFromConfigLine("abc std");
-    std::cout << "בדיקה 2: גודל שגוי -> ";
+    std::cout << "Test 2: invalid size -> ";
     assert(bf.possiblyContains("example.com") == false);
-    std::cout << "עבר\n";
+    std::cout << "PASSED\n";
 }
 
+// Test 3: Unknown hash function name
 void test_unknown_hash() {
     BloomFilter bf = createFromConfigLine("128 unknown");
-    std::cout << "בדיקה 3: סוג לא מוכר -> ";
+    std::cout << "Test 3: unknown hash type -> ";
     assert(bf.possiblyContains("site.com") == false);
-    std::cout << "עבר\n";
+    std::cout << "PASSED\n";
 }
 
+// Test 4: Empty configuration line
 void test_empty_line() {
     BloomFilter bf = createFromConfigLine("");
-    std::cout << "בדיקה 4: שורה ריקה -> ";
+    std::cout << "Test 4: empty line -> ";
     assert(bf.possiblyContains("empty.com") == false);
-    std::cout << "עבר\n";
+    std::cout << "PASSED\n";
 }
 
 int main() {
-    std::cout << "== בדיקות קונפיגורציה ==\n";
+    std::cout << "== Configuration Tests ==\n";
     test_valid_input();
     test_invalid_size();
     test_unknown_hash();
     test_empty_line();
-    std::cout << "== כל הבדיקות עברו ✅ ==\n";
+    std::cout << "== All tests passed ✅ ==\n";
     return 0;
 }
