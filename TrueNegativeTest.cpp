@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 #include "BloomFilter.h"
 #include "HashFunction.h" // Include the header for the HashFunction interface
+#include "HashDouble.h"  // Include the header for the HashDouble class
+#include "HashFunction.h"  // Include the header for the HashFunction class
 
 // This test case verifies the behavior of the BloomFilter when checking for a URL
 // that has not been added to the filter. It ensures that the BloomFilter correctly
@@ -11,7 +13,7 @@ TEST(BloomFilterTest, ReturnsFalseForNotAddedURL) {
     // Arrange
     // Create a shared pointer to a simple hash function (e.g., std::hash<std::string>).
     // This hash function will be used by the BloomFilter.
-   auto hashFn = std::make_shared<SimpleHash>(std::hash<std::string>{});
+   auto hashFn = std::make_shared<HashDouble>();
 
    // Create an instance of the BloomFilter with a bit array size of 128
     // and a single hash function (provided in a vector).

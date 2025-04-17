@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "BloomFilter.h"
 #include "HashFunction.h" // Include the header for the HashFunction interface
+#include "HashDouble.h"  // Include the header for the HashDouble class
 
 // This test verifies the functionality of the BloomFilter class.
 // Specifically, it checks whether the BloomFilter correctly identifies
@@ -11,7 +12,7 @@ TEST(BloomFilterTest, TruePositive) {
     // Create an instance of the BloomFilter class.
     // If the BloomFilter constructor requires parameters (e.g., size, hash functions),
     // make sure to provide them here.
-    BloomFilter bloomFilter;  
+    BloomFilter bloomFilter = BloomFilter(128, {std::make_shared<HashDouble>()});  
     std::string url = "https://example.com";  // Define a sample URL to test.
 
     // Act
