@@ -17,6 +17,11 @@ TEST(BloomFilterTest, DetectsFalsePositiveUsingUrlStorage) {
 
     std::string insertedUrl = "https://example.com/added";
     std::string notInsertedUrl = "https://example.com/not-added";
+    std::string falsePositivedUrl = "https://example.com/false-positive";
+
+    // Step 2: add false positive URL to the filter without adding to UrlStorage
+    std::filesystem::remove("data/test_urls.txt"); // Clear the file for testing
+    filter.add(falsePositivedUrl);
 
     // Step 2: Add only the first URL
     filter.add(insertedUrl);
