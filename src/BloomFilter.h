@@ -19,5 +19,15 @@ class BloomFilter {
     
         void add(const std::string& url);
         bool possiblyContains(const std::string& url) const;
+        // Loads the Bloom Filter state from a file.
+        bool load_from_file(const std::string& filename, const std::vector<std::shared_ptr<HashFunction>>& hash_funcs);
+        // Saves the current Bloom Filter state to a file.
+        void save_to_file(const std::string& filename) const;
+        // Initializes an empty Bloom Filter
+        void initialize_empty_filter();
+
+        bool possiblyContains(const std::string& url) const;
+        bool saveToFile(const std::string& filename) const;
+        bool loadFromFile(const std::string& filename);
     };
 #endif
