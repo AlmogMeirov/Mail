@@ -54,32 +54,32 @@ return true; // Successfully loaded
 // If any reading error occurs, catch and handle it
 }
 catch (const std::exception& e) {
-std::cerr << "[Error] Corrupted file: " << e.what() << ". Reinitializing." << std::endl;
-initialize_empty_filter();  // Start with an empty filter
-hash_functions = hash_funcs;  // Set the hash functions again
-return false; // Indicate that loading failed
-}
+    std::cerr << "[Error] Corrupted file: " << e.what() << ". Reinitializing." << std::endl;
+    initialize_empty_filter();  // Start with an empty filter
+    hash_functions = hash_funcs;  // Set the hash functions again
+    return false; // Indicate that loading failed
+    }
 }
 
-// Saves the current Bloom Filter to a binary file and stores the size followed by the bit values.
-// This allows the filter to be restored on future runs.
-void BloomFilter::save_to_file(const std::string& filename) const {
-// Open the file in binary mode for writing
-std::ofstream outfile(filename, std::ios::binary);
-// If the file cannot be opened, report an error and exit the function
-if (!outfile) {
-std::cerr << "[Error] Failed to open file for writing: " << filename << std::endl;
-return;
+    // Saves the current Bloom Filter to a binary file and stores the size followed by the bit values.
+    // This allows the filter to be restored on future runs.
+    void BloomFilter::save_to_file(const std::string& filename) const {
+    // Open the file in binary mode for writing
+    std::ofstream outfile(filename, std::ios::binary);
+    // If the file cannot be opened, report an error and exit the function
+    if (!outfile) {
+    std::cerr << "[Error] Failed to open file for writing: " << filename << std::endl;
+    return;
 }
 
 // Write the size of the bit array
 outfile.write(reinterpret_cast<const char*>(&this->size), sizeof(size_t));
 
 // Write each bit value (true/false) as a single byte
-for (bool bit : bit_array) {
-char b = bit ? 1 : 0;
-outfile.write(&b, 1);
-}
+    for (bool bit : bit_array) {
+    char b = bit ? 1 : 0;
+    outfile.write(&b, 1);
+    }
 }
 
 // Checks if a string might be in the Bloom Filter
