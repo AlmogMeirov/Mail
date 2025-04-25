@@ -5,6 +5,20 @@
 #include "BloomFilter.h"
 #include "HashStd.h"
 #include "HashDouble.h"
+#include "URLChecker.h"
+#include "UrlStorage.h"
+
+std::vector<std::string> splitArguments(const std::string& line) {
+    std::stringstream ss(line);
+    std::vector<std::string> args;
+    std::string arg;
+
+    while (ss >> arg) {
+        args.push_back(arg);
+    }
+
+    return args;
+}
 
 static constexpr char STATE_FILE[] = "bloom_state.bin";
 
@@ -14,8 +28,21 @@ int main() {
     std::string line;
     std::getline(std::cin, line);
 
-    // 2) Build the filter
+    auto args = splitArguments(line);
+    if (args.size() < 2 || args.size() > 3) {
+        std::cerr << "Invalid number of arguments!\n";
+        return 1;
+    }
+
+    // Parsing arguments:
+    int size = std::stoi(args[0]);
+    int number_Hash = std::stoi(args[1]);
+    int number = (args.size() == 3) ? std::stoi(args[2]) : -1; // default if missing
+
+    // 2) Build the filter and the storage
     BloomFilter bf = createFromConfigLine(line);
+    UrlStorage storage("../data/urls.txt");
+
 
     // 3) Check for an existing state file
     if (!std::filesystem::exists(STATE_FILE)) {
@@ -29,44 +56,46 @@ int main() {
         }
     }
 
-    std::cout << "Ready.\n";
-
     // 5) Interactive loop
     while (true) {
-        std::cout << "> ";
-        std::string cmd, url;
-        if (!(std::cin >> cmd)) {
-            // EOF or input error → exit
-            break;
+        std::string input, url;
+        int cmd;
+        std::getline(std::cin, input);
+        auto splitInput = splitArguments(input);
+        try {
+            cmd = std::stoi(splitInput[0]);
+        } catch (const std::invalid_argument& e) {
+            //std::cerr << "Invalid command: " << splitInput[0] << "\n";
+            continue;
         }
-        if (cmd == "exit") {
+        url = splitInput[1];
+        //TODO: check if url is valid
+
+        /*if (cmd == "exit") {
             // Persist one last time on exit
             if (!bf.saveToFile(STATE_FILE)) {
-                std::cerr << "Warning: failed to save state on exit\n";
+                std::cout << "Warning: failed to save state on exit\n";
             }
             break;
         }
         if (!(std::cin >> url)) {
-            std::cout << "Error: missing URL argument\n";
+            //std::cout << "Error: missing URL argument\n";
             continue;
-        }
+        }*/
 
-        if (cmd == "add") {
+        if (cmd == 1) { // Add URL
             bf.add(url);
-            std::cout << "added\n";
+            //std::cout << "added\n";
             // Save immediately after each update
             if (!bf.saveToFile(STATE_FILE)) {
                 std::cerr << "Error: failed to save BloomFilter state\n";
             }
 
-        } else if (cmd == "check") {
-            bool found = bf.possiblyContains(url);
-            std::cout << (found
-                ? "maybe in filter\n"
-                : "definitely not in filter\n");
+        } else if (cmd == 2) {
+            std::cout << UrlChecker::outputString(url, bf, storage) << "\n";
 
-        } else {
-            std::cout << "unknown command\n";
+        /*} else {
+            std::cout << "unknown command\n";*/
         }
     }
 
