@@ -19,8 +19,8 @@ BloomFilter createFromConfigLine(const std::string& line) {
     }
 
     size_t bit_array_size = std::stoul(args[0]);
-    if (bit_array_size == 0 || bit_array_size > 1000000) {
-        std::cerr << "Error: Bit array size must be between 1 and 1,000,000." << std::endl;
+    if (bit_array_size <= 0) {
+        std::cerr << "Error: Bit array size must be Positive." << std::endl;
         std::exit(1);
     }
 
