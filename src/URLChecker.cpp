@@ -11,6 +11,7 @@ std::string UrlChecker::outputString(const std::string& url, BloomFilter& bloom,
         return "false"; // URL is definitely not present
     } else {
         // Check if the URL is confirmed in UrlStorage
+        storage.reload(); // Reload the storage to ensure it's up-to-date
         return storage.contains(url) ? "true true" : "true false";
     }
 }
