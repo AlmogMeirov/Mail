@@ -11,5 +11,8 @@ bool load_url_list_from_file(const std::string& filename, std::set<std::string>&
 // Saves a URL list to file, writing one URL per line.
 void save_url_list_to_file(const std::string& filename, const std::set<std::string>& url_list);
 
+// Checks the URL structure.
+bool is_valid_url(const std::string& url);
+
 #endif  // End of header guard
 
