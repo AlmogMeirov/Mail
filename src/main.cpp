@@ -5,27 +5,41 @@
 #include "BloomFilter.h"
 #include "HashStd.h"
 #include "HashDouble.h"
+#include <sstream>
+#include <vector>
+
+std::vector<std::string> splitArguments(const std::string& line) {
+    std::stringstream ss(line);
+    std::vector<std::string> args;
+    std::string arg;
+
+    while (ss >> arg) {
+        args.push_back(arg);
+    }
+
+    return args;
+}
 
 static constexpr char STATE_FILE[] = "bloom_state.bin";
 
 int main() {
     // 1) Prompt for configuration
-    std::cout << "Enter config line (e.g. 256): ";
+    std::cout << "Enter config line (e.g., 256 2 or 256 2 1): ";
     std::string line;
     std::getline(std::cin, line);
 
-    // 2) Build the filter
     BloomFilter bf = createFromConfigLine(line);
+    std::cout << "BloomFilter successfully created." << std::endl;
 
     // 3) Check for an existing state file
     if (!std::filesystem::exists(STATE_FILE)) {
-        std::cout << "No saved state file found → starting with an empty filter.\n";
+        std::cout << "No saved state file found - starting with an empty filter.\n";
     } else {
         // 4) Attempt to load it
         if (bf.loadFromFile(STATE_FILE)) {
             std::cout << "Loaded existing BloomFilter state.\n";
         } else {
-            std::cerr << "Save file exists but is corrupted/invalid → starting with an empty filter.\n";
+            std::cerr << "Save file exists but is corrupted/invalid - starting with an empty filter.\n";
         }
     }
 
@@ -51,7 +65,7 @@ int main() {
             continue;
         }
 
-        if (cmd == "add") {
+        if (cmd == "1") {
             bf.add(url);
             std::cout << "added\n";
             // Save immediately after each update
@@ -59,7 +73,7 @@ int main() {
                 std::cerr << "Error: failed to save BloomFilter state\n";
             }
 
-        } else if (cmd == "check") {
+        } else if (cmd == "2") {
             bool found = bf.possiblyContains(url);
             std::cout << (found
                 ? "maybe in filter\n"

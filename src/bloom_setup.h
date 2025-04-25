@@ -9,8 +9,4 @@
 // return Configured BloomFilter instance.
 BloomFilter createFromConfigLine(const std::string& line);
 
-// Parses a user‐supplied configuration line (e.g. “256”) and
-// constructs a BloomFilter with the specified bit size
-BloomFilter createFromConfigLine(const std::string& line);
-
 #endif
