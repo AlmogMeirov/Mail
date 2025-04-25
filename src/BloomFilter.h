@@ -25,8 +25,6 @@ class BloomFilter {
         void save_to_file(const std::string& filename) const;
         // Initializes an empty Bloom Filter
         void initialize_empty_filter();
-
-        bool possiblyContains(const std::string& url) const;
         bool saveToFile(const std::string& filename) const;
         bool loadFromFile(const std::string& filename);
     };
