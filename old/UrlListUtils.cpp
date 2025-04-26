@@ -1,7 +1,6 @@
 #include "UrlListUtils.h"     // Include our function declarations
 #include <fstream>            // For file input/output streams
 #include <iostream>           // For printing errors
-#include <regex> // Include the <regex> library to use regular expressions
 
 // Reads a list of URLs from a file into a set (each line is one URL)
 bool load_url_list_from_file(const std::string& filename, std::set<std::string>& url_list) {
@@ -29,13 +28,6 @@ bool load_url_list_from_file(const std::string& filename, std::set<std::string>&
     }
 
     return true;  // Successful load
-}
-
-//Checks whether the received URL is valid.
-bool UrlListUtils::is_valid_url(const std::string& url) {
-    // Define a regular expression for validating URLs:
-    const std::regex url_regex(R"(^www\.[\w\-]+(\.[a-zA-Z]{2,})(\/[\w\.\-~:\/?#\[\]@!$&'()+,;=])?$)");
-    return std::regex_match(url, url_regex); // Return true if the entire string matches the pattern
 }
 
 // Writes a set of URLs to a file, one per line

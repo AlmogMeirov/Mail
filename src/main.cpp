@@ -7,6 +7,7 @@
 #include "HashDouble.h"
 #include "URLChecker.h"
 #include "UrlStorage.h"
+#include "UrlListUtils.h"
 #include <sstream>
 
 
@@ -61,7 +62,9 @@ int main() {
             continue;
         }
         url = splitInput[1];
-        //TODO: check if url is valid
+        if (UrlListUtils::is_valid_url(url) == false) {
+            continue;
+        }
 
         /*if (cmd == "exit") {
             // Persist one last time on exit
