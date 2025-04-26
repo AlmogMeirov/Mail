@@ -57,6 +57,9 @@ int main() {
             //std::cerr << "Invalid command: " << splitInput[0] << "\n";
             continue;
         }
+        if (splitInput.size() != 2) {
+            continue;
+        }
         url = splitInput[1];
         //TODO: check if url is valid
 
