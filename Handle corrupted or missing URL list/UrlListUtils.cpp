@@ -34,7 +34,7 @@ bool load_url_list_from_file(const std::string& filename, std::set<std::string>&
 //Checks whether the received URL is valid.
 bool is_valid_url(const std::string& url) {
     // Define a regular expression for validating URLs:
-    const std::regex url_regex(R"(^(https?:\/\/)([\w\-\.]+)(\.[a-zA-Z]{2,})(\/[\w\-\.~:\/?#\[\]@!$&'()*+,;=]*)?$)");
+    const std::regex url_regex(R"(^([\w\-\.]+)(\.[a-zA-Z]{2,})(\/[\w\-\.~:\/?#\[\]@!$&'()*+,;=]*)?$)");
     return std::regex_match(url, url_regex); // Return true if the entire string matches the pattern
 }
 
