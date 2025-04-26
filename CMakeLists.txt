@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(MyExample)
+project(BloomFilterProject)
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -12,19 +12,26 @@ FetchContent_Declare(
 
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
 FetchContent_MakeAvailable(googletest)
 
 # source files
 set(SOURCES
-    src/BloomFilter.cpp
-    src/UrlStorage.cpp
+    src/*.cpp
+    src/*.h
 )
 
 # test files
 set(TESTS
-    tests/FalsePositiveTest.cpp
+     tests/*.cpp
 )
-
+# Build the test executable
 add_executable(runTests ${SOURCES} ${TESTS})
+target_link_libraries(runTests gtest_main pthread)
 
-target_link_libraries(runTests gtest_main)
+# Build main executable
+add_executable(main_exec
+    src/main.cpp
+    ${SOURCES}
+)
+target_link_libraries(main_exec pthread)
