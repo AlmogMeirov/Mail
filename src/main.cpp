@@ -7,6 +7,7 @@
 #include "HashDouble.h"
 #include "URLChecker.h"
 #include "UrlStorage.h"
+#include <sstream>
 
 
 std::vector<std::string> splitArguments(const std::string& line) {
@@ -45,34 +46,6 @@ int main() {
         }
     }
 
-    // 5) Interactive loop
-    while (true) {
-        std::string input, url;
-        int cmd;
-        std::getline(std::cin, input);
-        auto splitInput = splitArguments(input);
-        try {
-            cmd = std::stoi(splitInput[0]);
-        } catch (const std::invalid_argument& e) {
-            //std::cerr << "Invalid command: " << splitInput[0] << "\n";
-            continue;
-        }
-        url = splitInput[1];
-        //TODO: check if url is valid
-
-        /*if (cmd == "exit") {
-            // Persist one last time on exit
-            if (!bf.saveToFile(STATE_FILE)) {
-                std::cout << "Warning: failed to save state on exit\n";
-            }
-            break;
-        }
-        if (!(std::cin >> url)) {
-            //std::cout << "Error: missing URL argument\n";
-            continue;
-        }*/
-
-    // 5) Interactive loop
     while (true) {
         std::string input, url;
         int cmd;
@@ -107,12 +80,11 @@ int main() {
                 std::cerr << "Error: failed to save BloomFilter state\n";
             }
 
-        } else if (cmd == 2) {
+        }
+        if (cmd == 2) {
             std::cout << UrlChecker::outputString(url, bf, storage) << "\n";
 
-        /*} else {
-            std::cout << "unknown command\n";*/
-        }
+        } 
     }
 
     return 0;
