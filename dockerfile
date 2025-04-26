@@ -1,17 +1,20 @@
-FROM gcc:latest
+#GCC compiler with g++ and make pre-installed
+FROM gcc:12
 
+#Install Cmake
 RUN apt-get update && apt-get install -y cmake
 
-COPY . /usr/src/mytest
+#Set the working directory inside the container
+WORKDIR /app
 
-RUN mkdir -p /usr/src/mytest/data
+#Copy all project files from the host into the container's working directory
+COPY . .
 
-WORKDIR /usr/src/mytest
+#Generate the build system using Cmake
+RUN cmake -S . -B build
 
-RUN mkdir build
-WORKDIR /usr/src/mytest/build
+#Compile the project
+RUN cmake --build build
 
-RUN cmake .. && make
-
-# Run tests
-CMD ["./runTests"]
+# Run main
+CMD ["./build/main_exec"]
