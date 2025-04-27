@@ -58,11 +58,33 @@ docker run -it -v "$(pwd)/data:/app/data" bloom-filter
 
 2. **URL Commands**:  
    After configuration, you can add or query URLs interactively:
+   <br>
    Adding URL:
+    ```
    1 <URL>
+     ```
    Checking if URL is in list:
-   2 <URL> 
+    ```
+   2 <URL>
+    ```
+    Only valid URLs can be added.
+---
 
+## Example Run
+
+  ```
+   a
+   8 1
+   2 www.tomer.com
+   false
+   1 www.tomer.com
+   2 www.tomer.com
+   true true
+   1 ww.meir.com
+   2 ww.meir.com
+   2 www.meir.com
+   false
+  ```
 ---
 
 ## Notes
@@ -89,4 +111,3 @@ docker run -it -v "$(pwd)/data:/app/data" bloom-filter
 ---
 
 # Enjoy!
-```
