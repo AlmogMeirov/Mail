@@ -1,7 +1,9 @@
 #include "BloomFilter.h"
 #include "HashFunction.h"
+#include "HashStd.h"
 #include <gtest/gtest.h>
 #include <memory>
+#include <fstream>
 #include <cstdio>  // For std::remove to delete test files
 
 // A test fixture class for BloomFilter-related tests.
@@ -16,7 +18,7 @@ protected:
 
     // Returns a simple hash function list (used in all tests)
     std::vector<std::shared_ptr<HashFunction>> getBasicHash() {
-        return { std::make_shared<Hash1>() };
+        return { std::make_shared<HashStd>() };
     }
 };
 

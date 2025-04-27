@@ -4,7 +4,7 @@
 #include <regex> // Include the <regex> library to use regular expressions
 
 // Reads a list of URLs from a file into a set (each line is one URL)
-bool load_url_list_from_file(const std::string& filename, std::set<std::string>& url_list) {
+bool UrlListUtils::load_url_list_from_file(const std::string& filename, std::set<std::string>& url_list) {
     std::ifstream infile(filename);  // Try to open the file for reading
 
     // If the file doesn't exist, clear the set and return failure
@@ -34,7 +34,7 @@ bool load_url_list_from_file(const std::string& filename, std::set<std::string>&
 //Checks whether the received URL is valid.
 bool UrlListUtils::is_valid_url(const std::string& url) {
     // Define a regular expression for validating URLs:
-    const std::regex url_regex(R"(^www\.[\w\-]+(\.[a-zA-Z]{2,})(\/[\w\.\-~:\/?#\[\]@!$&'()+,;=])?$)");
+    const std::regex url_regex(R"(^www\.[\w\-]+(\.[a-zA-Z0-9]{2,})(\/[\w\.\-~:\/?#\[\]@!$&'()+,;=])?$)");
     return std::regex_match(url, url_regex); // Return true if the entire string matches the pattern
 }
 

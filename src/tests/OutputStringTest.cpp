@@ -1,9 +1,10 @@
+#include <fstream>
 #include "gtest/gtest.h"
-#include "../src/BloomFilter.h"
-#include "../src/UrlStorage.h"
-#include "../src/HashStd.h"
-#include "../src/HashDouble.h"
-#include "../src/UrlChecker.h"
+#include "BloomFilter.h"
+#include "UrlStorage.h"
+#include "HashStd.h"
+#include "HashDouble.h"
+#include "URLChecker.h"
 
 TEST(UrlCheckerTest, OutputStringLogic) {
     std::vector<std::shared_ptr<HashFunction>> hashFuncs = {

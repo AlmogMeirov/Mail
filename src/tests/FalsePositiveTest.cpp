@@ -1,8 +1,10 @@
 #include "gtest/gtest.h"
-#include "../src/BloomFilter.h"
-#include "../src/HashStd.h"
-#include "../src/HashDouble.h"
-#include "../src/UrlStorage.h"
+#include <filesystem>
+#include <fstream>
+#include "BloomFilter.h"
+#include "HashStd.h"
+#include "HashDouble.h"
+#include "UrlStorage.h"
 
 #include <memory>
 

@@ -14,7 +14,7 @@ void BloomFilter::add(const std::string& url) {
         bit_array[idx] = true;
     }
     // Open the file "data/urls.txt" in append mode to log the added URL
-    std::ofstream out("../data/urls.txt", std::ios::app); // append mode
+    std::ofstream out("data/urls.txt", std::ios::app); // append mode
 
     if (out.is_open()) { // Check if the file was successfully opened.
          out << url << "\n"; // Write the URL to the file, followed by a newline character.

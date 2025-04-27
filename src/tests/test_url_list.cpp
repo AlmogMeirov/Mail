@@ -1,8 +1,10 @@
-#include "UrlListUtils.h"
 #include <gtest/gtest.h>
 #include <cstdio>
 #include <set>
 #include <string>
+#include <fstream>
+#include "UrlListUtils.h"
+
 
 // Test fixture to handle setup/cleanup
 class UrlListTest : public ::testing::Test {
@@ -19,7 +21,7 @@ TEST_F(UrlListTest, HandlesMissingFile) {
 std::remove(test_filename.c_str());  // Ensure file doesn't exist
 
 std::set<std::string> urls;   // Create an empty set to hold URLs
-bool result = load_url_list_from_file(test_filename, urls); // Try to load from a missing fil
+bool result = UrlListUtils::load_url_list_from_file(test_filename, urls); // Try to load from a missing fil
 EXPECT_FALSE(result);                // Should return false
 EXPECT_TRUE(urls.empty());           // Set should be empty
 }
@@ -35,7 +37,7 @@ out << "www.google.com\n";
 
 //Attempt to load from that file
 std::set<std::string> urls;
-bool result = load_url_list_from_file(test_filename, urls);
+bool result = UrlListUtils::load_url_list_from_file(test_filename, urls);
 
 // Verify result is true and both URLs were loaded
 EXPECT_TRUE(result);
@@ -54,7 +56,7 @@ out.write("www.good-url.com\n\0\0\0\0\0\0\0", 25); // Mix of text and binary gar
 
 // Attempt to load the corrupted file
 std::set<std::string> urls;
-bool result = load_url_list_from_file(test_filename, urls);
+bool result = UrlListUtils::load_url_list_from_file(test_filename, urls);
 
 // Expect the read to fail and the set to be cleared
 EXPECT_FALSE(result);          // Should detect read failure

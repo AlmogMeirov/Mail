@@ -1,20 +1,25 @@
-#GCC compiler with g++ and make pre-installed
+# Use an official GCC compiler image
 FROM gcc:12
 
-#Install Cmake
-RUN apt-get update && apt-get install -y cmake
+# Install any dependencies you need (cmake ירד כי לא צריך אותו יותר)
+RUN apt-get update && apt-get install -y \
+    && rm -rf /var/lib/apt/lists/*
 
-#Set the working directory inside the container
+# Set working directory
 WORKDIR /app
 
-#Copy all project files from the host into the container's working directory
+# Copy all files into the container
 COPY . .
 
-#Generate the build system using Cmake
-RUN cmake -S . -B build
+# Compile only specific .cpp files
+RUN g++ -std=c++17 -pthread \
+    src/main.cpp \
+    src/BloomFilter.cpp \
+    src/URLChecker.cpp \
+    src/UrlListUtils.cpp \
+    src/UrlStorage.cpp \
+    src/bloom_setup.cpp \
+    -o main_exec
 
-#Compile the project
-RUN cmake --build build
-
-# Run main
-CMD ["./build/main_exec"]
+# Command to run when container starts
+CMD ["./main_exec"]
