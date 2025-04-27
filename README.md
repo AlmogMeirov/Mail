@@ -90,7 +90,3 @@ docker run -it -v "$(pwd)/data:/app/data" bloom-filter
 
 # Enjoy!
 ```
-
----
-
-###
