@@ -85,6 +85,8 @@ docker run -it -v "$(pwd)/data:/app/data" bloom-filter
    2 www.meir.com
    false
   ```
+Below is an example of program execution:
+![Example Run](data/images/example_usage.png)
 ---
 
 ## Notes
