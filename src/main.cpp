@@ -43,33 +43,39 @@ int main() {
 
     // Main loop for processing commands
     while (true) {
-        std::string input, url;
-        int cmd;
+        std::string cmd, input, url;
+        //int cmd;
         std::getline(std::cin, input); // Read user input
         auto splitInput = splitArguments(input); // Split input into command and URL
-        try {
+        /*try {
             cmd = std::stoi(splitInput[0]); // Convert command to integer
         } catch (const std::invalid_argument& e) {
             continue; // Skip invalid commands to next iteration
-        }
+        }*/
         if (splitInput.size() != 2) {
-            continue; // Ensure input has exactly two parts
+            std::cout << "400 Bad Request\n"; // Ensure input has exactly two parts
         }
         url = splitInput[1]; // Extract URL
         if (UrlListUtils::is_valid_url(url) == false) {
-            continue; // Skip invalid URLs
+            std::cout << "400 Bad Request\n"; // Skip invalid URLs
         }
 
-        if (cmd == 1) { // Add URL to BloomFilter
+        if (cmd == "POST") { // Add URL to BloomFilter
             bf.add(url);
             // Save immediately after each update
             bf.saveToFile(STATE_FILE);
-
+            std::cout << "201 Created\n";
         }
-        if (cmd == 2) { // Check URL presence in BloomFilter and UrlStorage
+        if (cmd == "GET") { // Check URL presence in BloomFilter and UrlStorage
             std::cout << UrlChecker::outputString(url, bf, storage) << "\n";
 
-        } 
+        }
+        if (cmd == "DELETE") { // Remove URL from BloomFilter
+            std::cout << storage.remove(url);
+        }
+        else {
+            std::cout << "400 Bad Request\n"; // Handle unknown commands
+        }
     }
 
     return 0;
