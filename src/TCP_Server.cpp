@@ -5,6 +5,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include "InfiniteCommandLoop.h"
+
 
 // Constructor
 TCPServer::TCPServer(int port) : port(port), server_fd(-1), client_fd(-1), addrlen(sizeof(address)) {}
@@ -50,22 +52,7 @@ void TCPServer::acceptConnection() {
 
 // Method to handle communication with the client
 void TCPServer::handleClient() {
-    while (true) {
-        std::string msg = receiveMessage(); // Receive a message from the client
-        // Process the message and send a response based on the request type
-        if (msg.starts_with("POST ")) {
-            sendMessage("201 Created\n"); // Send 201 Created response for POST requests
-        } else if (msg.starts_with("GET ")) {
-            sendMessage("200 Ok\n"); // Send 200 OK response for GET requests
-        } else if (msg.starts_with("DELETE ")) {
-            sendMessage("204 No Content\n"); // Send 204 No Content response for DELETE requests
-        }
-        else if (!msg.empty() && msg.back() == '\n') {// bad!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            sendMessage("404 Not Found\n"); // received syntactically valid but not logically valid
-        } else {
-            sendMessage("400 Bad Request\n"); // Print error message if get invalid request
-        }
-    }
+    InfiniteCommandLoop::loop(); // Call the infinite command loop to handle client communication
 }
 
 // Method to run the server, handling connections and communication in a loop
