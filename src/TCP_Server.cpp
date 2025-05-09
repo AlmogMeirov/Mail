@@ -1,0 +1,106 @@
+#include "TCP_Server.h"
+#include <iostream>
+#include <unistd.h>
+#include <cstring>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
+// Constructor
+TCPServer::TCPServer(int port) : port(port), server_fd(-1), client_fd(-1), addrlen(sizeof(address)) {}
+
+
+// Method to create a socket
+void TCPServer::createSocket() {
+    server_fd = socket(AF_INET, SOCK_STREAM, 0); // Create a TCP socket
+    if (server_fd < 0) { // Check if socket creation failed
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// Method to bind the socket to the address and port
+void TCPServer::bindSocket() {
+    address.sin_family = AF_INET; // Set address family to IPv4
+    address.sin_addr.s_addr = INADDR_ANY; // Bind to any available interface
+    address.sin_port = htons(port); // Convert port number to network byte order
+
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) { // Bind the socket to the address and port
+        perror("Binding failed");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// Method to listen for incoming connections
+void TCPServer::listenForConnections() {
+    if (listen(server_fd, 3) < 0) { // Listen for incoming connections with a backlog of 3
+        perror("Listening failed");
+        exit(EXIT_FAILURE);
+    }
+}
+// Method to accept a connection from a client 
+// This call blocks until a client connects and returns a new socket.
+void TCPServer::acceptConnection() {
+    client_fd = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen); // Accept a connection from a client
+    if (client_fd < 0) { // Check if connection acceptance failed
+        perror("Connection acceptance failed");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// Method to handle communication with the client
+void TCPServer::handleClient() {
+    while (true) {
+        std::string msg = receiveMessage(); // Receive a message from the client
+        // Process the message and send a response based on the request type
+        if (msg.starts_with("POST ")) {
+            sendMessage("201 Created\n"); // Send 201 Created response for POST requests
+        } else if (msg.starts_with("GET ")) {
+            sendMessage("200 Ok\n"); // Send 200 OK response for GET requests
+        } else if (msg.starts_with("DELETE ")) {
+            sendMessage("204 No Content\n"); // Send 204 No Content response for DELETE requests
+        }
+        else if (!msg.empty() && msg.back() == '\n') {// bad!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            sendMessage("404 Not Found\n"); // received syntactically valid but not logically valid
+        } else {
+            sendMessage("400 Bad Request\n"); // Print error message if get invalid request
+        }
+    }
+}
+
+// Method to run the server, handling connections and communication in a loop
+void TCPServer::run() {
+    createSocket(); // Create the socket
+    bindSocket(); // Bind the socket to the address and port
+    listenForConnections(); // Listen for incoming connections
+
+    while (true) { // Main server loop
+        acceptConnection(); // Accept a connection from a client
+        handleClient(); // Handle communication with the client
+        close(client_fd); // Close the client socket after communication ends
+    }
+}
+
+// Method to send a message to the client
+void TCPServer::sendMessage(const std::string& message) {
+    send(client_fd, message.c_str(), message.size(), 0); // Send the message to the client
+}
+// Method to receive a message from the client
+// This method blocks until a message is received or the client disconnects.
+std::string TCPServer::receiveMessage() {
+    char buffer[1024] = {0}; // Buffer to hold the received message
+    int bytes_received = recv(client_fd, buffer, sizeof(buffer), 0); // Receive a message from the client
+    if (bytes_received <= 0) return ""; // Return empty string if no data received or client disconnected
+    return std::string(buffer, bytes_received); // Return the received message as a string
+}
+
+// Method to close the server and client sockets
+void TCPServer::closeConnections() {
+    if (client_fd != -1) close(client_fd); // Close the client socket if it's open
+    if (server_fd != -1) close(server_fd); // Close the server socket if it's open
+}
+
+// Destructor
+TCPServer::~TCPServer() {
+    closeConnections(); // Close the server and client sockets
+}
