@@ -1,0 +1,11 @@
+# Use an official Python image
+FROM python:3.10
+
+# Set the working directory in the container
+WORKDIR /client
+
+# Copy client.py to the container
+COPY client.py /client
+
+# Run the client with server host and port (can be overridden)
+CMD ["python", "client.py", "server", "1234"]
