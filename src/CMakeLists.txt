@@ -19,6 +19,7 @@ set(SOURCES
     src/URLChecker.cpp
     src/UrlListUtils.cpp
     src/UrlStorage.cpp
+    src/InfiniteCommandLoop.cpp
 )
 
 # Add executable
