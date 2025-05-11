@@ -1,23 +1,25 @@
-version: '3.8'  # Specify Docker Compose file format version
+version: '3.8' # Specify Docker Compose file format version
 
 services:
-  server:  #Define the server service
+  server:
+    #Define the server service
     build:
-      context: .  # Use the current directory as build context
-      dockerfile: dockerfile.server  # Use dockerfile.server to build the image
+      context: . # Use the current directory as build context
+      dockerfile: dockerfile.server # Use dockerfile.server to build the image
     ports:
-      - "1234:1234"  # Map container port 1234 to host port 1234
+      - "1234:1234" # Map container port 1234 to host port 1234
     networks:
-      - mynet  # Connect to a custom internal network
+      - mynet # Connect to a custom internal network
 
-  client:  # Define the client service
+  client:
+    # Define the client service
     build:
-      context: .  # Use the current directory as build context
-      dockerfile: dockerfile.client  # Use dockerfile.client to build the image
+      context: . # Use the current directory as build context
+      dockerfile: dockerfile.client # Use dockerfile.client to build the image
     depends_on:
-      - server  # Wait until server is up before starting client
+      - server # Wait until server is up before starting client
     networks:
-      - mynet  # Connect to the same network as the server
+      - mynet # Connect to the same network as the server
 
 networks:
-  mynet:  # Define a custom network for internal communication
+  mynet: # Define a custom network for internal communication

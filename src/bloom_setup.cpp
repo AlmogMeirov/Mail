@@ -8,38 +8,44 @@
 #include <cctype>
 #include <algorithm>
 
-
 // Creates a BloomFilter instance from a configuration line
-BloomFilter createFromConfigLine(const std::string& line, TCPServer& server) {
+BloomFilter createFromConfigLine(const std::string &line, TCPServer &server)
+{
+    server.sendMessage("Welcome to the loop!\n"); // Send welcome message
     std::stringstream ss(line);
     std::vector<std::string> args;
     std::string part;
 
     // Split the input line into arguments
-    while (ss >> part) {
+    while (ss >> part)
+    {
         args.push_back(part);
     }
-    
+
     // Validate the first argument (bit array size) is a positive integer
-    while (!std::all_of(args[0].begin(), args[0].end(), ::isdigit)) {
-        std::string newConfigLine = server.receiveLineBuffered();// Prompt for valid input
-        //std::getline(std::cin, newConfigLine); // Prompt for valid input
-        args.clear(); 
+    while (!std::all_of(args[0].begin(), args[0].end(), ::isdigit))
+    {
+        std::string newConfigLine = server.receiveLineBuffered(); // Prompt for valid input
+        // std::getline(std::cin, newConfigLine); // Prompt for valid input
+        args.clear();
         std::stringstream ss(newConfigLine);
-        while (ss >> part) {
+        while (ss >> part)
+        {
             args.push_back(part);
         }
     }
     size_t bit_array_size = std::stoul(args[0]); // Convert to size_t
 
     // Ensure valid configuration: bit array size > 0 and correct number of arguments
-    while (bit_array_size <= 0 || args.size() < 2 || args.size() > 3) {
+    while (bit_array_size <= 0 || args.size() < 2 || args.size() > 3)
+    {
         // std::string newConfigLine;
-        std::string newConfigLine = server.receiveLineBuffered();// Prompt for valid input
-        //std::getline(std::cin, newConfigLine); // Prompt for valid input
-        args.clear(); 
+        std::string newConfigLine = server.receiveLineBuffered(); // Prompt for valid input
+        // std::getline(std::cin, newConfigLine); // Prompt for valid input
+        args.clear();
         std::stringstream ss(newConfigLine);
-        while (ss >> part) {
+        while (ss >> part)
+        {
             args.push_back(part);
         }
     }
@@ -48,19 +54,22 @@ BloomFilter createFromConfigLine(const std::string& line, TCPServer& server) {
     int hashDoubleCount = 0;
 
     // Parse optional third argument (number of double hash functions)
-    if (args.size() == 3) {
+    if (args.size() == 3)
+    {
         hashDoubleCount = std::stoi(args[2]);
     }
 
     std::vector<std::shared_ptr<HashFunction>> hash_funcs;
 
     // Add standard hash functions to the vector
-    for (int i = 0; i < hashStdCount; ++i) {
+    for (int i = 0; i < hashStdCount; ++i)
+    {
         hash_funcs.push_back(std::make_shared<HashStd>());
     }
 
     // Add double hash functions to the vector
-    for (int i = 0; i < hashDoubleCount; ++i) {
+    for (int i = 0; i < hashDoubleCount; ++i)
+    {
         hash_funcs.push_back(std::make_shared<HashDouble>());
     }
 
