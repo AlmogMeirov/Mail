@@ -21,7 +21,7 @@ void BloomFilter::add(const std::string& url) {
      
     } else {
          // Write an error message if the file could not be opened.
-         std::cout << "Failed to open data/urls.txt for writing.\n";
+         std::cerr << "Failed to open data/urls.txt for writing.\n";
     }
     if (!saveToFile("bloom_state.bin")) {
         std::cerr << "[Warning] Failed to save BloomFilter state\n";

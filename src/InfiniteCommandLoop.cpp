@@ -1,3 +1,4 @@
+#include "InfiniteCommandLoop.h"
 #include <iostream>
 #include <string>
 #include <filesystem>      // for std::filesystem::exists()
@@ -8,11 +9,12 @@
 #include "URLChecker.h"
 #include "UrlStorage.h"
 #include "UrlListUtils.h"
+#include "TCP_Server.h"
 #include <filesystem>
 #include <sstream>
 
 // Splits a line of input into arguments
-std::vector<std::string> splitArguments(const std::string& line) {
+std::vector<std::string> InfiniteCommandLoop::splitArguments(const std::string& line) {
     std::stringstream ss(line);
     std::vector<std::string> args;
     std::string arg;
@@ -24,15 +26,42 @@ std::vector<std::string> splitArguments(const std::string& line) {
     return args;
 }
 
-static constexpr char STATE_FILE[] = "data/bloom_state.bin"; // File to save BloomFilter state
+/*std::string receiveLineBuffered(TCPServer& server) {
+    static std::string buffer;  // saved between calls
+    while (true) {
+        size_t newlinePos = buffer.find('\n');
+        if (newlinePos != std::string::npos) {
+            // found a complete line
+            std::string line = buffer.substr(0, newlinePos);
+            buffer = buffer.substr(newlinePos + 1); // rest of the buffer
+            return line;
+        }
 
-int main() {
+        // haven't found a complete line yet
+        // receive more data
+        std::string msg = server.receiveMessage();
+        if (msg.empty()) {
+            // error or connection closed
+            return "";
+        }
+
+        buffer += msg;
+    }
+}*/
+
+//static constexpr char STATE_FILE[] = "data/bloom_state.bin"; // File to save BloomFilter state
+
+void InfiniteCommandLoop::loop(TCPServer& server) {
+    // Create Server instance
+    /*TCPServer server(1234); // Port 1234
+    server.createSocket(); // Create the socket*/
+
     // Prompt for configuration
-    std::string line;
-    std::getline(std::cin, line);
+    std::string line = server.receiveLineBuffered(); // Receive configuration line from the server
+    // std::getline(std::cin, line);
 
     // Create BloomFilter from configuration
-    BloomFilter bf = createFromConfigLine(line);
+    BloomFilter bf = createFromConfigLine(line, server);
     UrlStorage storage("data/urls.txt");
 
     // Check for an existing state file
@@ -53,30 +82,28 @@ int main() {
             continue; // Skip invalid commands to next iteration
         }*/
         if (splitInput.size() != 2) {
-            std::cout << "400 Bad Request\n"; // Ensure input has exactly two parts
+           server.sendMessage("400 Bad Request\n"); // Ensure input has exactly two parts
         }
         url = splitInput[1]; // Extract URL
         if (UrlListUtils::is_valid_url(url) == false) {
-            std::cout << "400 Bad Request\n"; // Skip invalid URLs
+            server.sendMessage("400 Bad Request\n"); // Skip invalid URLs
         }
 
         if (cmd == "POST") { // Add URL to BloomFilter
             bf.add(url);
             // Save immediately after each update
             bf.saveToFile(STATE_FILE);
-            std::cout << "201 Created\n";
+            server.sendMessage("201 Created\n");
         }
         if (cmd == "GET") { // Check URL presence in BloomFilter and UrlStorage
-            std::cout << UrlChecker::outputString(url, bf, storage) << "\n";
+            server.sendMessage(UrlChecker::outputString(url, bf, storage) + "\n");
 
         }
         if (cmd == "DELETE") { // Remove URL from BloomFilter
-            std::cout << storage.remove(url);
+            server.sendMessage(storage.remove(url));
         }
         else {
-            std::cout << "400 Bad Request\n"; // Handle unknown commands
+            server.sendMessage("400 Bad Request\n"); // Handle unknown commands
         }
     }
-
-    return 0;
 }

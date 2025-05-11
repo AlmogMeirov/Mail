@@ -52,7 +52,7 @@ void TCPServer::acceptConnection() {
 
 // Method to handle communication with the client
 void TCPServer::handleClient() {
-    InfiniteCommandLoop::loop(); // Call the infinite command loop to handle client communication
+    InfiniteCommandLoop::loop(this); // Call the infinite command loop to handle client communication
 }
 
 // Method to run the server, handling connections and communication in a loop
@@ -80,6 +80,30 @@ std::string TCPServer::receiveMessage() {
     if (bytes_received <= 0) return ""; // Return empty string if no data received or client disconnected
     return std::string(buffer, bytes_received); // Return the received message as a string
 }
+
+std::string receiveLineBuffered() {
+    static std::string buffer;  // saved between calls
+    while (true) {
+        size_t newlinePos = buffer.find('\n');
+        if (newlinePos != std::string::npos) {
+            // found a complete line
+            std::string line = buffer.substr(0, newlinePos);
+            buffer = buffer.substr(newlinePos + 1); // rest of the buffer
+            return line;
+        }
+
+        // haven't found a complete line yet
+        // receive more data
+        std::string msg = receiveMessage();
+        if (msg.empty()) {
+            // error or connection closed
+            return "";
+        }
+
+        buffer += msg;
+    }
+}
+
 
 // Method to close the server and client sockets
 void TCPServer::closeConnections() {

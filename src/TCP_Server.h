@@ -19,6 +19,7 @@ public:
     void closeConnections(); // Method to close the server and client sockets
     void sendMessage(const std::string& message); // Method to send a message to the client
     std::string receiveMessage();  // Method to receive a message from the client
+    std::string receiveLineBuffered(); // Method to receive a line of input from the client
     ~TCPServer(); // Destructor 
 };
 
