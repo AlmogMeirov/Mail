@@ -6,6 +6,8 @@
 #include <iostream>
 #include <string>
 #include <cctype>
+#include <algorithm>
+
 
 // Creates a BloomFilter instance from a configuration line
 BloomFilter createFromConfigLine(const std::string& line, TCPServer& server) {
@@ -32,7 +34,7 @@ BloomFilter createFromConfigLine(const std::string& line, TCPServer& server) {
 
     // Ensure valid configuration: bit array size > 0 and correct number of arguments
     while (bit_array_size <= 0 || args.size() < 2 || args.size() > 3) {
-        std::string newConfigLine;
+        // std::string newConfigLine;
         std::string newConfigLine = server.receiveLineBuffered();// Prompt for valid input
         //std::getline(std::cin, newConfigLine); // Prompt for valid input
         args.clear(); 

@@ -5,7 +5,7 @@ FROM python:3.10
 WORKDIR /client
 
 # Copy client.py to the container
-COPY client.py /client
+COPY src/client.py /client
 
 # Run the client with server host and port (can be overridden)
-CMD ["python", "client.py", "server", "1234"]
+CMD ["python", "client.py"]

@@ -1,6 +1,11 @@
 #ifndef TCP_SERVER_H
 #define TCP_SERVER_H
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <string>
+
 // Definition of the TCPServer class
 class TCPServer {
 private:

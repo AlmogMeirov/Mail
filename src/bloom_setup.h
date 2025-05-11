@@ -2,6 +2,7 @@
 #define BLOOM_SETUP_H
 
 #include "BloomFilter.h"
+#include "TCP_Server.h"
 #include <memory>
 #include <vector>
 #include <string>

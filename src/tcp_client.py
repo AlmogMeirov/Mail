@@ -1,7 +1,7 @@
 import socket
 
 SERVER_IP = "127.0.0.1"
-SERVER_PORT = 12345
+SERVER_PORT = 1234
 
 
 class TCPClient:

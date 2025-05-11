@@ -6,6 +6,7 @@ WORKDIR /app
 
 # Copy source code
 COPY ./src /app/src
+COPY ./CMakeLists.txt /app/
 
 # Compile the server
 

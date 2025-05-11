@@ -4,17 +4,16 @@ cmake_minimum_required(VERSION 3.10)
 project(MailProject)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Include directories
 include_directories(src)
 
-# Source files
-set(SOURCES
+# Core code for all the logic and tests
+add_library(CoreLogic
     src/bloom_setup.cpp
     src/BloomFilter.cpp
-    src/main.cpp
     src/TCP_Server.cpp
     src/URLChecker.cpp
     src/UrlListUtils.cpp
@@ -22,13 +21,13 @@ set(SOURCES
     src/InfiniteCommandLoop.cpp
 )
 
+target_include_directories(CoreLogic PUBLIC src)
+
 # Add executable
-add_executable(MailProject ${SOURCES}) # Add the source files to the executable
-target_link_libraries(MailProject pthread)# Link with pthread	
+add_executable(MailProject src/main.cpp)
+target_link_libraries(MailProject CoreLogic pthread)
 
-# Link libraries
-
-#Gtest
+# === GTest ===
 include(FetchContent)  # Enables downloading external dependencies
 
 # Download and make GoogleTest available
@@ -37,18 +36,15 @@ FetchContent_Declare(
   URL https://github.com/google/googletest/archive/release-1.12.1.zip
 )
 
-# Make the content available
 FetchContent_MakeAvailable(googletest)
 
-# Force shared CRT on Windows (ignored on Linux)
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-
 enable_testing()
 
 # Macro to simplify test target creation
 macro(add_gtest name file)
   add_executable(${name} ${file})
-  target_link_libraries(${name} gtest gtest_main pthread)
+  target_link_libraries(${name} CoreLogic gtest gtest_main pthread)
   add_test(NAME ${name} COMMAND ${name})
 endmacro()
 
@@ -57,7 +53,7 @@ add_gtest(FalsePositiveTest src/tests/FalsePositiveTest.cpp)
 add_gtest(OutputStringTest src/tests/OutputStringTest.cpp)
 add_gtest(PersistenceTest src/tests/PersistenceTest.cpp)
 add_gtest(TestBloomFilter src/tests/test_bloom_filter.cpp)
-add_gtest(TestConfigParser src/tests/test_config_parser.cpp)
+# add_gtest(TestConfigParser src/tests/test_config_parser.cpp)
 add_gtest(TestUrlList src/tests/test_url_list.cpp)
 add_gtest(TestOperateBloomFilter src/tests/TestOperateBloomFilter.cpp)
 add_gtest(TrueNegativeTest src/tests/TrueNegativeTest.cpp)

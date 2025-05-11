@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <string>
+#include "TCP_Server.h"
+
 class InfiniteCommandLoop {
 public:
     // Starts the infinite command loop
