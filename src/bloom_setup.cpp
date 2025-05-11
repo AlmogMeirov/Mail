@@ -1,13 +1,14 @@
 #include "bloom_setup.h"
 #include "HashStd.h"
 #include "HashDouble.h"
+#include "TCP_Server.h"
 #include <sstream>
 #include <iostream>
 #include <string>
 #include <cctype>
 
 // Creates a BloomFilter instance from a configuration line
-BloomFilter createFromConfigLine(const std::string& line) {
+BloomFilter createFromConfigLine(const std::string& line, TCPServer& server) {
     std::stringstream ss(line);
     std::vector<std::string> args;
     std::string part;
@@ -19,8 +20,8 @@ BloomFilter createFromConfigLine(const std::string& line) {
     
     // Validate the first argument (bit array size) is a positive integer
     while (!std::all_of(args[0].begin(), args[0].end(), ::isdigit)) {
-        std::string newConfigLine;
-        std::getline(std::cin, newConfigLine); // Prompt for valid input
+        std::string newConfigLine = server.receiveLineBuffered();// Prompt for valid input
+        //std::getline(std::cin, newConfigLine); // Prompt for valid input
         args.clear(); 
         std::stringstream ss(newConfigLine);
         while (ss >> part) {
@@ -32,7 +33,8 @@ BloomFilter createFromConfigLine(const std::string& line) {
     // Ensure valid configuration: bit array size > 0 and correct number of arguments
     while (bit_array_size <= 0 || args.size() < 2 || args.size() > 3) {
         std::string newConfigLine;
-        std::getline(std::cin, newConfigLine); // Prompt for valid input
+        std::string newConfigLine = server.receiveLineBuffered();// Prompt for valid input
+        //std::getline(std::cin, newConfigLine); // Prompt for valid input
         args.clear(); 
         std::stringstream ss(newConfigLine);
         while (ss >> part) {
