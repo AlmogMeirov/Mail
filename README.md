@@ -26,6 +26,7 @@ In this part of the project, we developed a client-server system for managing UR
 ```bash
 docker-compose build --no-cache
 ```
+
 ### Start the Server
 
 ```bash
@@ -44,6 +45,11 @@ docker-compose run --rm client
 docker-compose down
 ```
 
+**optional**
+### Activate the tests ()
+```bash
+docker-compose run --rm tests
+```
 
 > **Important:**  
  - client will automatically try to connect to the server container using the internal Docker network.
