@@ -58,7 +58,7 @@ void InfiniteCommandLoop::loop(TCPServer &server)
     std::string line = server.receiveFirstLineBuffered(); // Receive configuration line from the server
     // Create BloomFilter from configuration
     BloomFilter bf = createFromConfigLine(line, server);
-
+    server.sendMessage("200 OK\n");
     UrlStorage storage("data/urls.txt");
 
     // Check for an existing state file
@@ -71,7 +71,7 @@ void InfiniteCommandLoop::loop(TCPServer &server)
     // Main loop for processing commands
     while (true)
     {
-        std::cout("Welcome3 to the loop!\n"); // Send welcome message
+        std::cout << "Welcome3 to the loop!\n"; // Send welcome message
         std::string cmd, input, url;
         // std::getline(std::cin, input);           // Read user input
         input = server.receiveLineBuffered(); // Receive input from the server
@@ -86,11 +86,11 @@ void InfiniteCommandLoop::loop(TCPServer &server)
             server.sendMessage("400 Bad Request\n"); // Ensure input has exactly two parts
             continue;
         }
-        std::cout("Test A\n");
+        std::cout << "Test A\n";
         cmd = splitInput[0];
-        server.sendMessage("Test A\n");
+        std::cout << "Test B\n";
         url = splitInput[1]; // Extract URL
-        server.sendMessage("Test A\n");
+        std::cout << "Test C\n";
         if (UrlListUtils::is_valid_url(url) == false)
         {
             server.sendMessage("400 Bad Request\n"); // Skip invalid URLs

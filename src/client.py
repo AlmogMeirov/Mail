@@ -16,9 +16,9 @@ def main():
             if not response:
                 print("🔌 Server closed the connection.")
                 break
-            print(f"Server: {response}")
+            print(f"{response}")
     except KeyboardInterrupt:
-        print("\n👋 Exiting client.")
+        print("")
     finally:
         client.close()
 

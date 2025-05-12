@@ -11,7 +11,7 @@
 // Creates a BloomFilter instance from a configuration line
 BloomFilter createFromConfigLine(const std::string &line, TCPServer &server)
 {
-    server.sendMessage("Welcome to the loop!\n"); // Send welcome message
+    std::cout << "Bloom Setup\n"; // Send welcome message
     std::stringstream ss(line);
     std::vector<std::string> args;
     std::string part;

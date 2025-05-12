@@ -95,7 +95,7 @@ std::string TCPServer::receiveMessage()
 
 std::string TCPServer::receiveFirstLineBuffered()
 {
-    sendMessage("Out first call!\n"); // Send welcome message
+    std::cout<<"Out first call!\n"; // Send welcome message
     static std::string buffer;
 
     size_t newlinePos = buffer.find('\n');
