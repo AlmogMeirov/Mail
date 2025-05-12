@@ -12,9 +12,6 @@ COPY ./CMakeLists.txt /app/
 # Install CMake and build the project
 RUN apt-get update && apt-get install -y cmake && \
     mkdir build && cd build && cmake .. && make
-
-# Expose port 1234 for the server
-EXPOSE 1234
-
+    
 # Run the server
-CMD ["./build/MailProject", "1234"]
+ENTRYPOINT ["./build/MailProject"]

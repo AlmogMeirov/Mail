@@ -1,27 +1,33 @@
-from tcp_client import TCPClient # Import the TCP client class
-
+import sys  # [ADDED]
+from tcp_client import TCPClient
 
 def main():
-    client = TCPClient() # Create a TCP client instance
-    if not client.connect(): # Attempt to connect to the server
+    if len(sys.argv) != 3:  # [ADDED]
+        print("Usage: python client.py <server_ip> <port>")  # [ADDED]
+        return  # [ADDED]
+
+    host = sys.argv[1]  # [ADDED]
+    port = int(sys.argv[2])  # [ADDED]
+
+    client = TCPClient(host, port)
+    if not client.connect():
         print("Failed to connect. Exiting.")
         return
 
     try:
         while True:
-            command = input().strip()  # Read user input and strip whitespace
-            if not command:# Skip empty commands
+            command = input().strip()
+            if not command:
                 continue
-            response = client.send_command(command) # Send command to the server
-            if not response: # Check if the server closed the connection
+            response = client.send_command(command)
+            if not response:
                 print("Server closed the connection.")
                 break
-            print(f"{response}", end="") # Print the server's response
-    except KeyboardInterrupt: # Handle Ctrl+C gracefully
+            print(f"{response}", end="")
+    except KeyboardInterrupt:
         print("")
     finally:
-        client.close() # Ensure the client connection is closed
-
+        client.close()
 
 if __name__ == "__main__":
-    main() # Run the main function if the script is executed directly
+    main()
