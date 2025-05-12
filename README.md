@@ -38,6 +38,14 @@ docker-compose up -d server
 docker-compose run --rm client
 ```
 
+### To stop all running containers, remove the server container, and free the bound port:
+
+```bash
+docker-compose down
+```
+
+
+
 > **Important:**  
  - client will automatically try to connect to the server container using the internal Docker network.
 
