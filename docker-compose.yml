@@ -22,6 +22,15 @@ services:
       - server # Wait until server is up before starting client
     networks:
       - mynet # Connect to the same network as the server
+      
+  tests:
+    build:
+      context: .
+      dockerfile: dockerfile.tests
+    volumes:
+      - ./data:/app/data
+    networks:
+      - mynet
 
 networks:
   mynet: # Define a custom network for internal communication
