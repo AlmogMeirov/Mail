@@ -100,6 +100,21 @@ docker-compose run --rm client
 Below is an example of program execution:
 ![Example Run](data/images/example_usage.png)
 ---
+# Design Principles
+This system was designed with SOLID principles in mind, particularly:
+
+Open/Closed Principle (OCP):
+The codebase is open for extension but closed for modification.
+New command types (e.g., SHUTDOWN, STATS) can be added by introducing new handler functions without modifying existing logic in the command loop.
+
+Modular Command Handling:
+Commands are parsed and validated separately. Logic for POST, GET, and DELETE operations is encapsulated, allowing new operations to be introduced easily without breaking existing behavior.
+
+Extensibility Strategy:
+Input parsing and validation are designed with flexibility, allowing commands like "SHUTDOWN www.site.com" or "STATS bloom" to be recognized in the future.
+
+This ensures long-term maintainability and adaptability for future use cases without requiring structural rewrites.
+
 
 ## Notes
 
