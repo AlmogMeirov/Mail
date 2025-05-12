@@ -98,17 +98,27 @@ docker-compose run --rm tests
 ## Example Run
 
   ```
-   a
-   8 1
-   2 www.tomer.com
-   false
-   1 www.tomer.com
-   2 www.tomer.com
-   true true
-   1 ww.meir.com
-   2 ww.meir.com
-   2 www.meir.com
-   false
+256 2 2
+200 OK
+GET www.hhh.com
+200 Ok
+
+false
+POST www.hhh.com
+201 Created
+GET www.hhh.com
+200 Ok
+
+true true
+DELETE www.k.com
+404 Not Found
+DELETE www.hhh.com
+204 No Content
+GET www.hhh.com
+200 Ok
+
+true false
+
   ```
 Below is an example of program execution:
 ![Example Run](data/images/example_usage.png)
