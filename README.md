@@ -1,6 +1,6 @@
 # Mail
 
-## Project Overview
+## Project 
 
 This project implements a **Bloom Filter** data structure for efficiently checking the existence of URLs.  
 The system allows:
