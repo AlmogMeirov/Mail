@@ -38,6 +38,13 @@ docker-compose up -d server
 ```bash
 docker-compose run --rm client
 ```
+(The software will assign it a port and an IP address)
+
+OR
+
+```bash
+docker-compose run --rm client {IP} {port number}
+```
 
 ### To stop all running containers, remove the server container, and free the bound port:
 
