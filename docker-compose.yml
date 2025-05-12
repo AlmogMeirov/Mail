@@ -22,7 +22,7 @@ services:
       - server # Wait until server is up before starting client
     networks:
       - mynet # Connect to the same network as the server
-      
+
   tests:
     build:
       context: .

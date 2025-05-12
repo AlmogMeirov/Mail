@@ -21,7 +21,7 @@ class TCPClient:
         for attempt in range(1, RETRY_ATTEMPTS + 1):
             try:
                 # Try to connect to the server
-                self.socket.connect((HOST, PORT))
+                self.socket.connect((self.host, self.port))
                 
                 self.connected = True # Mark as connected
                 return True # Connection successful
