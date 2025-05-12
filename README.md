@@ -1,22 +1,19 @@
 # Mail
 
-## Project Overview
+## Purpose
 
-This project implements a **Bloom Filter** data structure for efficiently checking the existence of URLs.  
-The system allows:
-- Dynamic creation of a Bloom Filter based on user input
-- Adding and querying URLs
-- Running entirely inside a Docker container via command-line interface
+In this part of the project, we developed a client-server system for managing URL data using a Bloom Filter. The code was structured with a modular design and adherence to SOLID principles, especially the Open/Closed Principle. We containerized the system with Docker, ensuring clean separation between services. Connection handling, error responses, and client-server communication were thoroughly tested and refined.
 
 ---
 
 ## Project Structure
 
 ```
-/src        - Source files (C++ .cpp and .h)
-/tests      - Test files (currently not used)
-/data       - Data files (e.g., urls.txt)
-/Dockerfile - Docker setup
+/src        - Source files (C++.cpp, C++.h, Python)
+/tests      - Test files 
+/data       - Data files (e.g., urls.txt, bloom_state.bin )
+/client -     client files - client.py, tcp_client.py
+/Dockerfile - Docker setup, docker-compose...
 /README.md  - Project documentation
 ```
 
@@ -27,18 +24,41 @@ The system allows:
 ### Build the Docker image
 
 ```bash
-docker build -t bloom-filter .
+docker-compose build --no-cache
 ```
 
-### Run the application
+### Start the Server
 
 ```bash
-docker run -it -v "$(pwd)/data:/app/data" bloom-filter
+docker-compose up -d server
+```
+
+### Run the Client
+
+```bash
+docker-compose run --rm client
+```
+
+### To stop all running containers, remove the server container, and free the bound port:
+
+```bash
+docker-compose down
+```
+
+**optional**
+### Activate the tests ()
+```bash
+docker-compose run --rm tests
 ```
 
 > **Important:**  
-> - The `-it` flag is required to enable interactive input via `cin`.
-> - The application will first prompt you to configure the Bloom Filter.
+ - client will automatically try to connect to the server container using the internal Docker network.
+
+- On first connection, the server will prompt for Bloom Filter configuration (e.g. 1024 2 1).
+
+- Input must follow the format: COMMAND URL (e.g. POST www.google.com).
+
+- Invalid commands or malformed URLs will result in a 400 Bad Request response.
 
 ---
 
@@ -61,11 +81,16 @@ docker run -it -v "$(pwd)/data:/app/data" bloom-filter
    <br>
    Adding URL:
     ```
-   1 <URL>
+   POST <URL>
      ```
    Checking if URL is in list:
     ```
-   2 <URL>
+   GET <URL>
+    ```
+
+   Delete the URL from list:
+    ```
+   DELETE <URL>
     ```
     Only valid URLs can be added.
 ---
@@ -88,6 +113,21 @@ docker run -it -v "$(pwd)/data:/app/data" bloom-filter
 Below is an example of program execution:
 ![Example Run](data/images/example_usage.png)
 ---
+# Design Principles
+This system was designed with SOLID principles in mind, particularly:
+
+Open/Closed Principle (OCP):
+The codebase is open for extension but closed for modification.
+New command types (e.g., SHUTDOWN, STATS) can be added by introducing new handler functions without modifying existing logic in the command loop.
+
+Modular Command Handling:
+Commands are parsed and validated separately. Logic for POST, GET, and DELETE operations is encapsulated, allowing new operations to be introduced easily without breaking existing behavior.
+
+Extensibility Strategy:
+Input parsing and validation are designed with flexibility, allowing commands like "SHUTDOWN www.site.com" or "STATS bloom" to be recognized in the future.
+
+This ensures long-term maintainability and adaptability for future use cases without requiring structural rewrites.
+
 
 ## Notes
 
@@ -105,10 +145,13 @@ Below is an example of program execution:
 
 ## Technologies Used
 
-- **C++17**
-- **Docker**
-- **Bloom Filter Data Structure**
-- **Regex-based URL validation**
+- **C++17** - Core server-side logic and Bloom Filter implementation.
+- **Docker & Docker Compose** - Containerized setup for consistent cross-platform execution of both client and server.
+- **Python 3.0** - Lightweight TCP client for sending requests and receiving responses.
+- **Bloom Filter Data Structure** - Probabilistic data structure used to check for membership efficiently
+- **Regex-based URL validation** - Ensures incoming URLs follow standard syntax before processing.
+- **Clien-server interface** - Line-based text protocol over TCP sockets, supporting POST/GET/DELETE operations.
+✅ This documentation has been tested by a peer to ensure clarity and completeness.
 
 ---
 
