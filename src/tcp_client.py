@@ -2,28 +2,26 @@ import socket
 import time
 
 HOST = "server"  # "server" = Docker service name (not 127.0.0.1!)
-PORT = 1234
-RETRY_ATTEMPTS = 5
+PORT = 1234 # Port to connect to
+RETRY_ATTEMPTS = 5 # Number of connection retry attempts
 RETRY_DELAY = 2  # seconds
 
 
 class TCPClient:
     def __init__(self):
+        # Initialize a TCP socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connected = False
+        self.connected = False # Connection status
 
     def connect(self):
+        # Attempt to connect to the server with retries
         for attempt in range(1, RETRY_ATTEMPTS + 1):
             try:
-                # print(f"[Attempt {attempt}] Connecting to {HOST}:{PORT}...")
+                # Try to connect to the server
                 self.socket.connect((HOST, PORT))
-                # print("Connected to server.")
-
-                # welcome = self.socket.recv(1024).decode()
-                # print("Server:", welcome.strip())
-
-                self.connected = True
-                return True
+                
+                self.connected = True # Mark as connected
+                return True # Connection successful
 
             except (ConnectionRefusedError, socket.timeout) as e:
                 print(f"[Error] {e}")
@@ -32,8 +30,9 @@ class TCPClient:
         return False
 
     def send_command(self, command):
-        self.socket.sendall((command + "\n").encode())
-        return self.socket.recv(1024).decode()
+        # Send a command to the server and receive the response
+        self.socket.sendall((command + "\n").encode()) # Send command
+        return self.socket.recv(1024).decode() # Receive response
 
     def close(self):
-        self.socket.close()
+        self.socket.close() # Close the socket connection

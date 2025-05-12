@@ -8,20 +8,6 @@ WORKDIR /app
 COPY ./src /app/src
 COPY ./CMakeLists.txt /app/
 
-# Compile the server
-
-#manual
-#RUN g++ -std=c++17 -pthread \
- #   src/main.cpp \
-  #  src/BloomFilter.cpp \
-   # src/URLChecker.cpp \
-    #src/UrlListUtils.cpp \
-   # src/UrlStorage.cpp \
-  #  src/bloom_setup.cpp \
-  #  src/TCP_Server.cpp \
-  #  src/ThreadPool.cpp \
-   # -o server
-
 #CMAKE
 # Install CMake and build the project
 RUN apt-get update && apt-get install -y cmake && \
