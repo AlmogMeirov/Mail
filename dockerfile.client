@@ -9,4 +9,5 @@ COPY src/client.py /client
 COPY src/tcp_client.py /client/
 
 # Run the client with server host and port (can be overridden)
-CMD ["python", "client.py"]
+ENTRYPOINT ["python", "client.py"]
+
