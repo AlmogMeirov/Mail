@@ -2,11 +2,7 @@
 
 ## Project 
 
-This project implements a **Bloom Filter** data structure for efficiently checking the existence of URLs.  
-The system allows:
-- Dynamic creation of a Bloom Filter based on user input
-- Adding and querying URLs
-- Running entirely inside a Docker container via command-line interface
+In this part of the project, we developed a client-server system for managing URL data using a Bloom Filter. The code was structured with a modular design and adherence to SOLID principles, especially the Open/Closed Principle. We containerized the system with Docker, ensuring clean separation between services. Connection handling, error responses, and client-server communication were thoroughly tested and refined.
 
 ---
 
