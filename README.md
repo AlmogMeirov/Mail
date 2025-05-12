@@ -1,6 +1,6 @@
 # Mail
 
-## Project 
+## Purpose
 
 In this part of the project, we developed a client-server system for managing URL data using a Bloom Filter. The code was structured with a modular design and adherence to SOLID principles, especially the Open/Closed Principle. We containerized the system with Docker, ensuring clean separation between services. Connection handling, error responses, and client-server communication were thoroughly tested and refined.
 
@@ -43,7 +43,6 @@ docker-compose run --rm client
 ```bash
 docker-compose down
 ```
-
 
 
 > **Important:**  
@@ -146,6 +145,7 @@ This ensures long-term maintainability and adaptability for future use cases wit
 - **Bloom Filter Data Structure** - Probabilistic data structure used to check for membership efficiently
 - **Regex-based URL validation** - Ensures incoming URLs follow standard syntax before processing.
 - **Clien-server interface** - Line-based text protocol over TCP sockets, supporting POST/GET/DELETE operations.
+✅ This documentation has been tested by a peer to ensure clarity and completeness.
 
 ---
 
