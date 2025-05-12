@@ -121,7 +121,6 @@ true false
 
   ```
 Below is an example of program execution:
-![Example Run](data/images/example_usage.png)
 ---
 # Design Principles
 This system was designed with SOLID principles in mind, particularly:
