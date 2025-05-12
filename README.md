@@ -67,11 +67,16 @@ docker-compose run --rm client
    <br>
    Adding URL:
     ```
-   1 <URL>
+   POST <URL>
      ```
    Checking if URL is in list:
     ```
-   2 <URL>
+   GET <URL>
+    ```
+
+   Delete the URL from list:
+    ```
+   DELETE <URL>
     ```
     Only valid URLs can be added.
 ---
