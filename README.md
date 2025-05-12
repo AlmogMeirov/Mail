@@ -23,18 +23,28 @@ In this part of the project, we developed a client-server system for managing UR
 ### Build the Docker image
 
 ```bash
-docker build -t bloom-filter .
+docker-compose build --no-cache
 ```
-
-### Run the application
+### Start the Server
 
 ```bash
-docker run -it -v "$(pwd)/data:/app/data" bloom-filter
+docker-compose up -d server
+```
+
+### Run the Client
+
+```bash
+docker-compose run --rm client
 ```
 
 > **Important:**  
-> - The `-it` flag is required to enable interactive input via `cin`.
-> - The application will first prompt you to configure the Bloom Filter.
+ - client will automatically try to connect to the server container using the internal Docker network.
+
+- On first connection, the server will prompt for Bloom Filter configuration (e.g. 1024 2 1).
+
+- Input must follow the format: COMMAND URL (e.g. POST www.google.com).
+
+- Invalid commands or malformed URLs will result in a 400 Bad Request response.
 
 ---
 
