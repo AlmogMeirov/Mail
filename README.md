@@ -118,9 +118,8 @@ GET www.hhh.com
 200 Ok
 
 true false
-
   ```
-Below is an example of program execution:
+
 ---
 # Design Principles
 This system was designed with SOLID principles in mind, particularly:
