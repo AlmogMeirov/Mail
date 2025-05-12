@@ -8,6 +8,6 @@
 #include <string>
 
 // return Configured BloomFilter instance.
-BloomFilter createFromConfigLine(const std::string& line, TCPServer& server);
+BloomFilter createFromConfigLine(const std::string &line, TCPServer &server);
 
 #endif
