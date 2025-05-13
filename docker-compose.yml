@@ -9,6 +9,7 @@ services:
       - ./data:/app/data
     networks:
       - mynet
+    entrypoint: [ "/app/entrypoint.sh" ]
 
   client:
     build:
@@ -16,6 +17,8 @@ services:
       dockerfile: dockerfile.client
     depends_on:
       - server
+    volumes:
+      - ./data:/app/data
     networks:
       - mynet
 
