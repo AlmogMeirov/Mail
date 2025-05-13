@@ -4,9 +4,9 @@ FROM python:3.10
 # Set the working directory in the container
 WORKDIR /client
 
-# Copy client.py to the container
+# Copy client files
 COPY src/client.py /client
-COPY src/tcp_client.py /client/
+COPY src/tcp_client.py /client
 
-# Run the client with server host and port (can be overridden)
-CMD ["python", "client.py"]
+# Allow passing args like IP + port dynamically
+ENTRYPOINT ["python", "client.py"]

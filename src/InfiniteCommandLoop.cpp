@@ -31,7 +31,6 @@ std::vector<std::string> InfiniteCommandLoop::splitArguments(const std::string &
     static std::string buffer;  // saved between calls
     while (true) {
         size_t newlinePos = buffer.find('\n');
-        if (newlinePos != std::string::npos) {
             // found a complete line
             std::string line = buffer.substr(0, newlinePos);
             buffer = buffer.substr(newlinePos + 1); // rest of the buffer

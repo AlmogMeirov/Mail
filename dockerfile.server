@@ -8,13 +8,12 @@ WORKDIR /app
 COPY ./src /app/src
 COPY ./CMakeLists.txt /app/
 
-#CMAKE
-# Install CMake and build the project
+# Install cmake and build
 RUN apt-get update && apt-get install -y cmake && \
     mkdir build && cd build && cmake .. && make
 
-# Expose port 1234 for the server
+# Optional (documented port)
 EXPOSE 1234
 
-# Run the server
-CMD ["./build/MailProject", "1234"]
+# Entry point - allows dynamic arguments
+ENTRYPOINT ["./build/MailProject"]

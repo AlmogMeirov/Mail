@@ -9,12 +9,14 @@
 class TCPServer
 {
 private:
+    std::string ip_address;
     int server_fd, client_fd, port; // File descriptors for the server and client sockets, and the listening port
     struct sockaddr_in address;     // Structure to hold server address information
     int addrlen;                    // Length of the address structure
 
 public:
-    TCPServer(int port);                          // Constructor to initialize the server with a specific port
+    TCPServer(int port); // Constructor to initialize the server with a specific port
+    TCPServer(const std::string &ip, int port);
     void createSocket();                          // Method to create a socket
     void bindSocket();                            // Method to bind the socket to the address and port
     void listenForConnections();                  // Method to listen for incoming connections
