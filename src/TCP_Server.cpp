@@ -22,6 +22,7 @@ void TCPServer::createSocket()
     }
 }
 
+/*
 // Method to bind the socket to the address and port
 void TCPServer::bindSocket()
 {
@@ -35,6 +36,29 @@ void TCPServer::bindSocket()
         exit(EXIT_FAILURE);
     }
 }
+    */
+
+void TCPServer::bindSocket()
+{
+    address.sin_family = AF_INET;
+    address.sin_port = htons(port);
+
+    // המר כתובת IP למבנה bin
+    if (inet_pton(AF_INET, ip_address.c_str(), &address.sin_addr) <= 0)
+    {
+        perror("Invalid IP address");
+        exit(EXIT_FAILURE);
+    }
+
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
+    {
+        perror("Binding failed");
+        exit(EXIT_FAILURE);
+    }
+}
+
+TCPServer::TCPServer(const std::string &ip, int port)
+    : ip_address(ip), port(port), server_fd(-1), client_fd(-1), addrlen(sizeof(address)) {}
 
 // Method to listen for incoming connections
 void TCPServer::listenForConnections()
@@ -95,7 +119,7 @@ std::string TCPServer::receiveMessage()
 
 std::string TCPServer::receiveFirstLineBuffered()
 {
-    //std::cout<<"Out first call!\n"; // Send welcome message
+    // std::cout<<"Out first call!\n"; // Send welcome message
     static std::string buffer;
 
     size_t newlinePos = buffer.find('\n');
