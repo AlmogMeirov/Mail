@@ -54,7 +54,7 @@ docker-compose run --rm --entrypoint bash client -c "python3 client.py $($envs[0
 docker-compose down
 ```
 
-**optional**
+**optional:**
 ### Activate the tests ()
 ```bash
 docker-compose run --rm tests
