@@ -21,6 +21,7 @@ In this part of the project, we developed a client-server system for managing UR
 
 ## Build and Run Instructions
 
+### Open the First Terminal:
 ### Build the Docker image
 
 ```bash
@@ -30,21 +31,22 @@ docker-compose build --no-cache
 ### Start the Server
 
 ```bash
-docker-compose up -d server
+docker-compose run --rm server {IP Address} {port number}
 ```
+
+
+### Now open a second Terminal:
 
 ### Run the Client
 
-```bash
-docker-compose run --rm client
 ```
-(The software will assign it a port and an IP address)
-
-OR
-
-```bash
-docker-compose run --rm client {IP} {port number}
+bash$envs = Get-Content .\data\ip.env | ForEach-Object { ($_ -split '=')[1] }
 ```
+
+```
+docker-compose run --rm --entrypoint bash client -c "python3 client.py $($envs[0]) $($envs[1])"
+```
+
 
 ### To stop all running containers, remove the server container, and free the bound port:
 
@@ -105,26 +107,21 @@ docker-compose run --rm tests
 ## Example Run
 
   ```
-256 2 2
+256 5 8
 200 OK
-GET www.hhh.com
+hdtrhy
+400 Bad Request
+GET www.google.com
 200 Ok
-
-false
-POST www.hhh.com
+POST www.A.com
 201 Created
-GET www.hhh.com
+GET www.A.com
 200 Ok
-
-true true
-DELETE www.k.com
-404 Not Found
-DELETE www.hhh.com
+DELETE www.AB.com
 204 No Content
-GET www.hhh.com
-200 Ok
+DELETE www.A.com
+204 No
 
-true false
   ```
 
 ---
