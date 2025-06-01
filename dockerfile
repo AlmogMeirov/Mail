@@ -1,21 +1,20 @@
-# Use an official GCC compiler image
-FROM gcc:12
+# Use an official Node.js image
+FROM node:18
 
-# Set working directory
+# Set working directory inside the container
 WORKDIR /app
 
-# Copy source code and headers
-COPY . .
+# Copy only the NodeJS server part
+COPY src/node_server ./src/node_server
 
-# Compile source files into binary
-RUN g++ -std=c++17 -pthread \
-    src/main.cpp \
-    src/BloomFilter.cpp \
-    src/URLChecker.cpp \
-    src/UrlListUtils.cpp \
-    src/UrlStorage.cpp \
-    src/bloom_setup.cpp \
-    -o main_exec
+# Set working directory to the NodeJS server directory
+WORKDIR /app/src/node_server
 
-# Default command
-ENTRYPOINT ["./main_exec"]
+# Install dependencies
+RUN npm install
+
+# Expose the port (optional; for documentation)
+EXPOSE 3000
+
+# Run the server
+CMD ["node", "index.js"]
