@@ -1,17 +1,18 @@
-// Description: This file defines the routes for handling mail-related operations in the application.
-// This module defines the routes for handling mail-related operations in the application.\
+// Description: Defines routes for handling mail-related operations
 const express = require('express');
 const router = express.Router();
-// Import the mail controller functions
-const { createMail } = require('../controllers/mailController');
 const mailController = require('../controllers/mailController');
-// This module defines the routes for handling mail-related operations in the application.
-// It includes routes for creating, retrieving, updating, deleting, and searching mails.
-router.get('/', mailController.getMails);
-router.post('/', mailController.createMail);
-router.get('/:id', mailController.getMailById);
-router.patch('/:id', mailController.updateMail);
-router.delete('/:id', mailController.deleteMailById);
-router.get('/search/:query', mailController.searchMails);
-// This module defines the routes for handling mail-related operations in the application.
+
+// Import JWT authentication middleware
+const authenticateToken = require('../middleware/authMiddleware');
+
+// Apply authentication middleware to all mail routes
+router.get('/', authenticateToken, mailController.getMails);
+router.post('/', authenticateToken, mailController.createMail);
+router.get('/:id', authenticateToken, mailController.getMailById);
+router.patch('/:id', authenticateToken, mailController.updateMail);
+router.delete('/:id', authenticateToken, mailController.deleteMailById);
+router.get('/search/:query', authenticateToken, mailController.searchMails);
+
+
 module.exports = router;
