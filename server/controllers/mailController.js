@@ -1,11 +1,13 @@
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
+const { extractUrls } = require("../utils/extractUrls");
+const { checkUrlBlacklist } = require("../utils/blacklistClient");
 
 // In-memory inbox store
 const inboxMap = new Map();
 
-const createMail = (req, res) => {
+const createMail = async (req, res) => {
     const { sender, recipient, subject, content } = req.body;
 
     // Basic validation
@@ -21,22 +23,21 @@ const createMail = (req, res) => {
         return res.status(400).json({ error: 'Recipient does not exist' });
     }
 
-    // Load blocked URLs
-    const filePath = path.join(__dirname, '../../data/urls.txt');
-    let blockedUrls;
-    try {
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        blockedUrls = fileContent.split('\n').map(line => line.trim()).filter(line => line);
-    } catch (err) {
-        console.error('Failed to read blocked URLs:', err);
-        return res.status(500).json({ error: 'Failed to validate message links' });
-    }
-
-    // Check if message contains any blacklisted URL
+    // Extract all URLs from subject + content
     const fullText = `${subject} ${content}`;
-    const foundBlocked = blockedUrls.find(url => fullText.includes(url));
-    if (foundBlocked) {
-        return res.status(400).json({ error: `Message contains blocked URL: ${foundBlocked}` });
+    const urls = extractUrls(fullText);
+
+    try {
+        // Check all URLs concurrently using the blacklist server
+        const results = await Promise.all(urls.map(checkUrlBlacklist));
+
+        // If any result is true (i.e., blacklisted), reject the request
+        if (results.includes(true)) {
+            return res.status(400).json({ error: 'Message contains blacklisted URL' });
+        }
+    } catch (err) {
+        console.error('Error while checking blacklist:', err);
+        return res.status(500).json({ error: 'Failed to validate message links' });
     }
 
     // Create mail object
@@ -57,9 +58,9 @@ const createMail = (req, res) => {
         inboxMap.get(recipient).push(newMail);
     }
 
-
     res.status(201).json({ message: 'Mail sent successfully', mail: newMail });
 };
+
 // Temporary user list for development only
 function getMails(req, res) {
     const username = req.headers['user-id'];

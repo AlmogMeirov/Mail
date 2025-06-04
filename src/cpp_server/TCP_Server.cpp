@@ -7,9 +7,23 @@
 #include <arpa/inet.h>
 #include "InfiniteCommandLoop.h"
 #include <optional>
+#include <mutex>
+#include <thread>
 
 // Constructor
-TCPServer::TCPServer(int port) : port(port), server_fd(-1), client_fd(-1), addrlen(sizeof(address)) {}
+TCPServer::TCPServer(int port) : port(port), filter(nullptr), server_fd(-1), client_fd(-1), addrlen(sizeof(address)) {}
+
+// Method to set the BloomFilter for the server
+void TCPServer::setFilter(BloomFilter* f) {
+    std::lock_guard<std::mutex> lock(filter_mutex);
+    filter = f;
+}
+
+// Method to get the BloomFilter for the server
+BloomFilter* TCPServer::getFilter() {
+    std::lock_guard<std::mutex> lock(filter_mutex);
+    return filter;
+}
 
 // Method to create a socket
 void TCPServer::createSocket()
@@ -22,28 +36,14 @@ void TCPServer::createSocket()
     }
 }
 
-/*
-// Method to bind the socket to the address and port
-void TCPServer::bindSocket()
-{
-    address.sin_family = AF_INET;         // Set address family to IPv4
-    address.sin_addr.s_addr = INADDR_ANY; // Bind to any available interface
-    address.sin_port = htons(port);       // Convert port number to network byte order
-
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
-    { // Bind the socket to the address and port
-        perror("Binding failed");
-        exit(EXIT_FAILURE);
-    }
-}
-    */
 
 void TCPServer::bindSocket()
 {
     address.sin_family = AF_INET;
+     address.sin_addr.s_addr = INADDR_ANY; // Listen on all available interfaces
     address.sin_port = htons(port);
 
-    // המר כתובת IP למבנה bin
+
     if (inet_pton(AF_INET, ip_address.c_str(), &address.sin_addr) <= 0)
     {
         perror("Invalid IP address");
@@ -58,13 +58,14 @@ void TCPServer::bindSocket()
 }
 
 TCPServer::TCPServer(const std::string &ip, int port)
-    : ip_address(ip), port(port), server_fd(-1), client_fd(-1), addrlen(sizeof(address)) {}
+    : ip_address(ip), port(port), filter(nullptr), server_fd(-1), client_fd(-1), addrlen(sizeof(address)) {}
 
 // Method to listen for incoming connections
 void TCPServer::listenForConnections()
 {
-    if (listen(server_fd, 3) < 0)
-    { // Listen for incoming connections with a backlog of 3
+    if (listen(server_fd, SOMAXCONN) < 0)
+    { // Listen for incoming connections with a backlog of SOMAXCONN.
+    // SOMAXCONN is a constant that defines the maximum number of pending connections.
         perror("Listening failed");
         exit(EXIT_FAILURE);
     }
@@ -84,7 +85,14 @@ void TCPServer::acceptConnection()
 // Method to handle communication with the client
 void TCPServer::handleClient()
 {
-    InfiniteCommandLoop::loop(*this); // Call the infinite command loop to handle client communication
+    if (client_fd >= 0) {
+        // Create a detached thread with a copy of client_fd to ensure each thread handles its own unique connection
+        std::thread([this, sock = client_fd]() {
+            InfiniteCommandLoop loop(sock, filter, filter_mutex); // Call the infinite command loop to handle client communication
+            loop.run();
+            close(sock); // Close the client socket after communication ends
+        }).detach();
+    } 
 }
 
 // Method to run the server, handling connections and communication in a loop
@@ -97,7 +105,6 @@ void TCPServer::run()
     {                       // Main server loop
         acceptConnection(); // Accept a connection from a client
         handleClient();     // Handle communication with the client
-        close(client_fd);   // Close the client socket after communication ends
     }
 }
 
