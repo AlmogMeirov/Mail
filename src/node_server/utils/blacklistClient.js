@@ -2,46 +2,74 @@ const net = require("net");
 
 function checkUrlBlacklist(url) {
   return new Promise((resolve, reject) => {
-    // Connect to the C++ TCP server (exercise 2)
     const client = net.createConnection({ host: "cpp_server", port: 5555 }, () => {
-      // Send blacklist check command
       client.write(`2 ${url}\n`);
     });
 
+    let buffer = "";
     client.setEncoding("utf8");
 
-    let buffer = "";
-
-    // Collect incoming data (could arrive in chunks)
-    client.on("data", (data) => {
-      buffer += data;
-    });
-
-    // Once connection ends, process the full response
+    client.on("data", (data) => { buffer += data; });
     client.on("end", () => {
       const lines = buffer.trim().split("\n");
-
-      // Expecting "200 OK" as the first line
       if (lines[0] !== "200 OK") {
         return reject(new Error(`Unexpected status from blacklist server: ${lines[0]}`));
       }
 
-      // Second line contains result like "true true" or "false"
-      const result = lines[1] || "";
-      const parts = result.trim().split(" ");
-
-      // Only "true true" means the URL is blacklisted
+      const parts = (lines[1] || "").trim().split(/\s+/);
       const isBlacklisted = parts[0] === "true" && parts[1] === "true";
       resolve(isBlacklisted);
     });
 
-    // Handle connection errors
-    client.on("error", (err) => {
-      reject(err);
+    client.on("error", reject);
+  });
+}
+
+function addUrlToBlacklist(url) {
+  return new Promise((resolve, reject) => {
+    const client = net.createConnection({ host: "cpp_server", port: 5555 }, () => {
+      client.write(`1 ${url}\n`);
     });
+
+    let buffer = "";
+    client.setEncoding("utf8");
+
+    client.on("data", (data) => { buffer += data; });
+    client.on("end", () => {
+      if (buffer.trim() === "201 Created") {
+        resolve();
+      } else {
+        reject(new Error(`Unexpected response: ${buffer.trim()}`));
+      }
+    });
+
+    client.on("error", reject);
+  });
+}
+
+function deleteUrlFromBlacklist(url) {
+  return new Promise((resolve, reject) => {
+    const client = net.createConnection({ host: "cpp_server", port: 5555 }, () => {
+      client.write(`DELETE ${url}\n`);
+    });
+
+    let buffer = "";
+    client.setEncoding("utf8");
+
+    client.on("data", (data) => { buffer += data; });
+    client.on("end", () => {
+      const response = buffer.trim();
+      if (response === "204 No Content") return resolve({ status: 204 });
+      if (response === "404 Not Found") return resolve({ status: 404 });
+      reject(new Error(`Unexpected response: ${response}`));
+    });
+
+    client.on("error", reject);
   });
 }
 
 module.exports = {
   checkUrlBlacklist,
+  addUrlToBlacklist,
+  deleteUrlFromBlacklist,
 };

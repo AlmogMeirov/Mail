@@ -5,10 +5,10 @@ const app = express();
 app.use(express.json());
 
 // Import routes
-const mailRoutes = require('./routes/mailRoutes');
+const mailRoutes = require('../src/node_server/routes/mailRoutes');
 
 // Load memory and initialize inboxes
-const { inboxMap } = require('./controllers/mailController');
+const { inboxMap } = require('../src/node_server/controllers/mailController');
 const memory = require('./memory/memory');
 
 // Initialize in-memory inboxes for each user
