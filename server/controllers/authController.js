@@ -1,8 +1,9 @@
 const jwt = require('jsonwebtoken'); // Load the JWT library to generate and verify tokens
 const SECRET_KEY = 'my_secret_key';  // Secret key used to sign the token (should be stored in environment variables in production)
-const userModel = require('../models/userModel'); 
+const userModel = require('../models/userModel');
 const { hashPassword } = require('../utils/cryptoUtil');
-
+const { inboxMap } = require('./mailController');
+// This controller handles user authentication, including registration and login.
 // Handle user registration, including optional profile image
 function register(req, res) {
   const {
@@ -42,6 +43,8 @@ function register(req, res) {
     gender,
     profileImage
   );
+  inboxMap.set(newUser.email, []);
+  // Store the user's inbox in the in-memory map
 
   // Return safe fields only
   res.status(201).json({
@@ -63,7 +66,7 @@ function login(req, res) {
 
   // Try to find the user by email in the in-memory user model
   const user = userModel.findUserByEmail(email);
-  
+
   // Check if the user exists and password matches the stored (hashed) password
   if (!user || user.password !== hashPassword(password)) {
     return res.status(401).send("Invalid email or password"); // Unauthorized if credentials are incorrect
@@ -83,7 +86,7 @@ function login(req, res) {
   });
 
 }
-  module.exports = {
+module.exports = {
   login,
   register
 }

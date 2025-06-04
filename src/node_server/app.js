@@ -6,8 +6,7 @@ const app = express();
 app.use(express.json());         // Parses incoming JSON requests
 
 // Routes
-const router = require("./routes"); // Loads all route definitions from routes/index.js
-app.use("/api", router);            // Mounts the API under /api prefix (e.g., /api/users)
+
 
 // Fallback handler for unknown routes
 app.use((req, res) => {
