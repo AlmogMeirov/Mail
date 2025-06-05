@@ -4,7 +4,7 @@ const router = express.Router();
 const mailController = require('../controllers/mailController');
 
 // Import JWT authentication middleware
-const authenticateToken = require('../middleware/authMiddleware');
+const authenticateToken = require('../middlewares/authMiddleware');
 
 // Apply authentication middleware to all mail routes
 router.get('/', authenticateToken, mailController.getMails);
