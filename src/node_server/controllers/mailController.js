@@ -1,13 +1,12 @@
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
-// This module provides functions to manage mails in an in-memory store.
-const inboxMap = new Map(); // Stores user inboxes in-memory
+const { extractUrls } = require("../utils/extractUrls");
+const { checkUrlBlacklist } = require("../utils/blacklistClient");
 
 
-function createMail(req, res) {
-    const sender = req.user.email; // Extract sender email from the decoded JWT token
-    const { recipient, subject, content } = req.body;
+const createMail = async (req, res) => {
+    const { sender, recipient, subject, content } = req.body;
 
     // Basic validation
     if (!recipient || !subject || !content) {
@@ -25,23 +24,21 @@ function createMail(req, res) {
         return res.status(403).json({ error: 'Sender email does not match authenticated user' });
     }
 
-
-    // Load list of blocked URLs
-    const filePath = path.join(__dirname, '../../data/urls.txt');
-    let blockedUrls;
-    try {
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        blockedUrls = fileContent.split('\n').map(line => line.trim()).filter(line => line);
-    } catch (err) {
-        console.error('Failed to read blocked URLs:', err);
-        return res.status(500).json({ error: 'Failed to validate message links' });
-    }
-
-    // Check if the message contains any blacklisted URL
+    // Extract all URLs from subject + content
     const fullText = `${subject} ${content}`;
-    const foundBlocked = blockedUrls.find(url => fullText.includes(url));
-    if (foundBlocked) {
-        return res.status(400).json({ error: `Message contains blocked URL: ${foundBlocked}` });
+    const urls = extractUrls(fullText);
+
+    try {
+        // Check all URLs concurrently using the blacklist server
+        const results = await Promise.all(urls.map(checkUrlBlacklist));
+
+        // If any result is true (i.e., blacklisted), reject the request
+        if (results.includes(true)) {
+            return res.status(400).json({ error: 'Message contains blacklisted URL' });
+        }
+    } catch (err) {
+        console.error('Error while checking blacklist:', err);
+        return res.status(500).json({ error: 'Failed to validate message links' });
     }
 
     // Create mail object
@@ -57,13 +54,20 @@ function createMail(req, res) {
     // Store mail in recipient's inbox
     inboxMap.get(recipient).push(newMail);
 
-    // Store mail in sender's inbox (marked as sent = true)
-    inboxMap.get(sender).push({ ...newMail, sent: true });
-
-    // Respond with success
     res.status(201).json({ message: 'Mail sent successfully', mail: newMail });
-}
+};
 
+// Temporary user list for development only
+function getMails(req, res) {
+    const username = req.headers['user-id'];
+    // Check if the user-id header is present
+    if (!username) {
+        console.warn("Missing 'user-id' header");
+        return res.status(401).json({ error: "Missing 'user-id' header" });
+    }
+    // Check if the user exists in the inboxMap
+    const allMails = [];
+}
 function getMails(req, res) {
     const username = req.user.email; // Securely extracted from the verified JWT
 
