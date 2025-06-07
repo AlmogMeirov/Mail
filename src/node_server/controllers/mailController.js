@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { extractUrls } = require("../utils/extractUrls");
 const { checkUrlBlacklist } = require("../utils/blacklistClient");
+const inboxMap = require('../utils/inboxMap');
 
 
 const createMail = async (req, res) => {
@@ -57,46 +58,45 @@ const createMail = async (req, res) => {
     res.status(201).json({ message: 'Mail sent successfully', mail: newMail });
 };
 
-// Temporary user list for development only
-function getMails(req, res) {
-    const username = req.headers['user-id'];
-    // Check if the user-id header is present
-    if (!username) {
-        console.warn("Missing 'user-id' header");
-        return res.status(401).json({ error: "Missing 'user-id' header" });
-    }
-    // Check if the user exists in the inboxMap
-    const allMails = [];
-}
-function getMails(req, res) {
-    const username = req.user.email; // Securely extracted from the verified JWT
+const getMails = (req, res) => {
+    try {
+        if (!req.user || !req.user.email) {
+            return res.status(401).json({ error: "Unauthorized: missing user data" });
+        }
 
-    // Collect all mails where the user is either the sender or the recipient
-    const allMails = [];
-    for (const inbox of inboxMap.values()) {
-        inbox.forEach(mail => {
-            if (mail.sender === username || mail.recipient === username) {
-                allMails.push(mail);
-            }
+        const userEmail = req.user.email;
+
+        if (!inboxMap || inboxMap.size === 0) {
+            return res.status(200).json({ message: "No mails exist in the system", inbox: [], sent: [] });
+        }
+
+        const inbox = inboxMap.get(userEmail) || [];
+
+        const sent = [];
+        for (const [recipient, mails] of inboxMap.entries()) {
+            mails.forEach(mail => {
+                if (mail.sender === userEmail) {
+                    sent.push(mail);
+                }
+            });
+        }
+
+        if (inbox.length === 0 && sent.length === 0) {
+            return res.status(200).json({ message: "No mails found for this user", inbox: [], sent: [] });
+        }
+
+        res.status(200).json({
+            message: "Mails fetched successfully",
+            inbox,
+            sent
         });
+
+    } catch (err) {
+        console.error("Failed to fetch mails:", err.message);
+        res.status(500).json({ error: "Internal server error" });
     }
+};
 
-    // Sort by timestamp (descending) and limit to the latest 50 mails
-    const sorted = allMails.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    const result = sorted.slice(0, 50).map(mail => ({
-        id: mail.id,
-        subject: mail.subject,
-        timestamp: mail.timestamp,
-        direction: mail.sender === username ? 'sent' : 'received'
-    }));
-
-    // Optional debug logging
-    result.forEach((mail, i) => {
-        console.log(`${i + 1}. [${new Date(mail.timestamp).toLocaleString()}] ${mail.subject}`);
-    });
-
-    res.json(result);
-}
 
 // This function retrieves a mail by its ID and ensures the requesting user is authorized
 function getMailById(req, res) {
