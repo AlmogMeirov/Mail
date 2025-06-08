@@ -7,6 +7,7 @@ const inboxMap = require('../utils/inboxMap');
 
 
 const createMail = async (req, res) => {
+    const { labels = ["inbox"] } = req.body;
     const { sender, recipient, subject, content } = req.body;
 
     // Basic validation
@@ -49,6 +50,7 @@ const createMail = async (req, res) => {
         recipient,
         subject,
         content,
+        labels,
         timestamp: new Date().toISOString(),
     };
 
@@ -127,6 +129,7 @@ function getMailById(req, res) {
 
 // This function updates a mail by its ID and ensures the user is authorized to edit it.
 function updateMail(req, res) {
+
     const userEmail = req.user.email; // Extracted securely from JWT
     const mailId = req.params.id;
 
@@ -144,9 +147,16 @@ function updateMail(req, res) {
                 }
 
                 // Apply updates if fields are provided
-                const { subject, content } = req.body;
+                const { subject, content, labels } = req.body;
                 if (subject !== undefined) mail.subject = subject;
                 if (content !== undefined) mail.content = content;
+                if (labels !== undefined) {
+                    if (!Array.isArray(labels)) {
+                        return res.status(400).json({ error: "Labels must be an array" });
+                    }
+                    mail.labels = labels;
+                }
+
 
                 return res.status(200).json({ message: "Mail updated successfully", mail });
             }
