@@ -34,18 +34,21 @@ docker-compose up --build -d
 ```bash
 docker ps
 ```
-2. Look for the name of mail-server. It should be something like this:
+2. Look for the name of the server's container. It should be something like this:
 
 ```bash
 mail-server-1
 ```
+> **Note:** The name of the server's container appears here as well (e.g., `mail-client-1`). You'll need it to run the client later.
+
 3. Now you can run the server with the name you got. If the container's name is mail-server-1, you should run the following:
 
 ```bash
-docker exec -it mail-server-1 ./build/MailProject 0.0.0.0 8080
+docker exec -it mail-server-1 ./build/MailProject 0.0.0.0 8080 256 8 8
 ```
-
- You don't have to use port 8080 - you can run the server with any port you want, as long as it is available.
+> **Note:**
+- In this example, `256 8 8` is the Bloom Filter configuration line, which must be provided when starting the server. You don't have to use this specific configuration line, but you must provide one.
+- You don't have to use port `8080` either - you can run the server with any port you want, as long as it is available.
 
 ### Now open a second Terminal:
 
@@ -55,12 +58,12 @@ docker exec -it mail-server-1 ./build/MailProject 0.0.0.0 8080
 ```bash
 docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mail-server-1
 ```
-2. You will get an IP address. Copy the result (e.g., 172.19.0.2) and run the following command:
+2. You will get an IP address. Copy the result (e.g., `172.19.0.2`) and run the following command:
 
 ```bash
 docker exec -it mail-client-1 python3 client.py 172.19.0.2 8080
 ```
-Replace the IP and port with the IP you got and the same port used in the server.
+Replace the client container's name, IP and port with the client container's name and IP you got and the same port used in the server.
 
 
 ### To stop all running containers, remove the server container, and free the bound port:
@@ -78,9 +81,7 @@ docker-compose run --rm tests
 > **Important:**  
  - client will automatically try to connect to the server container using the internal Docker network.
 
-- On first connection, the server will prompt for Bloom Filter configuration (e.g. 1024 2 1).
-
-- Input must follow the format: COMMAND URL (e.g. POST www.google.com).
+- Input must follow the format: `COMMAND URL` (e.g. `POST www.google.com`).
 
 - Invalid commands or malformed URLs will result in a 400 Bad Request response.
 
@@ -88,42 +89,27 @@ docker-compose run --rm tests
 
 ## Expected Input
 
-1. **Initial Configuration**:  
-   Enter a line specifying:
-   
-   ```
-   <bit array size> <number of iterations of first hash function> [optional: number of iterations of second hash function]
-   ```
-   
-   Example:
-   ```
-   256 2 1
-   ```
-
-2. **URL Commands**:  
-   After configuration, you can add or query URLs interactively:
-   <br>
-   Adding URL:
-    ```
-   POST <URL>
-     ```
-   Checking if URL is in list:
-    ```
-   GET <URL>
-    ```
-
-   Delete the URL from list:
-    ```
-   DELETE <URL>
-    ```
-    Only valid URLs can be added.
+ **URL Commands**:
+  After using build and run instructions, you can add or query URLs interactively in the client terminal:
+  <br>
+  Adding URL:
+  ```
+  POST <URL>
+  ```
+  Checking if URL is in list:
+  ```
+  GET <URL>
+  ```
+  Delete the URL from list:
+  ```
+  DELETE <URL>
+  ```
+  Only valid URLs can be added.
 ---
 
 ## Example Run
 
   ```
-256 5 8
-200 OK
 hdtrhy
 400 Bad Request
 GET www.google.com

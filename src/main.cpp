@@ -5,10 +5,9 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc != 3)
-    {
-        std::cerr << "Usage: " << argv[0] << " <IP_ADDRESS> <PORT>\n";
-        return EXIT_FAILURE;
+    if (argc != 5 && argc != 6) {
+        std::cerr << "Usage: " << argv[0] << " <IP> <PORT> <n> <m1> [<m2>]\n";
+        return 1;
     }
 
     std::string ip = argv[1];
@@ -20,9 +19,18 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    // Build configuration line from args
+    std::string config_line = argv[3];
+    config_line += " ";
+    config_line += argv[4];
+    if (argc == 6) {
+        config_line += " ";
+        config_line += argv[5];
+    }
+
     try
     {
-        TCPServer server(ip, port);
+        TCPServer server(ip, port, config_line);
         std::cout << "Starting server on IP: " << ip << ", Port: " << port << "\n";
         server.run();
     }

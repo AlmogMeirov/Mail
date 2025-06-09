@@ -57,8 +57,8 @@ void TCPServer::bindSocket()
     }
 }
 
-TCPServer::TCPServer(const std::string &ip, int port)
-    : ip_address(ip), port(port), server_fd(-1), client_fd(-1), addrlen(sizeof(address)) {}
+TCPServer::TCPServer(const std::string &ip, int port, const std::string &config_line)
+    : ip_address(ip), port(port), server_fd(-1), client_fd(-1), addrlen(sizeof(address)), config_line(config_line) {}
 
 // Method to listen for incoming connections
 void TCPServer::listenForConnections()
@@ -84,7 +84,7 @@ void TCPServer::acceptConnection()
 // Method to handle communication with the client
 void TCPServer::handleClient()
 {
-    InfiniteCommandLoop::loop(*this); // Call the infinite command loop to handle client communication
+    InfiniteCommandLoop::loop(*this, config_line); // Call the infinite command loop to handle client communication
 }
 
 // Method to run the server, handling connections and communication in a loop

@@ -51,13 +51,13 @@ std::vector<std::string> InfiniteCommandLoop::splitArguments(const std::string &
 
 // static constexpr char STATE_FILE[] = "data/bloom_state.bin"; // File to save BloomFilter state
 
-void InfiniteCommandLoop::loop(TCPServer &server)
+void InfiniteCommandLoop::loop(TCPServer &server, const std::string &config_line)
 {
-    // Prompt for configuration
-    std::string line = server.receiveFirstLineBuffered(); // Receive configuration line from the server
+    /*// Prompt for configuration
+    std::string line = server.receiveFirstLineBuffered(); // Receive configuration line from the server*/
     // Create BloomFilter from configuration
-    BloomFilter bf = createFromConfigLine(line, server);
-    server.sendMessage("200 OK\n");
+    BloomFilter bf = createFromConfigLine(config_line, server);
+    //server.sendMessage("200 OK\n");
     UrlStorage storage("data/urls.txt");
 
     // Check for an existing state file

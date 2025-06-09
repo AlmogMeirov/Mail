@@ -9,7 +9,7 @@ class InfiniteCommandLoop
 {
 public:
     // Starts the infinite command loop
-    static void loop(TCPServer &server);
+    static void loop(TCPServer &server, const std::string &config_line);
 
 private:
     // Splits a line of input into arguments
