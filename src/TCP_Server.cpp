@@ -43,7 +43,6 @@ void TCPServer::bindSocket()
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
 
-    // המר כתובת IP למבנה bin
     if (inet_pton(AF_INET, ip_address.c_str(), &address.sin_addr) <= 0)
     {
         perror("Invalid IP address");
