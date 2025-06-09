@@ -7,11 +7,7 @@ WORKDIR /app
 # Copy source code
 COPY ./src /app/src
 COPY ./CMakeLists.txt /app/
-
-# Add entrypoint script
-COPY entrypoint.sh /app/
-RUN chmod +x /app/entrypoint.sh
-
+COPY ./data /app/data
 
 # Install cmake and build
 RUN apt-get update && apt-get install -y cmake && \
@@ -19,6 +15,3 @@ RUN apt-get update && apt-get install -y cmake && \
 
 # Optional (documented port)
 EXPOSE 1234
-
-# Entry point - allows dynamic arguments
-ENTRYPOINT ["./entrypoint.sh"]

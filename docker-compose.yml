@@ -1,35 +1,33 @@
-version: '3.8'
+version: "3"
 
 services:
   server:
     build:
       context: .
       dockerfile: dockerfile.server
-    volumes:
-      - ./data:/app/data
+    stdin_open: true
+    tty: true
     networks:
-      - mynet
-    entrypoint: [ "/app/entrypoint.sh" ]
+      - mailnet
 
   client:
     build:
       context: .
       dockerfile: dockerfile.client
-    depends_on:
-      - server
-    volumes:
-      - ./data:/app/data
+    stdin_open: true
+    tty: true
     networks:
-      - mynet
+      - mailnet
 
   tests:
     build:
       context: .
       dockerfile: dockerfile.tests
-    volumes:
-      - ./data:/app/data
+    stdin_open: true
+    tty: true
     networks:
-      - mynet
+      - mailnet
 
 networks:
-  mynet:
+  mailnet:
+    driver: bridge

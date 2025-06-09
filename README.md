@@ -25,27 +25,42 @@ In this part of the project, we developed a client-server system for managing UR
 ### Build the Docker image
 
 ```bash
-docker-compose build --no-cache
+docker-compose up --build -d
 ```
 
 ### Start the Server
+1. In order to run the server, we need to know the name of the server container. For that, the next command you need to run is the following one:
 
 ```bash
-docker-compose run --rm server {IP Address} {port number}
+docker ps
+```
+2. Look for the name of mail-server. It should be something like this:
+
+```bash
+mail-server-1
+```
+3. Now you can run the server with the name you got. If the container's name is mail-server-1, you should run the following:
+
+```bash
+docker exec -it mail-server-1 ./build/MailProject 0.0.0.0 8080
 ```
 
+ You don't have to use port 8080 - you can run the server with any port you want, as long as it is available.
 
 ### Now open a second Terminal:
 
 ### Run the Client
+1. Run the following command using the container's name you found earlier:
 
+```bash
+docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mail-server-1
 ```
-bash$envs = Get-Content .\data\ip.env | ForEach-Object { ($_ -split '=')[1] }
-```
+2. You will get an IP address. Copy the result (e.g., 172.19.0.2) and run the following command:
 
+```bash
+docker exec -it mail-client-1 python3 client.py 172.19.0.2 8080
 ```
-docker-compose run --rm --entrypoint bash client -c "python3 client.py $($envs[0]) $($envs[1])"
-```
+Replace the IP and port with the IP you got and the same port used in the server.
 
 
 ### To stop all running containers, remove the server container, and free the bound port:
