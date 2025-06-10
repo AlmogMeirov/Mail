@@ -39,7 +39,7 @@ docker ps
 ```bash
 mail-server-1
 ```
-> **Note:** The name of the server's container appears here as well (e.g., `mail-client-1`). You'll need it to run the client later.
+> **Note:** The name of the client's container appears here as well (e.g., `mail-client-1`). You'll need it to run the client later.
 
 3. Now you can run the server with the name you got. If the container's name is mail-server-1, you should run the following:
 
@@ -114,14 +114,22 @@ hdtrhy
 400 Bad Request
 GET www.google.com
 200 Ok
+
+false
 POST www.A.com
 201 Created
 GET www.A.com
 200 Ok
+
+true true
 DELETE www.AB.com
 204 No Content
 DELETE www.A.com
-204 No
+204 No Content
+GET www.A.com
+200 Ok
+
+true false
 
   ```
 
