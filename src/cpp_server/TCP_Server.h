@@ -15,6 +15,7 @@ private:
     int server_fd, client_fd, port; // File descriptors for the server and client sockets, and the listening port
     struct sockaddr_in address;     // Structure to hold server address information
     int addrlen;                    // Length of the address structure
+    BloomFilter* filter;            // Pointer to a BloomFilter object for filtering messages
     std::mutex filter_mutex;
 
 public:

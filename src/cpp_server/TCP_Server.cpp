@@ -88,7 +88,7 @@ void TCPServer::handleClient()
     if (client_fd >= 0) {
         // Create a detached thread with a copy of client_fd to ensure each thread handles its own unique connection
         std::thread([this, sock = client_fd]() {
-            InfiniteCommandLoop loop(sock, filter, filter_mutex); // Call the infinite command loop to handle client communication
+            InfiniteCommandLoop loop(sock, filter, &filter_mutex); // Call the infinite command loop to handle client communication
             loop.run();
             close(sock); // Close the client socket after communication ends
         }).detach();

@@ -1,35 +1,20 @@
-version: '3.8'
-
 services:
-  server:
+  blacklist-server:
     build:
       context: .
-      dockerfile: dockerfile.server
+      dockerfile: src/cpp_server/Dockerfile
+    container_name: blacklist-server
+    ports:
+      - "5555:5555"
     volumes:
-      - ./data:/app/data
-    networks:
-      - mynet
-    entrypoint: [ "/app/entrypoint.sh" ]
+      - ./data:/usr/src/app/data
 
-  client:
+  mail-server:
     build:
       context: .
-      dockerfile: dockerfile.client
+      dockerfile: src/node_server/Dockerfile
+    container_name: mail-server
+    ports:
+      - "3000:3000"
     depends_on:
-      - server
-    volumes:
-      - ./data:/app/data
-    networks:
-      - mynet
-
-  tests:
-    build:
-      context: .
-      dockerfile: dockerfile.tests
-    volumes:
-      - ./data:/app/data
-    networks:
-      - mynet
-
-networks:
-  mynet:
+      - blacklist-server
