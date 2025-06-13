@@ -41,7 +41,6 @@ int main(int argc, char* argv[]) {
     // Start server and configure it
     TCPServer mailServer(ip, port);
     BloomFilter shared_filter = createFromConfigLine(config_line, mailServer);
-    shared_filter.load_from_file("data/urls.txt");
     mailServer.setFilter(&shared_filter);
     mailServer.run();
 

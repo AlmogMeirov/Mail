@@ -45,7 +45,7 @@ void InfiniteCommandLoop::run() {
          std::string url = splitInput[1]; // Extract URL
 
         if (!UrlListUtils::is_valid_url(url)) {
-            server.sendMessage("400 Bad Request\n"); // Skip invalid URLs
+            sendMessage("400 Bad Request\n"); // Skip invalid URLs
             continue;
         }
 
@@ -63,11 +63,11 @@ void InfiniteCommandLoop::run() {
         }
         else if (cmd == "DELETE")
         { // Remove URL from BloomFilter
-            server.sendMessage(storage.remove(url));
+            sendMessage(storage.remove(url));
         }
         else
         {
-            server.sendMessage("400 Bad Request\n"); // Handle unknown commands
+            sendMessage("400 Bad Request\n"); // Handle unknown commands
         }
     }
 }
