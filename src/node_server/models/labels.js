@@ -1,39 +1,47 @@
-const { v4: uuidv4 } = require("uuid"); // Import UUID generator
+const { v4: uuidv4 } = require("uuid");
 
-const labels = new Map(); // key: id, value: { id, name }
+// key: userId (email), value: Map of labels: labelId => { id, name }
+const labels = new Map();
 
-// Return all labels as an array
-function getAllLabels() {
-  return Array.from(labels.values());
+// Ensure the user's label map exists
+function getUserMap(userId) {
+  if (!labels.has(userId)) {
+    labels.set(userId, new Map());
+  }
+  return labels.get(userId);
 }
 
-// Get a label by its ID, or null if not found
-function getLabelById(id) {
-  return labels.get(id) || null;
+function getAllLabels(userId) {
+  const userMap = getUserMap(userId);
+  return Array.from(userMap.values());
 }
 
-// Create a new label with a unique ID
-function createLabel(name) {
+function getLabelById(userId, labelId) {
+  const userMap = getUserMap(userId);
+  return userMap.get(labelId) || null;
+}
+
+function createLabel(userId, name) {
+  const userMap = getUserMap(userId);
   const id = uuidv4();
   const newLabel = { id, name };
-  labels.set(id, newLabel);
+  userMap.set(id, newLabel);
   return newLabel;
 }
 
-// Update the name of an existing label by ID
-function updateLabel(id, name) {
-  if (!labels.has(id)) return null;
-  const updated = { id, name };
-  labels.set(id, updated);
+function updateLabel(userId, labelId, name) {
+  const userMap = getUserMap(userId);
+  if (!userMap.has(labelId)) return null;
+  const updated = { id: labelId, name };
+  userMap.set(labelId, updated);
   return updated;
 }
 
-// Delete a label by ID, return true if deleted
-function deleteLabel(id) {
-  return labels.delete(id);
+function deleteLabel(userId, labelId) {
+  const userMap = getUserMap(userId);
+  return userMap.delete(labelId);
 }
 
-// Export label model functions
 module.exports = {
   getAllLabels,
   getLabelById,

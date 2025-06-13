@@ -1,12 +1,14 @@
 const express = require("express");
 const controller = require("../controllers/labelsController");
+const authenticateToken = require("../middlewares/authMiddleware"); // Import the authentication middleware to protect routes
+const router = express.Router();
+// Add authentication middleware to all routes in this router
+router.use(authenticateToken);
 
-const router = express.Router(); // Create a new Express router
+router.get("/", controller.getAll);        // Get all labels for user
+router.post("/", controller.create);       // Create new label for user
+router.get("/:id", controller.getById);    // Get label by ID for user
+router.patch("/:id", controller.update);   // Update label by ID for user
+router.delete("/:id", controller.remove);  // Delete label by ID for user
 
-router.get("/", controller.getAll); // Route to get all labels
-router.post("/", controller.create); // Route to create a new label
-router.get("/:id", controller.getById); // Route to get a label by ID
-router.patch("/:id", controller.update); // Route to update a label by ID
-router.delete("/:id", controller.remove); // Route to delete a label by ID
-
-module.exports = router; // Export the router to be used in the main app
+module.exports = router;
