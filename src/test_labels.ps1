@@ -5,7 +5,7 @@ $labelUrl = "$baseUrl/labels"
 
 # Log in as Alice
 $aliceLogin = @{
-    email = "alice@example.com"
+    email    = "alice@example.com"
     password = "1234"
 } | ConvertTo-Json
 
@@ -13,7 +13,7 @@ $aliceToken = (Invoke-RestMethod -Method Post -Uri $loginUrl -Headers @{ "Conten
 
 # Log in as Bob
 $bobLogin = @{
-    email = "bob@example.com"
+    email    = "bob@example.com"
     password = "1234"
 } | ConvertTo-Json
 
@@ -39,6 +39,7 @@ $aliceLabels = Invoke-RestMethod -Method Get -Uri $labelUrl -Headers $aliceHeade
 $aliceLabelId = $aliceLabels[0].id
 try {
     Invoke-RestMethod -Method Get -Uri "$labelUrl/$aliceLabelId" -Headers $bobHeaders
-} catch {
+}
+catch {
     Write-Host "Expected error: $($_.Exception.Message)"
 }

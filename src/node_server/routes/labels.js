@@ -1,10 +1,8 @@
 const express = require("express");
 const controller = require("../controllers/labelsController");
-const authenticateToken = require("../middlewares/authMiddleware"); // הוסף את זה
-
+const authenticateToken = require("../middlewares/authMiddleware"); // Import the authentication middleware to protect routes
 const router = express.Router();
-
-// כל הבקשות עוברות דרך אימות טוקן
+// Add authentication middleware to all routes in this router
 router.use(authenticateToken);
 
 router.get("/", controller.getAll);        // Get all labels for user
