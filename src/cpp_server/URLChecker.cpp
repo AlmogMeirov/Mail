@@ -6,7 +6,7 @@
 
 // Determines the output string based on URL presence in BloomFilter and UrlStorage
 std::string UrlChecker::outputString(const std::string& url, BloomFilter& bloom, UrlStorage& storage) {
-    std::string result = "200 Ok\n\n"; // Default response header
+    std::string result = "200 OK\n\n"; // Default response header
     // Check if the URL is possibly in the BloomFilter
     if (!bloom.possiblyContains(url)) {
         return result  + "false"; // URL is definitely not present
