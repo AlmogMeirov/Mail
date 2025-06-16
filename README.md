@@ -1,170 +1,175 @@
 # Mail
 
+you can find our repository in the link: https://github.com/AlmogMeirov/Mail.git
+
+**This part implements the Node.js web server (Exercise 3), responsible for user authentication, mail handling, and integrating with the blacklist TCP server from Exercise 2.**
+
 ## Purpose
 
-In this part of the project, we developed a client-server system for managing URL data using a Bloom Filter. The code was structured with a modular design and adherence to SOLID principles, especially the Open/Closed Principle. We containerized the system with Docker, ensuring clean separation between services. Connection handling, error responses, and client-server communication were thoroughly tested and refined.
+In this part of the project, we developed a *Node.js web server* that exposes a RESTful API for handling a simple mail system (similar to Gmail). The server interacts with a C++ *blacklist server* from exercise 2 to verify links within mail content using a *TCP socket*.
 
----
+The system supports:
 
-## Project Structure
+* User registration and login with JWT authentication
+* Sending and receiving mails
+* Label creation and management
+* Integration with the blacklist server (via TCP) to block mails with blacklisted URLs
 
-```
-/src        - Source files (C++.cpp, C++.h, Python)
-/tests      - Test files 
-/data       - Data files (e.g., urls.txt, bloom_state.bin )
-/client -     client files - client.py, tcp_client.py
-/Dockerfile - Docker setup, docker-compose...
-/README.md  - Project documentation
-```
-
----
 
 ## Build and Run Instructions
 
-### Open the First Terminal:
-### Build the Docker image
+# Prerequisites:
 
-```bash
-docker-compose build --no-cache
-```
+* Docker
+* Docker Compose
 
-### Start the Server
+# Step 1: Build & Start the Services
 
-```bash
-docker-compose run --rm server {IP Address} {port number}
-```
+  In the root project directory, run:
 
-
-### Now open a second Terminal:
-
-### Run the Client
-
-```
-bash$envs = Get-Content .\data\ip.env | ForEach-Object { ($_ -split '=')[1] }
-```
-
-```
-docker-compose run --rm --entrypoint bash client -c "python3 client.py $($envs[0]) $($envs[1])"
-```
-
-
-### To stop all running containers, remove the server container, and free the bound port:
-
-```bash
-docker-compose down
-```
-
-**optional:**
-### Activate the tests ()
-```bash
-docker-compose run --rm tests
-```
-
-> **Important:**  
- - client will automatically try to connect to the server container using the internal Docker network.
-
-- On first connection, the server will prompt for Bloom Filter configuration (e.g. 1024 2 1).
-
-- Input must follow the format: COMMAND URL (e.g. POST www.google.com).
-
-- Invalid commands or malformed URLs will result in a 400 Bad Request response.
-
----
-
-## Expected Input
-
-1. **Initial Configuration**:  
-   Enter a line specifying:
-   
-   ```
-   <bit array size> <number of iterations of first hash function> [optional: number of iterations of second hash function]
-   ```
-   
-   Example:
-   ```
-   256 2 1
-   ```
-
-2. **URL Commands**:  
-   After configuration, you can add or query URLs interactively:
-   <br>
-   Adding URL:
-    ```
-   POST <URL>
-     ```
-   Checking if URL is in list:
-    ```
-   GET <URL>
-    ```
-
-   Delete the URL from list:
-    ```
-   DELETE <URL>
-    ```
-    Only valid URLs can be added.
----
-
-## Example Run
-
-  ```
-256 5 8
-200 OK
-hdtrhy
-400 Bad Request
-GET www.google.com
-200 Ok
-POST www.A.com
-201 Created
-GET www.A.com
-200 Ok
-DELETE www.AB.com
-204 No Content
-DELETE www.A.com
-204 No
-
+  ```bash
+  docker-compose up --build
   ```
 
----
-# Design Principles
-This system was designed with SOLID principles in mind, particularly:
+  This will build and start two services:
 
-Open/Closed Principle (OCP):
-The codebase is open for extension but closed for modification.
-New command types (e.g., SHUTDOWN, STATS) can be added by introducing new handler functions without modifying existing logic in the command loop.
-
-Modular Command Handling:
-Commands are parsed and validated separately. Logic for POST, GET, and DELETE operations is encapsulated, allowing new operations to be introduced easily without breaking existing behavior.
-
-Extensibility Strategy:
-Input parsing and validation are designed with flexibility, allowing commands like "SHUTDOWN www.site.com" or "STATS bloom" to be recognized in the future.
-
-This ensures long-term maintainability and adaptability for future use cases without requiring structural rewrites.
-
-
-## Notes
-
-- Data files are located under the `/data` directory.
-- The application expects to find (or create) `urls.txt` at `../data/urls.txt` relative to the executable's runtime location.
-- If the file does not exist, it will be created automatically.
+* mail-server: A Node.js web server on port 3000
+* blacklist-server: A C++ TCP server on port 5555, connected to a persistent urls.txt file for blacklist storage
 
 ---
 
-## Authors
+## API Usage
+  #  Register a user
 
-- Developed by Almog Meirov, Tomer Grady, Meir Crown
+    ```bash
+    curl -i -X POST http://localhost:3000/api/users \
+    -H "Content-Type: application/json" \
+    -d '{"email": "alice@example.com", "password": "1234", "firstName": "Alice", "lastName": "Wonderland"}'
+    ```
+
+  # Login to get JWT token
+
+    ```bash
+    curl -i -X POST http://localhost:3000/api/tokens \
+    -H "Content-Type: application/json" \
+    -d '{"email": "alice@example.com", "password": "1234"}'
+    ```
+
+    Save the token from the response to use in future authenticated requests.
 
 ---
+
+### Mail
+
+  # Send a new mail
+
+    ```bash
+    curl -i -X POST http://localhost:3000/api/mails \
+    -H "Authorization: Bearer <TOKEN>" \
+    -H "Content-Type: application/json" \
+    -d '{"sender":"alice@example.com","recipient":"bob@example.com","subject":"Hello","content":"Visit http://tomer.com"}'
+    ```
+
+    If any link in the content is blacklisted, you’ll get:
+
+    ```
+    HTTP/1.1 400 Bad Request
+    { "error": "Failed to validate message links" }
+    ```
+
+  # Get the 50 most recent mails
+
+    ```bash
+    curl -i -X GET http://localhost:3000/api/mails \
+    -H "Authorization: Bearer <TOKEN>"
+    ```
+
+  # Search mails by query
+
+    ```bash
+    curl -i http://localhost:3000/api/mails/search/hello/ \
+    -H "Authorization: Bearer <TOKEN>"
+    ```
+
+### 🏷 Labels
+
+  # Create a label
+
+    ```bash
+    curl -i -X POST http://localhost:3000/api/labels \
+    -H "Content-Type: application/json" \
+    -d '{"name": "Work"}'
+    ```
+
+  # View all labels
+
+    ```bash
+    curl -i http://localhost:3000/api/labels
+    ```
+
+
+### Blacklist
+
+  # Add a malicious URL
+
+    ```bash
+    curl -i -X POST http://localhost:3000/api/blacklist \
+    -H "Content-Type: application/json" \
+    -d '{"url": "http://tomer.com"}'
+    ```
+
+
+##  Project Structure
+
+  ```
+  /src
+    /node_server     → Node.js API (mail, user, labels, blacklist)
+    /cpp_server      → C++ TCP server (Bloom filter & URL storage)
+  /data              → Shared data files (e.g., urls.txt)
+  /docker-compose.yml
+  ```
+
+
+
+##  Implementation Notes
+
+  * The C++ server uses a Bloom Filter to quickly check for URL membership
+  * All communication between the web server and C++ blacklist server happens over TCP
+  * Data is kept *in memory* in the web server (no database is used)
+
+  ---
+
+
+## Docker Notes
+
+  * *Blacklist server* expects the file data/urls.txt to exist or will create it
+  * Ports used:
+    * Node server: 3000
+    * TCP server: 5555 (internal communication only)
+  * Containers communicate using Docker’s internal network (via container name)
+
+  To stop the services:
+
+  ```bash
+  docker-compose down
+  ```
+
+
+
+## Team
+
+  * Almog Meirov
+  * Tomer Grady
+  * Meir Crown
+
+
 
 ## Technologies Used
 
-- **C++17** - Core server-side logic and Bloom Filter implementation.
-- **Docker & Docker Compose** - Containerized setup for consistent cross-platform execution of both client and server.
-- **Python 3.0** - Lightweight TCP client for sending requests and receiving responses.
-- **Bloom Filter Data Structure** - Probabilistic data structure used to check for membership efficiently
-- **Regex-based URL validation** - Ensures incoming URLs follow standard syntax before processing.
-- **Clien-server interface** - Line-based text protocol over TCP sockets, supporting POST/GET/DELETE operations.
-✅ This documentation has been tested by a peer to ensure clarity and completeness.
-
----
-
-# Enjoy!
+  * *Node.js + Express*
+  * *C++17 (multi-threaded)*
+  * *Docker + Docker Compose*
+  * *JWT Authentication*
+  * *Bloom Filter* for blacklist
+  * *TCP Socket Communication*
+#Enjoy!!
