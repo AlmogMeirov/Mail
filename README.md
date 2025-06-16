@@ -18,12 +18,12 @@ The system supports:
 
 ## Build and Run Instructions
 
-# Prerequisites:
+### Prerequisites:
 
 * Docker
 * Docker Compose
 
-# Step 1: Build & Start the Services
+#### Step 1: Build & Start the Services
 
   In the root project directory, run:
 
@@ -39,7 +39,7 @@ The system supports:
 ---
 
 ## API Usage
-  #  Register a user
+  ###  Register a user
 
     ```bash
     curl -i -X POST http://localhost:3000/api/users \
@@ -47,7 +47,7 @@ The system supports:
     -d '{"email": "alice@example.com", "password": "1234", "firstName": "Alice", "lastName": "Wonderland"}'
     ```
 
-  # Login to get JWT token
+  ### Login to get JWT token
 
     ```bash
     curl -i -X POST http://localhost:3000/api/tokens \
@@ -59,9 +59,9 @@ The system supports:
 
 ---
 
-### Mail
+## Mail
 
-  # Send a new mail
+  ### Send a new mail
 
     ```bash
     curl -i -X POST http://localhost:3000/api/mails \
@@ -77,23 +77,23 @@ The system supports:
     { "error": "Failed to validate message links" }
     ```
 
-  # Get the 50 most recent mails
+  ### Get the 50 most recent mails
 
     ```bash
     curl -i -X GET http://localhost:3000/api/mails \
     -H "Authorization: Bearer <TOKEN>"
     ```
 
-  # Search mails by query
+  ### Search mails by query
 
     ```bash
     curl -i http://localhost:3000/api/mails/search/hello/ \
     -H "Authorization: Bearer <TOKEN>"
     ```
 
-### 🏷 Labels
+##  Labels
 
-  # Create a label
+  ### Create a label
 
     ```bash
     curl -i -X POST http://localhost:3000/api/labels \
@@ -101,16 +101,16 @@ The system supports:
     -d '{"name": "Work"}'
     ```
 
-  # View all labels
+  ### View all labels
 
     ```bash
     curl -i http://localhost:3000/api/labels
     ```
 
 
-### Blacklist
+## Blacklist
 
-  # Add a malicious URL
+  ### Add a malicious URL
 
     ```bash
     curl -i -X POST http://localhost:3000/api/blacklist \
