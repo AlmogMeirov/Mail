@@ -120,41 +120,40 @@ The system supports:
 
 
 ##  Project Structure
-
 MAIL/
-├── .vscode/ → VSCode workspace settings
-├── data/ → Shared data (e.g., urls.txt used by the C++ server)
+├── .vscode/                         → VSCode workspace settings
+├── data/                            → Shared data (e.g., urls.txt used by the C++ server)
 ├── server/
-│ └── controllers/
-│ └── mailController.js → Legacy controller (can be migrated under src/)
+│   └── controllers/
+│       └── mailController.js        → Legacy controller (can be migrated under src/)
 ├── src/
-│ ├── cpp_server/ → C++ TCP blacklist server
-│ │ ├── BloomFilter.cpp/.h → Bloom filter implementation
-│ │ ├── Hash*.h → Hash function variants
-│ │ ├── InfiniteCommandLoop.cpp → Main server loop
-│ │ ├── URL*.cpp/.h → URL checker, storage, and utility logic
-│ │ ├── tcp_client.py → Python client for testing
-│ │ ├── CMakeLists.txt → Build configuration for C++ components
-│ │ └── dockerfile → Docker config for C++ server
-│ └── node_server/ → Node.js web server
-│ ├── controllers/ → Logic for routes (e.g., auth, mails)
-│ ├── middlewares/ → Token authentication (JWT)
-│ ├── models/ → In-memory storage for users and mails
-│ ├── routes/ → Express route definitions
-│ ├── uploads/ → Uploaded user profile images
-│ ├── utils/ → Utility functions (e.g., crypto)
-│ ├── app.js → Express app setup
-│ ├── curl/ → CURL test scripts (optional)
-│ ├── dockerfile → Docker config for Node.js server
-│ ├── index.js → Main entry point (runs the server)
-│ ├── package.json → Project metadata and dependencies
-│ └── package-lock.json
-├── docker-compose.yml → Compose file to orchestrate both services
-├── dockerfile → (Possibly legacy) Dockerfile
-├── CMakeLists.txt → Top-level CMake (links into src/cpp_server)
-├── package.json → (Legacy or root Node metadata)
+│   ├── cpp_server/                  → C++ TCP blacklist server
+│   │   ├── BloomFilter.cpp/.h       → Bloom filter implementation
+│   │   ├── Hash*.h                  → Hash function variants
+│   │   ├── InfiniteCommandLoop.cpp  → Main server loop
+│   │   ├── URL*.cpp/.h              → URL checker, storage, and utility logic
+│   │   ├── tcp_client.py            → Python client for testing
+│   │   ├── CMakeLists.txt           → Build configuration for C++ components
+│   │   └── dockerfile               → Docker config for C++ server
+│   └── node_server/                → Node.js web server
+│       ├── controllers/            → Logic for routes (e.g., auth, mails)
+│       ├── middlewares/           → Token authentication (JWT)
+│       ├── models/                 → In-memory storage for users and mails
+│       ├── routes/                 → Express route definitions
+│       ├── uploads/                → Uploaded user profile images
+│       ├── utils/                  → Utility functions (e.g., crypto)
+│       ├── app.js                  → Express app setup
+│       ├── curl/                   → CURL test scripts (optional)
+│       ├── dockerfile              → Docker config for Node.js server
+│       ├── index.js                → Main entry point (runs the server)
+│       ├── package.json            → Project metadata and dependencies
+│       └── package-lock.json
+├── docker-compose.yml             → Compose file to orchestrate both services
+├── dockerfile                     → (Possibly legacy) Dockerfile
+├── CMakeLists.txt                 → Top-level CMake (links into src/cpp_server)
+├── package.json                   → (Legacy or root Node metadata)
 ├── package-lock.json
-└── README.md → Project documentation
+└── README.md                      → Project documentation
 
 
 ##  Implementation Notes
