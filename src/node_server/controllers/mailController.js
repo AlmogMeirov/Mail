@@ -86,10 +86,18 @@ const getMails = (req, res) => {
         if (inbox.length === 0 && sent.length === 0) {
             return res.status(200).json({ message: "No mails found for this user", inbox: [], sent: [] });
         }
+        // Sort by timestamp (descending) and limit to the latest 50 mails
+        const sorted = inbox.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const recent_mails = sorted.slice(0, 50).map(mail => ({
+            id: mail.id,
+            subject: mail.subject,
+            timestamp: mail.timestamp,
+            direction: mail.sender === userEmail ? 'sent' : 'received'
+        }));
 
         res.status(200).json({
             message: "Mails fetched successfully",
-            inbox,
+            recent_mails,
             sent
         });
 
