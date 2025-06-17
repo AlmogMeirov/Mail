@@ -4,7 +4,7 @@ const path = require('path');
 const { extractUrls } = require("../utils/extractUrls");
 const { checkUrlBlacklist } = require("../utils/blacklistClient");
 const inboxMap = require('../utils/inboxMap');
-
+const { getAllLabels } = require('../models/labels');
 
 const createMail = async (req, res) => {
     const { labels = ["inbox"] } = req.body;
@@ -135,43 +135,36 @@ function getMailById(req, res) {
     return res.status(404).json({ error: "Mail not found" });
 }
 
-// This function updates a mail by its ID and ensures the user is authorized to edit it.
-function updateMail(req, res) {
 
-    const userEmail = req.user.email; // Extracted securely from JWT
+// PATCH /api/mails/:id           (שולח בלבד)
+function updateMail(req, res) {
+    const userEmail = req.user.email;
     const mailId = req.params.id;
 
     if (!mailId) {
         return res.status(400).json({ error: "Missing mail ID" });
     }
+    // Validate that at least one field is provided for update
+    const { subject, content } = req.body;
+    if (subject === undefined && content === undefined) {
+        return res.status(400).json({ error: "Nothing to update" });
+    }
 
-    // Iterate through all inboxes to find the mail by ID
     for (const inbox of inboxMap.values()) {
         for (let mail of inbox) {
             if (mail.id === mailId) {
-                // Only the sender is allowed to edit the mail
+
                 if (mail.sender !== userEmail) {
-                    return res.status(403).json({ error: "You are not authorized to edit this mail" });
+                    return res.status(403).json({ error: "Only sender may edit subject or content" });
                 }
 
-                // Apply updates if fields are provided
-                const { subject, content, labels } = req.body;
                 if (subject !== undefined) mail.subject = subject;
                 if (content !== undefined) mail.content = content;
-                if (labels !== undefined) {
-                    if (!Array.isArray(labels)) {
-                        return res.status(400).json({ error: "Labels must be an array" });
-                    }
-                    mail.labels = labels;
-                }
 
-
-                return res.status(200).json({ message: "Mail updated successfully", mail });
+                return res.status(200).json({ message: "Mail updated", mail });
             }
         }
     }
-
-    // Mail with specified ID was not found
     return res.status(404).json({ error: "Mail not found" });
 }
 
@@ -260,6 +253,51 @@ function searchMails(req, res) {
     })));
 }
 
+function updateMailLabelsForUser(req, res) {
+    console.log("Reached updateMailLabelsForUser with id:", req.params.id);
+    const userEmail = req.user.email;
+    const mailId = req.params.id;
+    const { labels } = req.body;
+
+
+    if (!Array.isArray(labels)) {
+        return res.status(400).json({ error: "Labels must be an array" });
+    }
+
+    for (const inbox of inboxMap.values()) {
+        for (let mail of inbox) {
+            if (mail.id === mailId) {
+
+
+                if (mail.sender !== userEmail && mail.recipient !== userEmail) {
+                    return res.status(403).json({ error: "Not authorized for this mail" });
+                }
+
+
+                const allowed = getAllLabels(userEmail).map(l => l.name.toLowerCase());
+                const invalid = labels.filter(l => !allowed.includes(l.toLowerCase()));
+
+                if (invalid.length > 0) {
+                    return res.status(400).json({
+                        error: `Invalid labels for user: ${invalid.join(", ")}`
+                    });
+                }
+
+
+                if (!mail.labels || typeof mail.labels !== 'object') {
+                    mail.labels = {};
+                }
+
+                mail.labels[userEmail] = labels;
+                return res.status(200).json({ message: "Labels updated", labels: mail.labels[userEmail] });
+            }
+        }
+    }
+
+    return res.status(404).json({ error: "Mail not found" });
+}
+
+
 // This module provides functions to manage mails in an in-memory store.
 // It includes creating, retrieving, updating, deleting, and searching mails.
 module.exports = {
@@ -269,5 +307,6 @@ module.exports = {
     updateMail,
     deleteMailById,
     searchMails,
+    updateMailLabelsForUser,
     inboxMap,
 };

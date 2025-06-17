@@ -22,6 +22,10 @@ function getLabelById(userId, labelId) {
 }
 
 function createLabel(userId, name) {
+  if (labelNameExists(userId, name)) {
+    throw new Error(`Label with name "${name}" already exists`);
+  }
+
   const userMap = getUserMap(userId);
   const id = uuidv4();
   const newLabel = { id, name };
@@ -42,10 +46,25 @@ function deleteLabel(userId, labelId) {
   return userMap.delete(labelId);
 }
 
+function labelNameExists(userId, name) {
+  const userMap = getUserMap(userId);
+  name = name.trim().toLowerCase();
+  for (const label of userMap.values()) {
+    if (label.name.trim().toLowerCase() === name) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 module.exports = {
+  // Export functions for label operations
+  getUserMap,
   getAllLabels,
   getLabelById,
   createLabel,
   updateLabel,
   deleteLabel,
+  labelNameExists,
 };
