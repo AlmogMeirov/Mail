@@ -7,12 +7,9 @@ const mailController = require('../controllers/mailController');
 const authenticateToken = require('../middlewares/authMiddleware');
 
 // Apply authentication middleware to all mail routes
-router.get('/', authenticateToken, mailController.getMails);
-router.post('/', authenticateToken, mailController.createMail);
+router.get('/search', authenticateToken, mailController.searchMails);
 router.get('/:id', authenticateToken, mailController.getMailById);
 router.patch('/:id', authenticateToken, mailController.updateMail);
 router.delete('/:id', authenticateToken, mailController.deleteMailById);
-router.get('/search/:query', authenticateToken, mailController.searchMails);
-
-
-module.exports = router;
+router.get('/', authenticateToken, mailController.getMails);
+router.post('/', authenticateToken, mailController.createMail);
