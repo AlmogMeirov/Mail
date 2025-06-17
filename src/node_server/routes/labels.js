@@ -1,18 +1,18 @@
-// Description: Defines routes for handling mail-related operations
+// Description: Defines routes for handling label-related operations
 const express = require('express');
 const router = express.Router();
-const mailController = require('../controllers/mailController');
+const labelsController = require('../controllers/labelsController');
 
 // Import JWT authentication middleware
 const authenticateToken = require('../middlewares/authMiddleware');
 
-// Apply authentication middleware to all mail routes
-router.get('/search', authenticateToken, mailController.searchMails);
-router.get('/:id', authenticateToken, mailController.getMailById);
-router.patch('/:id', authenticateToken, mailController.updateMail);
-router.delete('/:id', authenticateToken, mailController.deleteMailById);
-router.get('/', authenticateToken, mailController.getMails);
-router.post('/', authenticateToken, mailController.createMail);
+// Apply authentication middleware to all label routes
+router.get('/search/:query', authenticateToken, labelsController.search);
+router.get('/:id', authenticateToken, labelsController.getById);
+router.patch('/:id', authenticateToken, labelsController.update);
+router.delete('/:id', authenticateToken, labelsController.remove);
+router.get('/', authenticateToken, labelsController.getAll);
+router.post('/', authenticateToken, labelsController.create);
 
 
 module.exports = router;

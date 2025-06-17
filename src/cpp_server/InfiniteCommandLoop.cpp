@@ -32,7 +32,7 @@ void InfiniteCommandLoop::run() {
         std::string input = receiveLine(); // Receive input from the server
         if (input.empty()) {
             sendMessage("400 Bad Request\n"); // Handle empty input
-            continue;
+            break; // Exit loop if no input received
         }
 
         auto splitInput = splitArguments(input); // Split input into command and URL
@@ -70,6 +70,7 @@ void InfiniteCommandLoop::run() {
             sendMessage("400 Bad Request\n"); // Handle unknown commands
         }
     }
+     close(client_fd);
 }
 
 std::string InfiniteCommandLoop::receiveLine() {

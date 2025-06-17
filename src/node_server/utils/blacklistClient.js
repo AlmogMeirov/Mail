@@ -1,6 +1,52 @@
 const net = require("net");
 
+
 function checkUrlBlacklist(url) {
+  return new Promise((resolve, reject) => {
+    console.log("[BlacklistClient] Connecting to TCP server...");
+
+    const client = net.createConnection({ host: "blacklist-server", port: 5555 }, () => {
+      client.write(`GET ${url}\n`);
+    });
+
+    let buffer = "";
+    client.setEncoding("utf8");
+
+    client.on("data", (data) => {
+      buffer += data;
+      const lines = buffer.trim().split("\n").map(line => line.trim()).filter(line => line !== "");
+
+      console.log("[BlacklistClient] Accumulated lines:", lines);
+
+      if (lines.length >= 2) {
+        const statusLine = lines[0];
+        const resultLine = lines[1];
+
+        if (statusLine !== "200 OK") {
+          client.end();
+          return reject(new Error(`Unexpected status from blacklist server: ${statusLine}`));
+        }
+
+        // block only if result is "true true"
+        const isBlacklisted = resultLine === "true true";
+
+        console.log("[BlacklistClient] result line:", resultLine);
+        console.log("[BlacklistClient] isBlacklisted =", isBlacklisted);
+
+        resolve(isBlacklisted);
+        client.end();
+      }
+    });
+
+    client.on("error", (err) => {
+      console.error("[BlacklistClient] Connection error:", err);
+      reject(err);
+    });
+  });
+}
+
+
+/*function checkUrlBlacklist(url) {
   return new Promise((resolve, reject) => {
     //-----debug-----
     console.log("[BlacklistClient] Trying to connect to TCP server...");
@@ -67,11 +113,11 @@ function checkUrlBlacklist(url) {
       console.log("[BlacklistClient] isBlacklisted =", isBlacklisted);
       //-----end of debug-----
       resolve(isBlacklisted);
-    });*/
+    });
 
     client.on("error", reject);
   });
-}
+}*/
 
 function addUrlToBlacklist(url) {
   return new Promise((resolve, reject) => {

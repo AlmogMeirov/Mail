@@ -13,3 +13,5 @@ router.patch('/:id', authenticateToken, mailController.updateMail);
 router.delete('/:id', authenticateToken, mailController.deleteMailById);
 router.get('/', authenticateToken, mailController.getMails);
 router.post('/', authenticateToken, mailController.createMail);
+
+module.exports = router;

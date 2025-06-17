@@ -41,10 +41,21 @@ function remove(req, res) {
   res.status(204).end();
 }
 
+// Search labels by substring in name
+function search(req, res) {
+  const userId = req.user.email;
+  const query = req.params.query?.toLowerCase() || "";
+  const labels = labelModel.getAllLabels(userId);
+  const filtered = labels.filter(label => label.name.toLowerCase().includes(query));
+  res.json(filtered);
+}
+
+
 module.exports = {
   getAll,
   getById,
   create,
   update,
   remove,
+  search,
 };
