@@ -211,22 +211,30 @@ function deleteMailById(req, res) {
 
 // This function searches for mails that match a query string in the user's inbox
 function searchMails(req, res) {
-    const userEmail = req.user.email; // Authenticated user from JWT middleware
+    const userEmail = req.user.email;
     const query = req.query.q;
 
-    // Validate input
     if (!query) {
         return res.status(400).json({ error: "Missing search query" });
     }
 
     const q = query.toLowerCase();
-    const inbox = inboxMap.get(userEmail);
 
-    if (!inbox) {
-        return res.status(404).json({ error: "Inbox not found" });
+
+    const inbox = inboxMap.get(userEmail) || [];
+
+    const sent = [];
+    for (const mails of inboxMap.values()) {
+        for (const mail of mails) {
+            if (mail.sender === userEmail) {
+                sent.push(mail);
+            }
+        }
     }
 
-    const results = inbox.filter(mail => {
+    const combined = inbox.concat(sent);
+
+    const results = combined.filter(mail => {
         const subject = mail.subject?.toLowerCase() || "";
         const content = mail.content?.toLowerCase() || "";
         const sender = mail.sender?.toLowerCase() || "";
@@ -251,11 +259,6 @@ function searchMails(req, res) {
         direction: mail.sender === userEmail ? "sent" : "received"
     })));
 }
-
-
-
-
-
 
 // This module provides functions to manage mails in an in-memory store.
 // It includes creating, retrieving, updating, deleting, and searching mails.
