@@ -6,6 +6,7 @@ const { checkUrlBlacklist } = require("../utils/blacklistClient");
 const inboxMap = require('../utils/inboxMap');
 const { getAllLabels } = require('../models/labels');
 
+/*
 const createMail = async (req, res) => {
     const { labels = ["inbox"] } = req.body;
     const { sender, recipient, subject, content } = req.body;
@@ -58,6 +59,68 @@ const createMail = async (req, res) => {
     inboxMap.get(recipient).push(newMail);
 
     res.status(201).json({ message: 'Mail sent successfully', mail: newMail });
+};
+*/
+
+// mailController.js
+const createMail = async (req, res) => {
+    const { labels = ["inbox"] } = req.body;
+    const { sender, recipient, recipients, subject, content } = req.body;
+
+    // ----- build recipients list (back-compat) -----
+    const recipientsList = Array.isArray(recipients)
+        ? recipients
+        : recipient
+            ? [recipient]
+            : [];
+
+    // ----- basic validation -----
+    if (recipientsList.length === 0 || !subject || !content) {
+        return res.status(400).json({ error: "Missing required fields" });
+    }
+    if (!inboxMap.has(sender)) {
+        return res.status(400).json({ error: "Sender does not exist" });
+    }
+    if (sender !== req.user.email) {
+        return res.status(403).json({ error: "Sender email does not match authenticated user" });
+    }
+
+    // make sure every recipient exists
+    for (const r of recipientsList) {
+        if (!inboxMap.has(r)) {
+            return res.status(400).json({ error: `Recipient does not exist: ${r}` });
+        }
+    }
+
+    // ----- blacklist check (once for whole message) -----
+    try {
+        const urls = extractUrls(`${subject} ${content}`);
+        const results = await Promise.all(urls.map(checkUrlBlacklist));
+        if (results.includes(true)) {
+            return res.status(400).json({ error: "Message contains blacklisted URL" });
+        }
+    } catch (err) {
+        console.error("Error while checking blacklist:", err);
+        return res.status(500).json({ error: "Failed to validate message links" });
+    }
+
+    // ----- create and deliver a copy per recipient -----
+    const sent = [];
+    for (const r of recipientsList) {
+        const mail = {
+            id: uuidv4(),
+            sender,
+            recipient: r,
+            subject,
+            content,
+            labels,
+            timestamp: new Date().toISOString(),
+        };
+        inboxMap.get(r).push(mail);
+        sent.push(mail);
+    }
+
+    return res.status(201).json({ message: "Mail sent successfully", sent });
 };
 
 const getMails = (req, res) => {
@@ -136,7 +199,7 @@ function getMailById(req, res) {
 }
 
 
-// PATCH /api/mails/:id           (שולח בלבד)
+// PATCH /api/mails/:id      
 function updateMail(req, res) {
     const userEmail = req.user.email;
     const mailId = req.params.id;
@@ -210,10 +273,7 @@ function searchMails(req, res) {
     if (!query) {
         return res.status(400).json({ error: "Missing search query" });
     }
-
     const q = query.toLowerCase();
-
-
     const inbox = inboxMap.get(userEmail) || [];
 
     const sent = [];
