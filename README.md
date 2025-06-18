@@ -32,9 +32,9 @@ They can also be executed on Windows using CMD or PowerShell, with appropriate s
 
   In the root project directory, run:
 
- 
+ ```
   docker-compose up --build
- 
+ ```
 
   This will build and start two services:
 
