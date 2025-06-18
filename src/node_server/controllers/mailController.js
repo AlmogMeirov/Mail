@@ -6,62 +6,6 @@ const { checkUrlBlacklist } = require("../utils/blacklistClient");
 const inboxMap = require('../utils/inboxMap');
 const { getAllLabels } = require('../models/labels');
 
-/*
-const createMail = async (req, res) => {
-    const { labels = ["inbox"] } = req.body;
-    const { sender, recipient, subject, content } = req.body;
-
-    // Basic validation
-    if (!recipient || !subject || !content) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    // Ensure sender and recipient exist in memory
-    if (!inboxMap.has(sender)) {
-        return res.status(400).json({ error: 'Sender does not exist' });
-    }
-    if (!inboxMap.has(recipient)) {
-        return res.status(400).json({ error: 'Recipient does not exist' });
-    }
-    if (sender !== req.user.email) {
-        return res.status(403).json({ error: 'Sender email does not match authenticated user' });
-    }
-
-    // Extract all URLs from subject + content
-    const fullText = `${subject} ${content}`;
-    const urls = extractUrls(fullText);
-
-    try {
-        // Check all URLs concurrently using the blacklist server
-        const results = await Promise.all(urls.map(checkUrlBlacklist));
-
-        // If any result is true (i.e., blacklisted), reject the request
-        if (results.includes(true)) {
-            return res.status(400).json({ error: 'Message contains blacklisted URL' });
-        }
-    } catch (err) {
-        console.error('Error while checking blacklist:', err);
-        return res.status(500).json({ error: 'Failed to validate message links' });
-    }
-
-    // Create mail object
-    const newMail = {
-        id: uuidv4(),
-        sender,
-        recipient,
-        subject,
-        content,
-        labels,
-        timestamp: new Date().toISOString(),
-    };
-
-    // Store mail in recipient's inbox
-    inboxMap.get(recipient).push(newMail);
-
-    res.status(201).json({ message: 'Mail sent successfully', mail: newMail });
-};
-*/
-
 // mailController.js
 const createMail = async (req, res) => {
     const { labels = ["inbox"] } = req.body;
@@ -155,8 +99,10 @@ const getMails = (req, res) => {
             id: mail.id,
             subject: mail.subject,
             timestamp: mail.timestamp,
-            direction: mail.sender === userEmail ? 'sent' : 'received'
+            direction: mail.sender === userEmail ? 'sent' : 'received',
+
         }));
+
 
         res.status(200).json({
             message: "Mails fetched successfully",
@@ -170,23 +116,27 @@ const getMails = (req, res) => {
     }
 };
 
-
-// This function retrieves a mail by its ID and ensures the requesting user is authorized
 function getMailById(req, res) {
-    const userEmail = req.user.email; // Extracted securely from the verified JWT
+    const userEmail = req.user.email;
     const mailId = req.params.id;
 
     if (!mailId) {
         return res.status(400).json({ error: "Missing mail ID" });
     }
 
-    // Search through all inboxes for the requested mail
     for (const inbox of inboxMap.values()) {
         for (const mail of inbox) {
             if (mail.id === mailId) {
-                // Check if the requesting user is the sender or recipient
                 if (mail.sender === userEmail || mail.recipient === userEmail) {
-                    return res.status(200).json(mail);
+                    return res.status(200).json({
+                        id: mail.id,
+                        sender: mail.sender,
+                        recipient: mail.recipient,
+                        subject: mail.subject,
+                        content: mail.content,
+                        timestamp: mail.timestamp,
+                        labels: mail.labels?.[userEmail] || []
+                    });
                 } else {
                     return res.status(403).json({ error: "You are not authorized to view this mail" });
                 }
@@ -194,7 +144,6 @@ function getMailById(req, res) {
         }
     }
 
-    // If no mail was found with that ID
     return res.status(404).json({ error: "Mail not found" });
 }
 
