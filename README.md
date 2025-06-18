@@ -47,54 +47,54 @@ They can also be executed on Windows using CMD or PowerShell, with appropriate s
 ## API Usage
   ###  Register a user
 
-    ```
+   ```
     curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d '{"email":"bob@example.com","password":"bobspassword","firstName":"Bob","lastName":"Builder"}'
-    ```
+   ```
 
   ### Login to get JWT token
 
-    ```
+  ```
     BOB_TOKEN=$(curl -s -X POST http://localhost:3000/api/tokens -H "Content-Type: application/json" -d '{"email":"bob@example.com","password":"bobspassword"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
-    ```
+  ```
     Save the token from the response to use in future authenticated requests.
 
 ## Mail
 
   ### Send a new mail
 
-    ```
+   ```
     curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer <TOKEN>" -H "Content-Type: application/json" -d '{"sender":"alice@example.com","recipients":["bob@example.com"],"subject":"Hello","content":"Visit http://tomer.com"}'
 
     If any link in the content is blacklisted, you’ll get:
 
-    ```
+  
     HTTP/1.1 400 Bad Request
     { "error": "Failed to validate message links" }
-    ```
+  ```
 
  ###  Send mail to multiple recipients
-    ```
+  ```
     curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer <TOKEN>" -H "Content-Type: application/json" -d '{"sender":"alice@example.com","recipients":     ["bob@example.com","meir@example.com"],"subject":"Team Update","content":"Meeting at 3PM today."}'
-    ```
+ ```
 
   ### Get the 50 most recent mails
 
-    ```
+  ```
     curl -i -X GET http://localhost:3000/api/mails -H "Authorization: Bearer <TOKEN>"
-    ```
+ ```
 
   ### Search mails by query
 
-    ```
+  ```
     curl -i -X GET http://localhost:3000/api/mails/search/<QUERY> -H "Authorization: Bearer <TOKEN>"
     Replace <QUERY> with the search string you want.
-    ```
+  ```
 
   ### Search mails by ID
-     ```
+   ```
     curl -i -X GET http://localhost:3000/api/mails/<MAIL_ID> -H "Authorization: Bearer <TOKEN>"
     Replace <MAIL_ID> with the ID of the mail you want.
-    ```
+  ```
 
   ### Assigning a label to a mail
   
@@ -107,20 +107,19 @@ They can also be executed on Windows using CMD or PowerShell, with appropriate s
 
   ### Create a label
 
-    ```bash
-    curl -i -X POST http://localhost:3000/api/labels \
-    -H "Content-Type: application/json" \
-    -d '{"name": "Work"}'
-    ```
+ ```
+ curl -i -X POST http://localhost:3000/api/labels -H "Authorization: Bearer $BOB_TOKEN" -H "Content-Type: application/json" -d '{"name":"Work"}'
+ ```
 
   ### View all labels
 
-    ```bash
-    curl -i http://localhost:3000/api/labels
-    ```
+   ```
+    curl -i -X GET http://localhost:3000/api/labels -H "Authorization: Bearer <TOKEN>"
+  ```
 
   #### Get a label by ID for the current user
   ```
+curl -i -X GET http://localhost:3000/api/labels/<LABEL_ID> -H "Authorization: Bearer <TOKEN>"
   ```
   
   ### Update a label by ID for the current user
@@ -141,14 +140,14 @@ They can also be executed on Windows using CMD or PowerShell, with appropriate s
 
   ### Add a malicious URL
 
-    ```bash
-    curl -i -X POST http://localhost:3000/api/blacklist \
-    -H "Content-Type: application/json" \
-    -d '{"url": "http://tomer.com"}'
-    ```
+   ```
+    curl -i -X POST http://localhost:3000/api/blacklist -H "Content-Type: application/json" -d '{"url": "http://malicious-site.com"}'
+   ```
 
   ### Remove a malicious URL
-
+  ```
+curl -i -X DELETE http://localhost:3000/api/blacklist -H "Content-Type: application/json" -d '{"url": "http://malicious-site.com"}'
+```
 
 ##  Implementation Notes
 
