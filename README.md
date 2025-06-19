@@ -93,14 +93,14 @@ They can also be executed on Windows using CMD or PowerShell, with appropriate s
 
   ### Search mails by ID
    ```
-    curl -i -X GET http://localhost:3000/api/mails/<MAIL_ID> -H "Authorization: Bearer $<TOKEN>"    
+    curl -i -X GET http://localhost:3000/api/mails/<MAIL_ID> -H "Authorization: Bearer $<TOKEN>"
   ```
 Replace <MAIL_ID> with the ID of the mail you want.
 
   ### Assigning a label to a mail
   
   ```
-  curl -i -X PATCH http://localhost:3000/api/mails/<MAIL_ID>/label -H "Authorization: Bearer $<TOKEN>" -H "Content-Type: application/json" -d '{"labels":"<label name>"}'
+  curl -i -X PATCH http://localhost:3000/api/mails/<MAIL_ID>/label -H "Authorization: Bearer $<TOKEN>" -H "Content-Type: application/json" -d '{"labels":"[<label name>]"}'
   ```
 
 
@@ -149,7 +149,136 @@ curl -i -X GET http://localhost:3000/api/labels/<LABEL_ID> -H "Authorization: Be
   ```
 echo "DELETE http://www.bad.com/" | nc localhost 5555
 ```
+## Example Run
 
+  ```
+# Register Bob
+curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d '{"email":"bob@example.com","password":"bobspassword","firstName":"Bob","lastName":"Builder"}'
+
+HTTP/1.1 201 Created
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 75
+ETag: W/"4b-dtmlkvwiZBT7DKKxAjA5xO7yFNE"
+Date: Thu, 19 Jun 2025 09:08:42 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"id":1,"email":"bob@example.com","name":"Bob Builder","profileImage":null}
+
+# Register Alice
+curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d '{"email":"alice@example.com","password":"alicepassword","firstName":"Alice","lastName":"Wonder"}'
+
+HTTP/1.1 201 Created
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 78
+ETag: W/"4e-kxxjoCZB1ock7f/I/U8l7CIOwFA"
+Date: Thu, 19 Jun 2025 09:09:39 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"id":2,"email":"alice@example.com","name":"Alice Wonder","profileImage":null}
+
+# Login and get tokens
+
+BOB_TOKEN=$(curl -s -X POST http://localhost:3000/api/tokens -H "Content-Type: application/json" -d '{"email":"bob@example.com","password":"bobspassword"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+
+ALICE_TOKEN=$(curl -s -X POST http://localhost:3000/api/tokens -H "Content-Type: application/json" -d '{"email":"alice@example.com","password":"alicepassword"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+
+# Alice sends mail to Bob
+
+curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer $ALICE_TOKEN" -H "Content-Type: application/json" -d '{"sender":"alice@example.com", "recipient":"bob@example.com", "subject":"Project Update", "content":"Hey Bob, here is the project update."}'
+
+HTTP/1.1 201 Created
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 284
+ETag: W/"11c-GLl0tahBIxto35BBd6PVU07ywxg"
+Date: Thu, 19 Jun 2025 09:11:28 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"message":"Mail sent successfully","sent":[{"id":"64dda02f-cbcd-4e34-8fb8-f974b0dd5976","sender":"alice@example.com","recipient":"bob@example.com","subject":"Project Update","content":"Hey Bob, here is the project update.","labels":["inbox"],"timestamp":"2025-06-19T09:11:28.589Z"}]}
+
+# Bob retrieves it
+
+curl -i -X GET http://localhost:3000/api/mails/64dda02f-cbcd-4e34-8fb8-f974b0dd5976 -H "Authorization: Bearer $BOB_TOKEN"
+    
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 231
+ETag: W/"e7-CIl3eIhkrhRgH0fwQjdtR9hCZZM"
+Date: Thu, 19 Jun 2025 09:13:03 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"id":"64dda02f-cbcd-4e34-8fb8-f974b0dd5976","sender":"alice@example.com","recipient":"bob@example.com","subject":"Project Update","content":"Hey Bob, here is the project update.","timestamp":"2025-06-19T
+
+# Bob fetches all last 50 mails associated with his account
+
+curl -i -X GET http://localhost:3000/api/mails -H "Authorization: Bearer $BOB_TOKEN"/mails -H "Authorization: Bearer $BOB_TOKEN"
+
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 202
+ETag: W/"ca-oFD+UE1IYoV8BLxZLRW/0/J/kro"
+Date: Thu, 19 Jun 2025 09:49:48 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"message":"Mails fetched successfully","recent_mails":[{"id":"64dda02f-cbcd-4e34-8fb8-f974b0dd5976","subject":"Project Update","timestamp":"2025-06-19T09:11:28.589Z","direction":"received"}],"sent":[]
+
+# Assign label
+
+curl -i -X POST http://localhost:3000/api/labels -H "Authorization: Bearer $BOB_TOKEN" -H "Content-Type: application/json" -d '{"name":"Work"}'/json" -d '{"name":"Work"}'
+
+HTTP/1.1 201 Created
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 59
+ETag: W/"3b-oaLLrpn4sc7W3YeTLvu2lqCr/Ck"
+Date: Thu, 19 Jun 2025 09:35:10 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"id":"1cbadb9e-058e-403b-82f2-837232f06fce","name":"Work"}
+
+curl -i -X PATCH http://localhost:3000/api/mails/64dda02f-cbcd-4e34-8fb8-f974b0dd5976/label -H "Authorization: Bearer $BOB_TOKEN" -H "Content-Type: application/json" -d '{"labels":["Work"]}'tion/json" -d '{"labels":["Work"]}'
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 46
+ETag: W/"2e-LE0aA20mwupYZEHSTmowKpp+WH4"
+Date: Thu, 19 Jun 2025 09:39:40 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"message":"Labels updated","labels":["Work"]}
+
+
+# Blocked URL case
+
+localhost 5555 "POST http://www.bad.com/" | nc localhost 5555
+201 Created
+
+ curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer $ALICE_TOKEN" -H "Content-Type: application/json" -d '{"sender":"alice@example.com", "recipient":"bob@example.com", "subject":"Project Update", "content":"http://www.bad.com/"}'
+HTTP/1.1 400 Bad Request
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 44
+ETag: W/"2c-lhpwL7K38bFeBMPyBndDrwyE2Ko"
+Date: Thu, 19 Jun 2025 09:42:07 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"error":"Message contains blacklisted URL"}
+
+
+
+  ```
 ##  Implementation Notes
 
   * The C++ server uses a Bloom Filter to quickly check for URL membership
