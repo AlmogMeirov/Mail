@@ -216,6 +216,21 @@ Keep-Alive: timeout=5
 
 {"id":"64dda02f-cbcd-4e34-8fb8-f974b0dd5976","sender":"alice@example.com","recipient":"bob@example.com","subject":"Project Update","content":"Hey Bob, here is the project update.","timestamp":"2025-06-19T
 
+# Bob fetches all last 50 mails associated with his account
+
+curl -i -X GET http://localhost:3000/api/mails -H "Authorization: Bearer $BOB_TOKEN"/mails -H "Authorization: Bearer $BOB_TOKEN"
+
+HTTP/1.1 200 OK
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 202
+ETag: W/"ca-oFD+UE1IYoV8BLxZLRW/0/J/kro"
+Date: Thu, 19 Jun 2025 09:49:48 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+{"message":"Mails fetched successfully","recent_mails":[{"id":"64dda02f-cbcd-4e34-8fb8-f974b0dd5976","subject":"Project Update","timestamp":"2025-06-19T09:11:28.589Z","direction":"received"}],"sent":[]
+
 # Assign label
 
 curl -i -X POST http://localhost:3000/api/labels -H "Authorization: Bearer $BOB_TOKEN" -H "Content-Type: application/json" -d '{"name":"Work"}'/json" -d '{"name":"Work"}'
