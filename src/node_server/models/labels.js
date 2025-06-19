@@ -10,17 +10,17 @@ function getUserMap(userId) {
   }
   return labels.get(userId);
 }
-
+// Functions to manage labels for a user
 function getAllLabels(userId) {
   const userMap = getUserMap(userId);
   return Array.from(userMap.values());
 }
-
+// Get a label by its ID for a specific user
 function getLabelById(userId, labelId) {
   const userMap = getUserMap(userId);
   return userMap.get(labelId) || null;
 }
-
+// Create a new label for a user
 function createLabel(userId, name) {
   if (labelNameExists(userId, name)) {
     throw new Error(`Label with name "${name}" already exists`);
@@ -32,7 +32,7 @@ function createLabel(userId, name) {
   userMap.set(id, newLabel);
   return newLabel;
 }
-
+// Update an existing label for a user
 function updateLabel(userId, labelId, name) {
   const userMap = getUserMap(userId);
   if (!userMap.has(labelId)) return null;
@@ -40,12 +40,12 @@ function updateLabel(userId, labelId, name) {
   userMap.set(labelId, updated);
   return updated;
 }
-
+// Delete a label for a user
 function deleteLabel(userId, labelId) {
   const userMap = getUserMap(userId);
   return userMap.delete(labelId);
 }
-
+// Check if a label name already exists for a user
 function labelNameExists(userId, name) {
   const userMap = getUserMap(userId);
   name = name.trim().toLowerCase();
@@ -57,9 +57,8 @@ function labelNameExists(userId, name) {
   return false;
 }
 
-
+// Description: This module manages labels for users, allowing operations like creating, updating, deleting, and retrieving labels.
 module.exports = {
-  // Export functions for label operations
   getUserMap,
   getAllLabels,
   getLabelById,

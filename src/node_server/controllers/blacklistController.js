@@ -1,5 +1,5 @@
 const { addUrlToBlacklist, deleteUrlFromBlacklist } = require("../utils/blacklistClient");
-
+// This controller handles adding and removing URLs from a blacklist
 async function add(req, res) {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: "URL is required" });
@@ -12,7 +12,7 @@ async function add(req, res) {
     res.status(500).json({ error: "Failed to add URL to blacklist" });
   }
 }
-
+// This function removes a URL from the blacklist
 async function remove(req, res) {
   const url = req.params.url;
   try {

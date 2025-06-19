@@ -66,7 +66,7 @@ const createMail = async (req, res) => {
 
     return res.status(201).json({ message: "Mail sent successfully", sent });
 };
-
+// This function retrieves the mails for the authenticated user, including both inbox and sent mails.
 const getMails = (req, res) => {
     try {
         if (!req.user || !req.user.email) {
@@ -115,7 +115,7 @@ const getMails = (req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 };
-
+// This function retrieves a mail by its ID if the user is authorized (as sender or recipient).
 function getMailById(req, res) {
     const userEmail = req.user.email;
     const mailId = req.params.id;
@@ -261,7 +261,7 @@ function searchMails(req, res) {
         direction: mail.sender === userEmail ? "sent" : "received"
     })));
 }
-
+// This function updates the labels for a specific mail for the authenticated user.
 function updateMailLabelsForUser(req, res) {
     console.log("Reached updateMailLabelsForUser with id:", req.params.id);
     const userEmail = req.user.email;
