@@ -48,33 +48,39 @@ They can also be executed on Windows using CMD or PowerShell, with appropriate s
   ###  Register a user
 
    ```
-    curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d '{"email":"bob@example.com","password":"bobspassword","firstName":"Bob","lastName":"Builder"}'
+    curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d '{"email":"<EMAIL>","password":"<PASSWORD>","firstName":"<FIRST_NAME>","lastName":"<LAST_NAME>"}'
    ```
 
   ### Login to get JWT token
 
   ```
-    BOB_TOKEN=$(curl -s -X POST http://localhost:3000/api/tokens -H "Content-Type: application/json" -d '{"email":"bob@example.com","password":"bobspassword"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+    BOB_TOKEN=$(curl -s -X POST http://localhost:3000/api/tokens -H "Content-Type: application/json" -d '{"email":"<EMAIL>","password":"<PASSWORD>"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
   ```
-    Save the token from the response to use in future authenticated requests. (not exist in CMD)
+    Save the token from the response to use in future authenticated requests. (not exist in CMD, when you work in CMD you need to write down the token every time it requries).
 
 ## Mail
 
   ### Send a new mail
 
    ```
-   curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer $<TOKEN>" -H "Content-Type: application/json" -d '{"sender":"alice@example.com", "recipient":"bob@example.com", "subject":"Project Update", "content":"Hey Bob, here is the project update."}'
+   curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer $<TOKEN>" -H "Content-Type: application/json" -d '{"sender":"<SENDER_EMAIL>", "recipient":"<RECIPIENT_EMAIL>", "subject":"<SUBJECT>", "content":"<CONTENT>"}'
 ```
     If any link in the content is blacklisted, you’ll get:
-
-  
     HTTP/1.1 400 Bad Request
-    { "error": "Failed to validate message links" }
+    X-Powered-By: Express
+    Content-Type: application/json; charset=utf-8
+    Content-Length: 44
+    ETag: W/"2c-lhpwL7K38bFeBMPyBndDrwyE2Ko"
+    Date: Thu, 19 Jun 2025 09:42:07 GMT
+    Connection: keep-alive
+    Keep-Alive: timeout=5
+
+    {"error":"Message contains blacklisted URL"}
   
 
  ###  Send mail to multiple recipients
   ```
-    curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer $<TOKEN>" -H "Content-Type: application/json" -d '{"sender":"alice@example.com","recipients":     ["bob@example.com","meir@example.com"],"subject":"Team Update","content":"Meeting at 3PM today."}'
+    curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer $<TOKEN>" -H "Content-Type: application/json" -d '{"sender":"<SENDER_EMAIL>","recipients":     ["<FIRST_RECIPIENT_EMAIL>",...,"<LAST_RECIPIENT_EMAIL>"],"subject":"<SUBJECT>","content":"<CONTENT>"}'
  ```
 
   ### Get the 50 most recent mails
@@ -109,7 +115,7 @@ Replace <MAIL_ID> with the ID of the mail you want.
   ### Create a label
 
  ```
- curl -i -X POST http://localhost:3000/api/labels -H "Authorization: Bearer $<TOKEN>" -H "Content-Type: application/json" -d '{"name":"Work"}'
+ curl -i -X POST http://localhost:3000/api/labels -H "Authorization: Bearer $<TOKEN>" -H "Content-Type: application/json" -d '{"name":"<label name>"}'
  ```
 
   ### View all labels
@@ -125,7 +131,7 @@ curl -i -X GET http://localhost:3000/api/labels/<LABEL_ID> -H "Authorization: Be
   
   ### Update a label by ID for the current user
   ```
-  curl -i -X PATCH http://localhost:3000/api/labels/<LABEL_ID> -H "Authorization: Bearer $<TOKEN>" -H "Content-Type: application/json" -d '{"name": "UpdatedLabelName"}'
+  curl -i -X PATCH http://localhost:3000/api/labels/<LABEL_ID> -H "Authorization: Bearer $<TOKEN>" -H "Content-Type: application/json" -d '{"name": "<UpdatedLabelName>"}'
   ```
   
   ### Delete a label by ID for the current user
@@ -142,13 +148,16 @@ curl -i -X GET http://localhost:3000/api/labels/<LABEL_ID> -H "Authorization: Be
   ### Add a malicious URL
 
    ```
-    echo "POST http://www.bad.com/" | nc localhost 5555
+    echo "POST http://www.bad.com" | nc localhost 5555
    ```
 
   ### Remove a malicious URL
   ```
-echo "DELETE http://www.bad.com/" | nc localhost 5555
+echo "DELETE http://www.bad.com" | nc localhost 5555
 ```
+
+If you're using the same terminal, press Ctrl+C to exit this part and continue with the email section.
+
 ## Example Run
 
   ```
@@ -261,7 +270,7 @@ Keep-Alive: timeout=5
 
 # Blocked URL case
 
-localhost 5555 "POST http://www.bad.com/" | nc localhost 5555
+echo "POST http://www.bad.com/" | nc localhost 5555
 201 Created
 
  curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer $ALICE_TOKEN" -H "Content-Type: application/json" -d '{"sender":"alice@example.com", "recipient":"bob@example.com", "subject":"Project Update", "content":"http://www.bad.com/"}'
