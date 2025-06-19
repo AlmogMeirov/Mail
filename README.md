@@ -152,8 +152,6 @@ echo "DELETE http://www.bad.com/" | nc localhost 5555
 ## Example Run
 
   ```
-cd mail/src
-
 # Register Bob
 curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d '{"email":"bob@example.com","password":"bobspassword","firstName":"Bob","lastName":"Builder"}'
 
@@ -168,7 +166,7 @@ Keep-Alive: timeout=5
 
 {"id":1,"email":"bob@example.com","name":"Bob Builder","profileImage":null}
 
-# Register Bob
+# Register Alice
 curl -i -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d '{"email":"alice@example.com","password":"alicepassword","firstName":"Alice","lastName":"Wonder"}'
 
 HTTP/1.1 201 Created
@@ -248,7 +246,7 @@ Keep-Alive: timeout=5
 
 # Blocked URL case
 
-localhost 5555"POST http://www.bad.com/" | nc localhost 5555
+localhost 5555 "POST http://www.bad.com/" | nc localhost 5555
 201 Created
 
  curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer $ALICE_TOKEN" -H "Content-Type: application/json" -d '{"sender":"alice@example.com", "recipient":"bob@example.com", "subject":"Project Update", "content":"http://www.bad.com/"}'
