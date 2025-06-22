@@ -5,6 +5,7 @@ const { extractUrls } = require("../utils/extractUrls");
 const { checkUrlBlacklist } = require("../utils/blacklistClient");
 const inboxMap = require('../utils/inboxMap');
 const { getAllLabels } = require('../models/labels');
+const userModel = require("../models/userModel");
 
 // mailController.js
 const createMail = async (req, res) => {
@@ -95,13 +96,27 @@ const getMails = (req, res) => {
         }
         // Sort by timestamp (descending) and limit to the latest 50 mails
         const sorted = inbox.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        const recent_mails = sorted.slice(0, 50).map(mail => ({
+        const recent_mails = sorted.slice(0, 50).map(mail => {
+        const isSent = mail.sender === userEmail;
+        const otherEmail = isSent ? mail.recipient : mail.sender;
+        const otherUser = userModel.findUserByEmail(otherEmail);
+
+        return {
             id: mail.id,
             subject: mail.subject,
             timestamp: mail.timestamp,
-            direction: mail.sender === userEmail ? 'sent' : 'received',
-
-        }));
+            direction: isSent ? 'sent' : 'received',
+            otherParty: otherUser
+                ? {
+                    email: otherUser.email,
+                    firstName: otherUser.firstName,
+                    lastName: otherUser.lastName,
+                    profileImage: otherUser.profileImage
+                }
+                : { email: otherEmail },
+            preview: mail.content?.slice(0, 100) || ""
+        };
+    });
 
 
         res.status(200).json({
@@ -128,10 +143,26 @@ function getMailById(req, res) {
         for (const mail of inbox) {
             if (mail.id === mailId) {
                 if (mail.sender === userEmail || mail.recipient === userEmail) {
+                    const senderUser = userModel.findUserByEmail(mail.sender);
+                    const recipientUser = userModel.findUserByEmail(mail.recipient);
                     return res.status(200).json({
                         id: mail.id,
-                        sender: mail.sender,
-                        recipient: mail.recipient,
+                        sender: senderUser
+                            ? {
+                                email: senderUser.email,
+                                firstName: senderUser.firstName,
+                                lastName: senderUser.lastName,
+                                profileImage: senderUser.profileImage
+                            }
+                            : { email: mail.sender },
+                        recipient: recipientUser
+                            ? {
+                                email: recipientUser.email,
+                                firstName: recipientUser.firstName,
+                                lastName: recipientUser.lastName,
+                                profileImage: recipientUser.profileImage
+                            }
+                            : { email: mail.recipient },
                         subject: mail.subject,
                         content: mail.content,
                         timestamp: mail.timestamp,
