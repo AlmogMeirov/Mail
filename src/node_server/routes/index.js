@@ -6,7 +6,7 @@ const mailsRouter = require("./mailRoutes");
 //const blacklistRouter = require("../../src/node_server/routes/blacklist");
 const labelsRouter = require("./labels");
 
-router.use("/", usersRouter);
+router.use("/users", usersRouter);
 router.use("/mails", mailsRouter);
 //router.use("/blacklist", blacklistRouter);
 router.use("/labels", labelsRouter);

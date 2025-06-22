@@ -1,16 +1,18 @@
 const express = require('express');
 const router = express.Router(); // Create a router object to define API routes
-// Import the authController which contains the logic for user registration and login
-const authController = require('../controllers/authController'); // Import the authMiddleware to protect routes that require authentication
+
+const authController = require('../controllers/authController'); // Controller with register & login logic
 const authenticateToken = require('../middlewares/authMiddleware');
 const multer = require('multer');
-const upload = multer({ dest: 'uploads/' }); // Set up multer for file uploads, storing files in the 'uploads' directory
+const upload = multer({ dest: 'uploads/' }); // Configure multer to save uploaded files to 'uploads/' directory
 
-//router.post('/users', authController.register);
-router.post('/tokens', authController.login);
+// Register route (with optional profile image upload)
+router.post('/register', upload.single('profileImage'), authController.register);
 
-//router.get('/api/users/:id', authenticateToken, authController.getProfile);
+// Login route (issues JWT token)
+router.post('/login', authController.login);
 
-router.post('/users', upload.single('profileImage'), authController.register);
+// Example of a protected route (uncomment if needed)
+// router.get('/:id', authenticateToken, authController.getProfile);
 
-module.exports = router; 
+module.exports = router;

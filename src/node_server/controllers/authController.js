@@ -70,7 +70,8 @@ function login(req, res) {
 
   // Check if the user exists and password matches the stored (hashed) password
   if (!user || user.password !== hashPassword(password)) {
-    return res.status(401).send("Invalid email or password"); // Unauthorized if credentials are incorrect
+    return res.status(401).json({ error: "Invalid email or password" });
+
   }
 
   // Create a signed JWT token with user's ID and email as payload

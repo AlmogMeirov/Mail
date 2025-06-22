@@ -43,12 +43,17 @@ const Login = () => {
 
             if (res.status === 200) {
                 const { token } = await res.json();
-                // store JWT so future requests can use it
                 localStorage.setItem('jwt', token);
-                navigate('/inbox');         // or wherever “home” is
+                navigate('/inbox'); // או עמוד אחר שתחליט
             } else {
-                const data = await res.json();
-                setError(data?.error || 'Login failed');
+                let errorMsg = 'Login failed';
+                try {
+                    const data = await res.json();
+                    errorMsg = data?.error || errorMsg;
+                } catch (jsonErr) {
+                    console.warn('Failed to parse error JSON:', jsonErr);
+                }
+                setError(errorMsg);
             }
         } catch (err) {
             console.error('Network error:', err);
@@ -56,7 +61,7 @@ const Login = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }
 
     // --- render ---
     return (
