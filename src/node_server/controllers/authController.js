@@ -27,7 +27,7 @@ function register(req, res) {
 
   // Check if email is already used
   if (userModel.findUserByEmail(email)) {
-    return res.status(400).send('Email already registered');
+    return res.status(400).json({ error: 'Email already registered' });
   }
 
   // Hash the password before storing
