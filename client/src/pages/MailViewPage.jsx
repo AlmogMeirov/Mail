@@ -37,13 +37,16 @@ function MailViewPage() {
     <h1>{mail.subject || <em>(no subject)</em>}</h1>
 
     <div style={{ display: "flex", alignItems: "center", marginBottom: "1rem" }}>
-      {mail.sender?.profileImage && (
-        <img
-          src={mail.sender.profileImage || "/user-svgrepo-com.svg"}
-          alt="Sender avatar"
-          style={{ width: 50, height: 50, borderRadius: "50%", marginRight: "1rem" }}
-        />
-      )}
+      <img
+        src={mail.sender?.profileImage || "/user-svgrepo-com.svg"}
+        alt="Sender avatar"
+        style={{
+            width: 50,
+            height: 50,
+            borderRadius: "50%",
+            marginRight: "1rem"
+        }}
+     />
       <div>
          <strong>From:</strong>{" "}
           {mail.sender?.firstName} {mail.sender?.lastName} ({mail.sender?.email})<br />
