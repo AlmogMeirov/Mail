@@ -27,7 +27,7 @@ function register(req, res) {
 
   // Check if email is already used
   if (userModel.findUserByEmail(email)) {
-    return res.status(400).send('Email already registered');
+    return res.status(400).json({ error: 'Email already registered' });
   }
 
   // Hash the password before storing
@@ -70,7 +70,8 @@ function login(req, res) {
 
   // Check if the user exists and password matches the stored (hashed) password
   if (!user || user.password !== hashPassword(password)) {
-    return res.status(401).send("Invalid email or password"); // Unauthorized if credentials are incorrect
+    return res.status(401).json({ error: "Invalid email or password" });
+
   }
 
   // Create a signed JWT token with user's ID and email as payload
