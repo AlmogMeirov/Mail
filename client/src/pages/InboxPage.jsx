@@ -43,7 +43,23 @@ function InboxPage() {
     <div style={{ padding: "1rem" }}>
       <h1>Inbox</h1>
       <button onClick={() => setShowComponent(true)}>Send Mail</button>
-      {showComponent && <SendMailComponent onClose={() => setShowComponent(false)} />}
+      {showComponent && (
+        <>
+            <div
+            style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                width: "100vw",
+                height: "100vh",
+                backgroundColor: "rgba(0, 0, 0, 0.5)",
+                zIndex: 998
+            }}
+            onClick={() => setShowComponent(false)}
+            />
+            <SendMailComponent onClose={() => setShowComponent(false)} />
+        </>
+     )}
       <ul style={{ listStyle: "none", padding: 0 }}>
   {mails.map((mail) => (
     <li
