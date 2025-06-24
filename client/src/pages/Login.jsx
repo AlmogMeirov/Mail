@@ -43,8 +43,8 @@ const Login = () => {
 
             if (res.status === 200) {
                 const { token } = await res.json();
-                localStorage.setItem('jwt', token);
-                navigate('/inbox'); // או עמוד אחר שתחליט
+                localStorage.setItem('token', token);
+                navigate('/inbox');
             } else {
                 let errorMsg = 'Login failed';
                 try {
