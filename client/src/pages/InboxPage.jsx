@@ -1,11 +1,13 @@
 // src/pages/InboxPage.jsx
 import React, { useEffect, useState } from "react";
+import SendMailComponent from "../components/SendMailComponent";
 import { useNavigate } from "react-router-dom";
 
 function InboxPage() {
   const [mails, setMails] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const [showComponent, setShowComponent] = useState(false);
   
   useEffect(() => {
     const fetchMails = async () => {
@@ -40,6 +42,8 @@ function InboxPage() {
   return (
     <div style={{ padding: "1rem" }}>
       <h1>Inbox</h1>
+      <button onClick={() => setShowComponent(true)}>Send Mail</button>
+      {showComponent && <SendMailComponent onClose={() => setShowComponent(false)} />}
       <ul style={{ listStyle: "none", padding: 0 }}>
   {mails.map((mail) => (
     <li
