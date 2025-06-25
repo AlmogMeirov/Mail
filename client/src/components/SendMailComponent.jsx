@@ -1,13 +1,42 @@
 import { useState } from "react";
 
-export default function SendMailComponent({ onClose }) {
-  const [recipient, setRecipient] = useState("");
-  const [subject, setSubject] = useState("");
-  const [content, setContent] = useState("");
+export default function SendMailComponent({ onClose, initialRecipient = "", initialSubject = "", initialContent = "" }) {
+
+ const [recipient, setRecipient] = useState(initialRecipient);
+ const [subject, setSubject] = useState(initialSubject);
+ const [content, setContent] = useState(initialContent);
 
   const handleSend = async () => {
     const token = localStorage.getItem("token");
     const sender = localStorage.getItem("email"); // Assuming email is stored in localStorage
+    
+    if (!recipient) {
+      alert("Recipient is required.");
+      return;
+    }
+
+    const recipientsArray = recipient
+      .split(",")
+      .map(email => email.trim())
+      .filter(email => email.length > 0);
+
+    const isValidEmail = email => /\S+@\S+\.\S+/.test(email);
+
+    if (!recipientsArray.every(isValidEmail)) {
+      alert("One or more recipient emails are invalid.");
+      return;
+    }
+
+    if (!subject || !content) {
+      const confirmSend = window.confirm(
+        "Your email is missing a " +
+        (!subject && !content ? "subject and content" :
+        !subject ? "subject" :
+        "content") +
+        ". Do you want to send it anyway?"
+      );
+      if (!confirmSend) return;
+    }
 
     const res = await fetch("http://localhost:3000/api/mails", {
       method: "POST",
@@ -15,7 +44,12 @@ export default function SendMailComponent({ onClose }) {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`
       },
-      body: JSON.stringify({ recipient, subject, content, sender })
+      body: JSON.stringify({
+        recipients: recipientsArray,
+        subject,
+        content,
+        sender
+      })
     });
 
     if (res.ok) {
