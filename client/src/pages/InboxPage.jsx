@@ -98,14 +98,21 @@ function InboxPage() {
               <strong>{mail.direction === "sent" ? "To" : "From"}:</strong>{" "}
               {mail.otherParty?.firstName
                 ? `${mail.otherParty.firstName} ${mail.otherParty.lastName}`
-                : mail.otherParty?.email || "(unknown)"}{" "}
+                : mail.otherParty?.email ||
+                (mail.direction === "sent"
+                  ? mail.recipient
+                  : mail.sender) ||
+                "(unknown)"}
               <br />
+
               <strong>Subject:</strong>{" "}
               {mail.subject || <em>(no subject)</em>} <br />
+
               <strong>Date:</strong>{" "}
               {new Date(mail.timestamp).toLocaleString()} <br />
+
               <p style={{ color: "#666" }}>
-                {mail.preview || <em>(no content)</em>}
+                {mail.preview || mail.content?.slice(0, 100) || <em>(no content)</em>}
               </p>
             </li>
           ))}
@@ -114,5 +121,4 @@ function InboxPage() {
     </div>
   );
 }
-
 export default InboxPage;
