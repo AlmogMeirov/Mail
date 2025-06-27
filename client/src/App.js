@@ -3,11 +3,13 @@ import InboxPage from "./pages/InboxPage";
 import MailViewPage from "./pages/MailViewPage";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import HomePage from "./pages/HomePage";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<HomePage />} />
         <Route path="/inbox" element={<InboxPage />} />
         <Route path="/mail/:id" element={<MailViewPage />} />
         <Route path="/register" element={<Register />} />

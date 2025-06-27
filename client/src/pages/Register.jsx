@@ -3,12 +3,18 @@ import { useNavigate } from 'react-router-dom';
 
 const Register = () => {
     // Local state for each field
+    // Required fields
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    // Optional fields
     const [profilePicture, setProfilePicture] = useState(null);
+    const [birthDate, setBirthDate] = useState('');
+    const [phone, setPhone] = useState('');
+    const [gender, setGender] = useState('');
+
     const [errorMessage, setErrorMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -61,18 +67,24 @@ const Register = () => {
 
         setIsLoading(true);
         setErrorMessage('');
+        const payload = {
+            firstName,
+            lastName,
+            email,
+            password,
+        };
+
+        if (profilePicture) payload.profilePicture = profilePicture;
+        if (birthDate) payload.birthDate = birthDate;
+        if (phone) payload.phone = phone;
+        if (gender) payload.gender = gender;
+
 
         try {
             const response = await fetch("http://localhost:3000/api/users/register", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    firstName,
-                    lastName,
-                    email,
-                    password,
-                    profilePicture,
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (response.status === 201) {
@@ -147,6 +159,31 @@ const Register = () => {
                 />
 
                 <input
+                    type="date"
+                    placeholder="Birth Date"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                />
+
+                <input
+                    type="text"
+                    placeholder="Phone Number"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                />
+
+                <select
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                >
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                </select>
+
+
+                <input
                     type="file"
                     accept="image/*"
                     onChange={handleImageChange}
@@ -155,6 +192,13 @@ const Register = () => {
                 {isLoading && <p>Registering...</p>}
 
                 <button type="submit">Register</button>
+                <p>
+                    Already have an account?{" "}
+                    <span onClick={() => navigate("/login")} style={{ color: "blue", cursor: "pointer" }}>
+                        Login here
+                    </span>
+                </p>
+
             </form>
         </div>
     );

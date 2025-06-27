@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import SendMailComponent from "../components/SendMailComponent";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SearchBar from "../components/SearchBar";
+import LogoutButton from "../components/LogoutButton";
 
 function InboxPage() {
   const [mails, setMails] = useState([]);
@@ -45,8 +46,13 @@ function InboxPage() {
 
   // On first load
   useEffect(() => {
-    const query = searchParams.get("q");
-    fetchMails(query);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+    } else {
+      const query = searchParams.get("q");
+      fetchMails(query);
+    }
   }, []);
 
   // When user triggers search
@@ -101,6 +107,11 @@ function InboxPage() {
         <p>No mails found.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h1>Inbox</h1>
+            <LogoutButton />
+          </div>
+
           {mails.map((mail) => (
             <li
               key={mail.id}
@@ -130,6 +141,7 @@ function InboxPage() {
                   <em>(no content)</em>
                 )}
               </p>
+
             </li>
           ))}
         </ul>
