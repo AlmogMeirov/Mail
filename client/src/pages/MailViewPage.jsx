@@ -45,7 +45,11 @@ function MailViewPage() {
 
     <div style={{ display: "flex", alignItems: "center", marginBottom: "1rem" }}>
       <img
-        src={mail.sender?.profileImage || "/user-svgrepo-com.svg"}
+        src={
+            mail.sender?.profileImage?.startsWith("data:image")
+            ? mail.sender.profileImage 
+            : mail.sender?.profileImage || "/user-svgrepo-com.svg"
+        }
         alt="Sender avatar"
         style={{
             width: 50,
@@ -53,7 +57,7 @@ function MailViewPage() {
             borderRadius: "50%",
             marginRight: "1rem"
         }}
-     />
+    />
       <div>
          <strong>From:</strong>{" "}
           {mail.sender?.firstName} {mail.sender?.lastName} ({mail.sender?.email})<br />
