@@ -18,7 +18,12 @@ function register(req, res) {
   } = req.body;
 
   // Get uploaded image filename from multer, if exists
-  const profileImage = req.file ? req.file.filename : null;
+  /*******************
+   * to use the image diractly from the client, the following line was changed by Meir.
+   * The original line was:
+   * const profileImage = req.file ? req.file.filename : null;
+  */
+  const profileImage = req.body.profilePicture || null;
 
   // Validate required fields
   if (!firstName || !lastName || !password || !email) {

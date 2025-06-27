@@ -20,7 +20,10 @@ const createMail = async (req, res) => {
             : [];
 
     // ----- basic validation -----
-    if (recipientsList.length === 0 || !subject || !content) {
+
+    /* Edited by Meir to allow empty subject and content. The old code was:
+    if (recipientsList.length === 0 || !subject || !content) {*/
+    if (recipientsList.length === 0 ) {
         return res.status(400).json({ error: "Missing required fields" });
     }
     if (!inboxMap.has(sender)) {
@@ -56,6 +59,7 @@ const createMail = async (req, res) => {
             id: uuidv4(),
             sender,
             recipient: r,
+            recipients: recipientsList, // Added by Meir to keep track of all recipients
             subject,
             content,
             labels,
@@ -145,6 +149,20 @@ function getMailById(req, res) {
                 if (mail.sender === userEmail || mail.recipient === userEmail) {
                     const senderUser = userModel.findUserByEmail(mail.sender);
                     const recipientUser = userModel.findUserByEmail(mail.recipient);
+                    // Build recipient list with user details - added by Meir
+                    const recipientList = Array.isArray(mail.recipients)
+                        ? mail.recipients.map(email => {
+                            const user = userModel.findUserByEmail(email);
+                            return user
+                                ? {
+                                    email: user.email,
+                                    firstName: user.firstName,
+                                    lastName: user.lastName,
+                                    profileImage: user.profileImage
+                                }
+                                : { email };
+                            })
+                        : [];
                     return res.status(200).json({
                         id: mail.id,
                         sender: senderUser
@@ -163,6 +181,7 @@ function getMailById(req, res) {
                                 profileImage: recipientUser.profileImage
                             }
                             : { email: mail.recipient },
+                        recipients: recipientList, // Added by Meir
                         subject: mail.subject,
                         content: mail.content,
                         timestamp: mail.timestamp,
