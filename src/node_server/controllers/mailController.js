@@ -101,26 +101,26 @@ const getMails = (req, res) => {
         // Sort by timestamp (descending) and limit to the latest 50 mails
         const sorted = inbox.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         const recent_mails = sorted.slice(0, 50).map(mail => {
-        const isSent = mail.sender === userEmail;
-        const otherEmail = isSent ? mail.recipient : mail.sender;
-        const otherUser = userModel.findUserByEmail(otherEmail);
+            const isSent = mail.sender === userEmail;
+            const otherEmail = isSent ? mail.recipient : mail.sender;
+            const otherUser = userModel.findUserByEmail(otherEmail);
 
-        return {
-            id: mail.id,
-            subject: mail.subject,
-            timestamp: mail.timestamp,
-            direction: isSent ? 'sent' : 'received',
-            otherParty: otherUser
-                ? {
-                    email: otherUser.email,
-                    firstName: otherUser.firstName,
-                    lastName: otherUser.lastName,
-                    profileImage: otherUser.profileImage
-                }
-                : { email: otherEmail },
-            preview: mail.content?.slice(0, 100) || ""
-        };
-    });
+            return {
+                id: mail.id,
+                subject: mail.subject,
+                timestamp: mail.timestamp,
+                direction: isSent ? 'sent' : 'received',
+                otherParty: otherUser
+                    ? {
+                        email: otherUser.email,
+                        firstName: otherUser.firstName,
+                        lastName: otherUser.lastName,
+                        profileImage: otherUser.profileImage
+                    }
+                    : { email: otherEmail },
+                preview: mail.content?.slice(0, 100) || ""
+            };
+        });
 
 
         res.status(200).json({
@@ -303,13 +303,17 @@ function searchMails(req, res) {
     if (results.length === 0) {
         return res.status(404).json({ error: "No matching mails found" });
     }
-
+    // Format the results to include only necessary fields branch309 exericice 4
     return res.json(results.map(mail => ({
         id: mail.id,
         subject: mail.subject,
         timestamp: mail.timestamp,
-        direction: mail.sender === userEmail ? "sent" : "received"
+        direction: mail.sender === userEmail ? "sent" : "received",
+        sender: mail.sender,
+        recipient: mail.recipient,
+        content: mail.content,
     })));
+
 }
 // This function updates the labels for a specific mail for the authenticated user.
 function updateMailLabelsForUser(req, res) {
