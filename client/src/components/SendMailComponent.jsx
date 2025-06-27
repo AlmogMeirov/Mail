@@ -56,7 +56,8 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
       alert("Mail sent!");
       onClose();
     } else {
-      alert("Failed to send mail.");
+      const errorData = await res.json();
+      alert(errorData.error || "Failed to send mail.");
     }
   };
 
