@@ -8,6 +8,7 @@ function MailViewPage() {
   const [error, setError] = useState(null);
   const [showReply, setShowReply] = useState(false);
   const [showForward, setShowForward] = useState(false);
+  const [showReplyAll, setShowReplyAll] = useState(false);
 
   useEffect(() => {
     const fetchMail = async () => {
@@ -20,6 +21,7 @@ function MailViewPage() {
 
         if (!response.ok) throw new Error("Failed to fetch mail");
         const data = await response.json();
+        console.log("Mail received:", data);
         setMail(data);
       } catch (err) {
         console.error(err);
@@ -35,7 +37,11 @@ function MailViewPage() {
 
   return (
   <div style={{ padding: "1rem" }}>
-    <h1>{mail.subject || <em>(no subject)</em>}</h1>
+    <h1>
+        {mail.subject === null || mail.subject === undefined
+            ? <em>(no subject)</em>
+            : mail.subject}
+    </h1>
 
     <div style={{ display: "flex", alignItems: "center", marginBottom: "1rem" }}>
       <img
@@ -51,18 +57,29 @@ function MailViewPage() {
       <div>
          <strong>From:</strong>{" "}
           {mail.sender?.firstName} {mail.sender?.lastName} ({mail.sender?.email})<br />
+
           <strong>To:</strong>{" "}
-          {mail.recipient?.firstName} {mail.recipient?.lastName} ({mail.recipient?.email})<br />
+          <span>
+            {Array.isArray(mail.recipients)
+            ? mail.recipients
+                .map(r => `${r.firstName || ""} ${r.lastName || ""} (${r.email})`)
+                .join(", ")
+            : `${mail.recipient?.firstName || ""} ${mail.recipient?.lastName || ""} (${mail.recipient?.email})`}<br />
+          </span>
+          
           <strong>Date:</strong> {new Date(mail.timestamp).toLocaleString()}
       </div>
     </div>
 
     <div style={{ whiteSpace: "pre-wrap", marginBottom: "1rem" }}>
-      {mail.content || <em>(no content)</em>}
+      {mail.content === null || mail.content === undefined
+        ? <em>(no content)</em>
+        : mail.content}
     </div>
 
     <div style={{ display: "flex", gap: "1rem" }}>
         <button onClick={() => setShowReply(true)}>Reply</button>
+        <button onClick={() => setShowReplyAll(true)}>Reply All</button>
         <button onClick={() => setShowForward(true)}>Forward</button>
     </div>
 
@@ -89,6 +106,40 @@ function MailViewPage() {
           initialContent={`\n\n--- Original Message ---\n${mail.content}`}
         />
         </>
+    )}
+
+    {showReplyAll && (
+    <>
+        <div
+        style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            zIndex: 998
+        }}
+        onClick={() => setShowReplyAll(false)}
+        />
+        <SendMailComponent
+        onClose={() => setShowReplyAll(false)}
+        initialRecipient={
+            [
+                mail.sender?.email,
+                ...mail.recipients
+                .filter(r => r.email && r.email !== localStorage.getItem("email"))
+                .map(r => r.email)
+            ]
+                .filter(email => email && email !== localStorage.getItem("email"))
+                .join(", ")
+        }
+        initialSubject={
+            mail.subject?.startsWith("Re:") ? mail.subject : `Re: ${mail.subject}`
+        }
+        initialContent={`\n\n--- Original Message ---\n${mail.content}`}
+        />
+    </>
     )}
 
     {showForward && (

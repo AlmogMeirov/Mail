@@ -37,7 +37,7 @@ function InboxPage() {
 
   if (loading) return <p>Loading...</p>;
 
-  if (mails.length === 0) return <p>No mails in your inbox yet.</p>;
+  //if (mails.length === 0) return <p>No mails in your inbox yet.</p>;
 
   return (
     <div style={{ padding: "1rem" }}>
@@ -60,34 +60,38 @@ function InboxPage() {
             <SendMailComponent onClose={() => setShowComponent(false)} />
         </>
      )}
-      <ul style={{ listStyle: "none", padding: 0 }}>
-  {mails.map((mail) => (
-    <li
-        key={mail.id}
-        onClick={() => navigate(`/mail/${mail.id}`)}
-        style={{
-            cursor: "pointer",
-            border: "1px solid #ccc",
-            padding: "1rem",
-            marginBottom: "1rem",
-            borderRadius: "8px",
-            backgroundColor: "#f9f9f9",
-  }}
->
-      <strong>{mail.direction === "sent" ? "To" : "From"}:</strong>{" "}
-        {mail.otherParty?.firstName
-        ? `${mail.otherParty.firstName} ${mail.otherParty.lastName}`
-        : mail.otherParty?.email || "(unknown)"} <br />
-      <strong>Subject:</strong>{" "}
-      {mail.subject || <em>(no subject)</em>} <br />
-      <strong>Date:</strong>{" "}
-      {new Date(mail.timestamp).toLocaleString()} <br />
-      <p style={{ color: "#666" }}>
-        {mail.preview || <em>(no content)</em>}
-      </p>
-    </li>
-  ))}
-</ul>
+     {mails.length === 0 ? (
+        <p>No mails in your inbox yet.</p>
+    ) : (
+            <ul style={{ listStyle: "none", padding: 0 }}>
+        {mails.map((mail) => (
+            <li
+                key={mail.id}
+                onClick={() => navigate(`/mail/${mail.id}`)}
+                style={{
+                    cursor: "pointer",
+                    border: "1px solid #ccc",
+                    padding: "1rem",
+                    marginBottom: "1rem",
+                    borderRadius: "8px",
+                    backgroundColor: "#f9f9f9",
+        }}
+        >
+            <strong>{mail.direction === "sent" ? "To" : "From"}:</strong>{" "}
+                {mail.otherParty?.firstName
+                ? `${mail.otherParty.firstName} ${mail.otherParty.lastName}`
+                : mail.otherParty?.email || "(unknown)"} <br />
+            <strong>Subject:</strong>{" "}
+            {mail.subject || <em>(no subject)</em>} <br />
+            <strong>Date:</strong>{" "}
+            {new Date(mail.timestamp).toLocaleString()} <br />
+            <p style={{ color: "#666" }}>
+                {mail.preview || <em>(no content)</em>}
+            </p>
+            </li>
+        ))}
+        </ul>
+    )}
     </div>
   );
 }
