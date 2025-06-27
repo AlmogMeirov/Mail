@@ -2,27 +2,16 @@
 import React, { useEffect, useState } from "react";
 import SendMailComponent from "../components/SendMailComponent";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import SearchBar from "../components/SearchBar"; // Search bar component branch309
+import SearchBar from "../components/SearchBar";
 
 function InboxPage() {
   const [mails, setMails] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-
   const [showComponent, setShowComponent] = useState(false);
-  
-  useEffect(() => {
-    const fetchMailsFromComponent = async () => {
-      try {
-        const response = await fetch("/api/mails", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [searchParams, setSearchParams] = useSearchParams();// Search parameters for query branch309
-
-  // Helper: fetch mails (all or by query) branch309
+  // Helper: fetch mails (all or by query)
   const fetchMails = async (query = null) => {
     setLoading(true);
     try {
@@ -54,7 +43,7 @@ function InboxPage() {
     }
   };
 
-  // On page load, fetch inbox or perform search
+  // On first load
   useEffect(() => {
     const query = searchParams.get("q");
     fetchMails(query);
@@ -68,15 +57,13 @@ function InboxPage() {
       return;
     }
 
-    /*
-    const isValid = /^[\p{L}\p{N}\s@.?!'"-]+$/u.test(trimmed);
-    if (!isValid) {
-      alert("Search query contains invalid characters.");
-      return;
-    }
-    */
+    // Optional: validate query
+    // const isValid = /^[\p{L}\p{N}\s@.?!'"-]+$/u.test(trimmed);
+    // if (!isValid) {
+    //   alert("Search query contains invalid characters.");
+    //   return;
+    // }
 
-    // Update the URL with query
     if (searchParams.get("q") !== trimmed) {
       setSearchParams({ q: trimmed });
     }
@@ -85,72 +72,70 @@ function InboxPage() {
   };
 
   return (
-  <div style={{ padding: "1rem" }}>
-    <SearchBar onSearch={handleSearch} /> {/* Search bar component */}
-    <h1>Inbox</h1>
+    <div style={{ padding: "1rem" }}>
+      <SearchBar onSearch={handleSearch} />
+      <h1>Inbox</h1>
 
-    {/* Send Mail Button and Modal */}
-    <button onClick={() => setShowComponent(true)}>Send Mail</button>
-    {showComponent && (
-      <>
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            zIndex: 998,
-          }}
-          onClick={() => setShowComponent(false)}
-        />
-        <SendMailComponent onClose={() => setShowComponent(false)} />
-      </>
-    )}
-
-    {/* Mail List */}
-    {loading ? (
-      <p>Loading...</p>
-    ) : mails.length === 0 ? (
-      <p>No mails found.</p>
-    ) : (
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {mails.map((mail) => (
-          <li
-            key={mail.id}
-            onClick={() => navigate(`/mail/${mail.id}`)}
+      <button onClick={() => setShowComponent(true)}>Send Mail</button>
+      {showComponent && (
+        <>
+          <div
             style={{
-              cursor: "pointer",
-              border: "1px solid #ccc",
-              padding: "1rem",
-              marginBottom: "1rem",
-              borderRadius: "8px",
-              backgroundColor: "#f9f9f9",
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              zIndex: 998,
             }}
-          >
-            <strong>{mail.direction === "sent" ? "To" : "From"}:</strong>{" "}
-            {mail.otherParty?.firstName
-              ? `${mail.otherParty.firstName} ${mail.otherParty.lastName}`
-              : mail.otherParty?.email ||
+            onClick={() => setShowComponent(false)}
+          />
+          <SendMailComponent onClose={() => setShowComponent(false)} />
+        </>
+      )}
+
+      {loading ? (
+        <p>Loading...</p>
+      ) : mails.length === 0 ? (
+        <p>No mails found.</p>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0 }}>
+          {mails.map((mail) => (
+            <li
+              key={mail.id}
+              onClick={() => navigate(`/mail/${mail.id}`)}
+              style={{
+                cursor: "pointer",
+                border: "1px solid #ccc",
+                padding: "1rem",
+                marginBottom: "1rem",
+                borderRadius: "8px",
+                backgroundColor: "#f9f9f9",
+              }}
+            >
+              <strong>{mail.direction === "sent" ? "To" : "From"}:</strong>{" "}
+              {mail.otherParty?.firstName
+                ? `${mail.otherParty.firstName} ${mail.otherParty.lastName}`
+                : mail.otherParty?.email ||
                 (mail.direction === "sent" ? mail.recipient : mail.sender) ||
                 "(unknown)"}
-            <br />
-            <strong>Subject:</strong>{" "}
-            {mail.subject || <em>(no subject)</em>} <br />
-            <strong>Date:</strong>{" "}
-            {new Date(mail.timestamp).toLocaleString()} <br />
-            <p style={{ color: "#666" }}>
-              {mail.preview || mail.content?.slice(0, 100) || (
-                <em>(no content)</em>
-              )}
-            </p>
-          </li>
-        ))}
-      </ul>
-    )}
-  </div>
-);
-
+              <br />
+              <strong>Subject:</strong>{" "}
+              {mail.subject || <em>(no subject)</em>} <br />
+              <strong>Date:</strong>{" "}
+              {new Date(mail.timestamp).toLocaleString()} <br />
+              <p style={{ color: "#666" }}>
+                {mail.preview || mail.content?.slice(0, 100) || (
+                  <em>(no content)</em>
+                )}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
+
 export default InboxPage;
