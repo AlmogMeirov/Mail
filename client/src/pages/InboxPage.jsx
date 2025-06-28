@@ -80,6 +80,11 @@ function InboxPage() {
   return (
     <div style={{ padding: "1rem" }}>
       <SearchBar onSearch={handleSearch} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1>Inbox</h1>
+        <LogoutButton />
+      </div>
+
       <h1>Inbox</h1>
 
       <button onClick={() => setShowComponent(true)}>Send Mail</button>
@@ -103,15 +108,11 @@ function InboxPage() {
 
       {loading ? (
         <p>Loading...</p>
+
       ) : mails.length === 0 ? (
         <p>No mails found.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h1>Inbox</h1>
-            <LogoutButton />
-          </div>
-
           {mails.map((mail) => (
             <li
               key={mail.id}
