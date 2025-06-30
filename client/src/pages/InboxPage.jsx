@@ -1,16 +1,21 @@
 // src/pages/InboxPage.jsx
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { fetchWithAuth, moveMailToLabel } from "../utils/api"; // Add in exercises 4 - for moving mails to labels
+import SendMailComponent from "../components/SendMailComponent";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import SearchBar from "../components/SearchBar";
+import LogoutButton from "../components/LogoutButton";
 
 function InboxPage() {
   const [mails, setMails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [allLabels, setAllLabels] = useState([]);// Add in exercises 4 - for moving mails to labels
+  const [showComponent, setShowComponent] = useState(false);
   const navigate = useNavigate();
-   const token = localStorage.getItem("token");// Add in exercises 4 - for moving mails to labels
+  const token = localStorage.getItem("token");// Add in exercises 4 - for moving mails to labels
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  useEffect(() => {
+/*useEffect(() => {
     const fetchMails = async () => {
       try {
         const response = await fetch("/api/mails", {
@@ -18,11 +23,11 @@ function InboxPage() {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
         });
-
         if (!response.ok) {
           throw new Error("Failed to fetch mails");
         }
-
+        
+        
         const data = await response.json();
         setMails(Array.isArray(data.recent_mails) ? data.recent_mails : []);
         console.log("Mail object example:", data.recent_mails[0]);
@@ -31,16 +36,47 @@ function InboxPage() {
       } finally {
         setLoading(false);
       }
-    };
-    // Add in exercises 4 - fetch mails and labels
-    fetchMails();
+    };*/
+
+  // Helper: fetch mails (all or by query)
+  const fetchMails = async (query = null) => {
+  setLoading(true);
+  try {
+    const url = query
+      ? `/api/mails/search?q=${encodeURIComponent(query)}`
+      : "/api/mails";
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
+
+    if (!response.ok) throw new Error("Failed to fetch mails");
+
+    const data = await response.json();
+    if (Array.isArray(data.recent_mails)) {
+      setMails(data.recent_mails);
+    } else if (Array.isArray(data)) {
+      setMails(data);
+    } else {
+      setMails([]);
+    }
+
+    // New part: fetch labels as well
+    const token = localStorage.getItem("token");
     fetchWithAuth("/labels", token)
       .then(setAllLabels)
       .catch(console.error);
 
-  }, []);
+  } catch (err) {
+    console.error("Fetch error:", err);
+    setMails([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  
 // Add in exercises 4 - move mail to label
   const handleMove = async (mailId, toLabelId) => {
     try {
@@ -52,35 +88,105 @@ function InboxPage() {
     }
   };
 
-  if (loading) return <p>Loading...</p>;
-  if (mails.length === 0) return <p>No mails in your inbox yet.</p>;
+  // On first load
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+    } else {
+      const query = searchParams.get("q");
+      fetchMails(query);
+    }
+  }, []);
+
+  // When user triggers search
+  const handleSearch = async (query) => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      alert("Empty search query – skipping request.");
+      return;
+    }
+
+    // Optional: validate query
+    // const isValid = /^[\p{L}\p{N}\s@.?!'"-]+$/u.test(trimmed);
+    // if (!isValid) {
+    //   alert("Search query contains invalid characters.");
+    //   return;
+    // }
+
+    if (searchParams.get("q") !== trimmed) {
+      setSearchParams({ q: trimmed });
+    }
+
+    await fetchMails(trimmed);
+  };
 
   return (
-    <div className="mail-content-area">
-      <h1>Inbox</h1>
-      <ul className="mail-list">
-        {mails.map((mail) => (
-          <li
-            key={mail.id}
-            className="mail-item"
-            onClick={() => navigate(`/mail/${mail.id}`)}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#eef"}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#f9f9f9"}
-          >
-            <strong>{mail.direction === "sent" ? "To" : "From"}:</strong>{" "}
-            {mail.otherParty?.firstName
-              ? `${mail.otherParty.firstName} ${mail.otherParty.lastName}`
-              : mail.otherParty?.email || "(unknown)"}{" "}
-            <br />
-            <strong>Subject:</strong>{" "}
-            {mail.subject || <em>(no subject)</em>} <br />
-            <strong>Date:</strong>{" "}
-            {new Date(mail.timestamp).toLocaleString()} <br />
-            <p className="mail-preview">
-              {mail.preview || <em>(no content)</em>}
-            </p>
+    <div style={{ padding: "1rem" }}>
+      <SearchBar onSearch={handleSearch} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1>Inbox</h1>
+        <LogoutButton />
+      </div>
 
-            {/* ★ dropdown to move mail to another label */}
+      <h1>Inbox</h1>
+
+      <button onClick={() => setShowComponent(true)}>Send Mail</button>
+      {showComponent && (
+        <>
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              zIndex: 998,
+            }}
+            onClick={() => setShowComponent(false)}
+          />
+          <SendMailComponent onClose={() => setShowComponent(false)} />
+        </>
+      )}
+
+      {loading ? (
+        <p>Loading...</p>
+
+      ) : mails.length === 0 ? (
+        <p>No mails found.</p>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0 }}>
+          {mails.map((mail) => (
+            <li
+              key={mail.id}
+              onClick={() => navigate(`/mail/${mail.id}`)}
+              style={{
+                cursor: "pointer",
+                border: "1px solid #ccc",
+                padding: "1rem",
+                marginBottom: "1rem",
+                borderRadius: "8px",
+                backgroundColor: "#f9f9f9",
+              }}
+            >
+              <strong>{mail.direction === "sent" ? "To" : "From"}:</strong>{" "}
+              {mail.otherParty?.firstName
+                ? `${mail.otherParty.firstName} ${mail.otherParty.lastName}`
+                : mail.otherParty?.email ||
+                (mail.direction === "sent" ? mail.recipient : mail.sender) ||
+                "(unknown)"}
+              <br />
+              <strong>Subject:</strong>{" "}
+              {mail.subject || <em>(no subject)</em>} <br />
+              <strong>Date:</strong>{" "}
+              {new Date(mail.timestamp).toLocaleString()} <br />
+              <p style={{ color: "#666" }}>
+                {mail.preview || mail.content?.slice(0, 100) || (
+                  <em>(no content)</em>
+                )}
+              </p>
+               {/* dropdown to move mail to another label */}
             <label>Move to:</label>{" "}
             <select
               defaultValue=""
@@ -111,9 +217,10 @@ function InboxPage() {
                 ))}
               </div>
             )}
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

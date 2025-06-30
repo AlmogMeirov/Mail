@@ -32,9 +32,11 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
+
 }
 
 /* Add in exercises 4 - styles for the app layout*/
@@ -181,4 +183,5 @@
 
 .move-button:hover { 
   background-color: #d2e3fc;
+
 }

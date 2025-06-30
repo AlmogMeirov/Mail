@@ -74,4 +74,6 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
       <button onClick={onClose}>Cancel</button>
     </div>
   );
+
 }
+

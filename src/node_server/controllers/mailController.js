@@ -21,7 +21,10 @@ const createMail = async (req, res) => {
             : [];
 
     // ----- basic validation -----
-    if (recipientsList.length === 0 || !subject || !content) {
+
+    /* Edited by Meir to allow empty subject and content. The old code was:
+    if (recipientsList.length === 0 || !subject || !content) {*/
+    if (recipientsList.length === 0 ) {
         return res.status(400).json({ error: "Missing required fields" });
     }
     if (!inboxMap.has(sender)) {
@@ -57,6 +60,7 @@ const createMail = async (req, res) => {
             id: uuidv4(),
             sender,
             recipient: r,
+            recipients: recipientsList, // Added by Meir to keep track of all recipients
             subject,
             content,
             labels,
@@ -102,26 +106,26 @@ const getMails = (req, res) => {
         // Sort by timestamp (descending) and limit to the latest 50 mails
         const sorted = inbox.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         const recent_mails = sorted.slice(0, 50).map(mail => {
-        const isSent = mail.sender === userEmail;
-        const otherEmail = isSent ? mail.recipient : mail.sender;
-        const otherUser = userModel.findUserByEmail(otherEmail);
+            const isSent = mail.sender === userEmail;
+            const otherEmail = isSent ? mail.recipient : mail.sender;
+            const otherUser = userModel.findUserByEmail(otherEmail);
 
-        return {
-            id: mail.id,
-            subject: mail.subject,
-            timestamp: mail.timestamp,
-            direction: isSent ? 'sent' : 'received',
-            otherParty: otherUser
-                ? {
-                    email: otherUser.email,
-                    firstName: otherUser.firstName,
-                    lastName: otherUser.lastName,
-                    profileImage: otherUser.profileImage
-                }
-                : { email: otherEmail },
-            preview: mail.content?.slice(0, 100) || ""
-        };
-    });
+            return {
+                id: mail.id,
+                subject: mail.subject,
+                timestamp: mail.timestamp,
+                direction: isSent ? 'sent' : 'received',
+                otherParty: otherUser
+                    ? {
+                        email: otherUser.email,
+                        firstName: otherUser.firstName,
+                        lastName: otherUser.lastName,
+                        profileImage: otherUser.profileImage
+                    }
+                    : { email: otherEmail },
+                preview: mail.content?.slice(0, 100) || ""
+            };
+        });
 
 
         res.status(200).json({
@@ -150,6 +154,20 @@ function getMailById(req, res) {
                 if (mail.sender === userEmail || mail.recipient === userEmail) {
                     const senderUser = userModel.findUserByEmail(mail.sender);
                     const recipientUser = userModel.findUserByEmail(mail.recipient);
+                    // Build recipient list with user details - added by Meir
+                    const recipientList = Array.isArray(mail.recipients)
+                        ? mail.recipients.map(email => {
+                            const user = userModel.findUserByEmail(email);
+                            return user
+                                ? {
+                                    email: user.email,
+                                    firstName: user.firstName,
+                                    lastName: user.lastName,
+                                    profileImage: user.profileImage
+                                }
+                                : { email };
+                            })
+                        : [];
                     return res.status(200).json({
                         id: mail.id,
                         sender: senderUser
@@ -168,6 +186,7 @@ function getMailById(req, res) {
                                 profileImage: recipientUser.profileImage
                             }
                             : { email: mail.recipient },
+                        recipients: recipientList, // Added by Meir
                         subject: mail.subject,
                         content: mail.content,
                         timestamp: mail.timestamp,
@@ -289,13 +308,17 @@ function searchMails(req, res) {
     if (results.length === 0) {
         return res.status(404).json({ error: "No matching mails found" });
     }
-
+    // Format the results to include only necessary fields branch309 exericice 4
     return res.json(results.map(mail => ({
         id: mail.id,
         subject: mail.subject,
         timestamp: mail.timestamp,
-        direction: mail.sender === userEmail ? "sent" : "received"
+        direction: mail.sender === userEmail ? "sent" : "received",
+        sender: mail.sender,
+        recipient: mail.recipient,
+        content: mail.content,
     })));
+
 }
 // This function updates the labels for a specific mail for the authenticated user.
 function updateMailLabelsForUser(req, res) {

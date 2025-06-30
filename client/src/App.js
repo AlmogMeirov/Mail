@@ -3,6 +3,7 @@ import InboxPage from "./pages/InboxPage";
 import MailViewPage from "./pages/MailViewPage";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import HomePage from "./pages/HomePage";
 
 
 // Add in exercises 4 for layout and navigation
@@ -17,6 +18,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+
+
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         {/* Add in exercises 4 - Protected routes under Layout */}
