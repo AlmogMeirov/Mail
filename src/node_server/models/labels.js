@@ -57,6 +57,51 @@ function labelNameExists(userId, name) {
   return false;
 }
 
+/**Add in exercises 4**/
+// mailId → Set of labelIds per user
+const mailLabels = new Map(); // key: userId, value: Map of mailId => Set of labelIds
+
+// Ensure the user's mail label map exists, if it doesn't exist yet, creates it.
+function ensureMailLabelMap(userId) {
+  if (!mailLabels.has(userId)) {
+    mailLabels.set(userId, new Map());
+  }
+  return mailLabels.get(userId);
+}
+
+// Assign label to mail
+function addLabelToMail(userId, mailId, labelId) {
+  const userMap = ensureMailLabelMap(userId);
+  if (!userMap.has(mailId)) {
+    userMap.set(mailId, new Set());
+  }
+  userMap.get(mailId).add(labelId);
+}
+
+// Remove label from mail
+function removeLabelFromMail(userId, mailId, labelId) {
+  const userMap = ensureMailLabelMap(userId);
+  if (!userMap.has(mailId)) return false;
+  return userMap.get(mailId).delete(labelId);
+}
+
+// Get labels for a specific mail
+function getLabelsForMail(userId, mailId) {
+  const userMap = ensureMailLabelMap(userId);
+  return userMap.get(mailId) ? Array.from(userMap.get(mailId)) : [];
+}
+ //Get all mailIds for a given label
+function getMailsByLabel(userId, labelId) {
+  const result = [];
+  const userMap = ensureMailLabelMap(userId);
+  for (const [mailId, labelsSet] of userMap.entries()) {
+    if (labelsSet.has(labelId)) {
+      result.push(mailId);
+    }
+  }
+  return result;
+}
+
 // Description: This module manages labels for users, allowing operations like creating, updating, deleting, and retrieving labels.
 module.exports = {
   getUserMap,
@@ -66,4 +111,8 @@ module.exports = {
   updateLabel,
   deleteLabel,
   labelNameExists,
+  addLabelToMail, //Add in exercises 4
+  removeLabelFromMail, //Add in exercises 4
+  getLabelsForMail, //Add in exercises 4
+  getMailsByLabel //Add in exercises 4
 };

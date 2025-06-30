@@ -5,6 +5,7 @@ const { extractUrls } = require("../utils/extractUrls");
 const { checkUrlBlacklist } = require("../utils/blacklistClient");
 const inboxMap = require('../utils/inboxMap');
 const { getAllLabels } = require('../models/labels');
+const labelModel = require('../models/labels'); // Add in exercises 4 to support assigning labels to mails
 const userModel = require("../models/userModel");
 
 // mailController.js
@@ -67,6 +68,10 @@ const createMail = async (req, res) => {
         };
         inboxMap.get(r).push(mail);
         sent.push(mail);
+        // Add in exercises 4, assign labels to the mail
+        labels.forEach(labelId => {
+            labelModel.addLabelToMail(sender, mail.id, labelId);
+        });
     }
 
     return res.status(201).json({ message: "Mail sent successfully", sent });

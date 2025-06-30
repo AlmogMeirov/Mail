@@ -5,15 +5,31 @@ import Register from "./pages/Register";
 import Login from "./pages/Login";
 import HomePage from "./pages/HomePage";
 
+
+// Add in exercises 4 for layout and navigation
+import SentPage from "./pages/SentPage"; 
+import LabelPage from "./pages/LabelPage";
+import Sidebar from "./components/Sidebar"; 
+import './App.css'; 
+import Layout from "./components/Layout"; 
+
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
+
+
         <Route path="/" element={<HomePage />} />
-        <Route path="/inbox" element={<InboxPage />} />
-        <Route path="/mail/:id" element={<MailViewPage />} />
-        <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        {/* Add in exercises 4 - Protected routes under Layout */}
+        <Route element={<Layout />}>
+          <Route path="/inbox" element={<InboxPage />} />
+          <Route path="/sent" element={<SentPage />} />
+          <Route path="/mail/:id" element={<MailViewPage />} />
+          <Route path="/label/:labelId" element={<LabelPage />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );

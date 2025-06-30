@@ -50,6 +50,52 @@ function search(req, res) {
   res.json(filtered);
 }
 
+/**Add in exercises 4**/
+
+// Add a label to a mail
+function tagMail(req, res) {
+  const userId = req.user.email;
+  const { mailId, labelId } = req.body;
+
+  if (!mailId || !labelId) {
+    return res.status(400).json({ error: "mailId and labelId are required" });
+  }
+
+  labelModel.addLabelToMail(userId, mailId, labelId);
+  res.status(200).json({ success: true });
+}
+
+// Remove a label from a mail
+function untagMail(req, res) {
+  const userId = req.user.email;
+  const { mailId, labelId } = req.body;
+
+  if (!mailId || !labelId) {
+    return res.status(400).json({ error: "mailId and labelId are required" });
+  }
+
+  const removed = labelModel.removeLabelFromMail(userId, mailId, labelId);
+  if (!removed) return res.status(404).json({ error: "Label not found for mail" });
+  res.status(200).json({ success: true });
+}
+
+// Get all mails associated with a label
+function getMailsByLabel(req, res) {
+  const userId = req.user.email;
+  const { labelId } = req.params;
+
+  const mails = labelModel.getMailsByLabel(userId, labelId);
+  res.json(mails);
+
+}
+// Get all labels for a specific mail
+function getLabelsForMail(req, res) {
+  const userId = req.user.email;
+  const { mailId } = req.params;
+
+  const labels = labelModel.getLabelsForMail(userId, mailId);
+  res.json(labels);
+}
 
 module.exports = {
   getAll,
@@ -58,4 +104,8 @@ module.exports = {
   update,
   remove,
   search,
+  tagMail, //Add in exercises 4
+  untagMail, //Add in exercises 4
+  getMailsByLabel, //Add in exercises 4
+  getLabelsForMail //Add in exercises 4
 };

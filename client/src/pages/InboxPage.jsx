@@ -1,5 +1,6 @@
 // src/pages/InboxPage.jsx
 import React, { useEffect, useState } from "react";
+import { fetchWithAuth, moveMailToLabel } from "../utils/api"; // Add in exercises 4 - for moving mails to labels
 import SendMailComponent from "../components/SendMailComponent";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SearchBar from "../components/SearchBar";
@@ -8,39 +9,82 @@ import LogoutButton from "../components/LogoutButton";
 function InboxPage() {
   const [mails, setMails] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [allLabels, setAllLabels] = useState([]);// Add in exercises 4 - for moving mails to labels
   const [showComponent, setShowComponent] = useState(false);
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");// Add in exercises 4 - for moving mails to labels
   const [searchParams, setSearchParams] = useSearchParams();
+
+/*useEffect(() => {
+    const fetchMails = async () => {
+      try {
+        const response = await fetch("/api/mails", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        if (!response.ok) {
+          throw new Error("Failed to fetch mails");
+        }
+        
+        
+        const data = await response.json();
+        setMails(Array.isArray(data.recent_mails) ? data.recent_mails : []);
+        console.log("Mail object example:", data.recent_mails[0]);
+      } catch (err) {
+        console.error("Error fetching mails:", err);
+      } finally {
+        setLoading(false);
+      }
+    };*/
 
   // Helper: fetch mails (all or by query)
   const fetchMails = async (query = null) => {
-    setLoading(true);
-    try {
-      const url = query
-        ? `/api/mails/search?q=${encodeURIComponent(query)}`
-        : "/api/mails";
+  setLoading(true);
+  try {
+    const url = query
+      ? `/api/mails/search?q=${encodeURIComponent(query)}`
+      : "/api/mails";
 
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    });
 
-      if (!response.ok) throw new Error("Failed to fetch mails");
+    if (!response.ok) throw new Error("Failed to fetch mails");
 
-      const data = await response.json();
-      if (Array.isArray(data.recent_mails)) {
-        setMails(data.recent_mails);
-      } else if (Array.isArray(data)) {
-        setMails(data);
-      } else {
-        setMails([]);
-      }
-    } catch (err) {
-      console.error("Fetch error:", err);
+    const data = await response.json();
+    if (Array.isArray(data.recent_mails)) {
+      setMails(data.recent_mails);
+    } else if (Array.isArray(data)) {
+      setMails(data);
+    } else {
       setMails([]);
-    } finally {
-      setLoading(false);
+    }
+
+    // New part: fetch labels as well
+    const token = localStorage.getItem("token");
+    fetchWithAuth("/labels", token)
+      .then(setAllLabels)
+      .catch(console.error);
+
+  } catch (err) {
+    console.error("Fetch error:", err);
+    setMails([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Add in exercises 4 - move mail to label
+  const handleMove = async (mailId, toLabelId) => {
+    try {
+      await moveMailToLabel(mailId, "inbox", toLabelId, token); // from inbox
+      setMails((prev) => prev.filter((m) => m.id !== mailId)); // remove mail from view
+    } catch (err) {
+      console.error("Failed to move mail:", err);
+      alert("Failed to move mail.");
     }
   };
 
@@ -142,13 +186,43 @@ function InboxPage() {
                   <em>(no content)</em>
                 )}
               </p>
+               {/* dropdown to move mail to another label */}
+            <label>Move to:</label>{" "}
+            <select
+              defaultValue=""
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleMove(mail.id, e.target.value);
+                }
+              }}
+            >
+              <option value="" disabled>Select label</option>
+              {allLabels.map((label) => (
+                <option key={label.id} value={label.id}>
+                  {label.name}
+                </option>
+              ))}
+            </select>
 
+            {Array.isArray(mail.labels) && mail.labels.length > 0 && (
+              <div className="mail-labels">
+                {mail.labels.map((label) => (
+                  <span
+                    key={label}
+                    className="mail-label"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            )}
             </li>
           ))}
         </ul>
       )}
     </div>
   );
-}
+};
 
 export default InboxPage;
