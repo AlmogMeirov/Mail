@@ -14,6 +14,16 @@ router.delete('/:id', authenticateToken, labelsController.remove);
 router.get('/', authenticateToken, labelsController.getAll);
 router.post('/', authenticateToken, labelsController.create);
 
+/**Add in exercises 4**/
+// Assign a label to a specific mail
+router.post('/tag', authenticateToken, labelsController.tagMail);
+// Remove a label from a specific mail
+router.post('/untag', authenticateToken, labelsController.untagMail);
+// Get all labels for a specific mail
+router.get('/mail/:mailId', authenticateToken, labelsController.getLabelsForMail);
+// Get all mail IDs associated with a specific label
+router.get('/by-label/:labelId', authenticateToken, labelsController.getMailsByLabel);
+
 
 module.exports = router;
 

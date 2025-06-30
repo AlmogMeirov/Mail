@@ -5,6 +5,44 @@
   text-align: center;
 }
 
+/* Sidebar layout - Add in exercises 4*/
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+/* Sidebar styles */
+.sidebar {
+  width: 220px;
+  background-color: #f1f3f4;
+  padding: 20px;
+  border-right: 1px solid #ccc;
+  text-align: left;
+}
+
+.sidebar h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar li {
+  margin-bottom: 10px;
+}
+
+.sidebar a {
+  text-decoration: none;
+  color: #333;
+  font-weight: bold;
+}
+
+.sidebar a.active {
+  color: #1a73e8;
+}
+
 .logo {
   height: 6em;
   padding: 1.5em;

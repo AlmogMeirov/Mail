@@ -16,7 +16,7 @@ const blacklistClient = require("./utils/blacklistClient");
 app.set("blacklistClient", blacklistClient); // exposes checkUrlBlacklist, addUrlToBlacklist, deleteUrlFromBlacklist
 
 
-app.use("/api/labels", require("./routes/labels"));
+//app.use("/api/labels", require("./routes/labels")); - remove in exercises 4 becuse we moved the labels routes to the main router
 
 // Fallback for unknown endpoints
 app.use((req, res) => {
