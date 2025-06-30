@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import SendMailComponent from "../components/SendMailComponent";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SearchBar from "../components/SearchBar";
+import LogoutButton from "../components/LogoutButton";
 
 function InboxPage() {
   const [mails, setMails] = useState([]);
@@ -45,8 +46,13 @@ function InboxPage() {
 
   // On first load
   useEffect(() => {
-    const query = searchParams.get("q");
-    fetchMails(query);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+    } else {
+      const query = searchParams.get("q");
+      fetchMails(query);
+    }
   }, []);
 
   // When user triggers search
@@ -74,6 +80,11 @@ function InboxPage() {
   return (
     <div style={{ padding: "1rem" }}>
       <SearchBar onSearch={handleSearch} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1>Inbox</h1>
+        <LogoutButton />
+      </div>
+
       <h1>Inbox</h1>
 
       <button onClick={() => setShowComponent(true)}>Send Mail</button>
@@ -97,6 +108,7 @@ function InboxPage() {
 
       {loading ? (
         <p>Loading...</p>
+
       ) : mails.length === 0 ? (
         <p>No mails found.</p>
       ) : (
@@ -130,6 +142,7 @@ function InboxPage() {
                   <em>(no content)</em>
                 )}
               </p>
+
             </li>
           ))}
         </ul>
