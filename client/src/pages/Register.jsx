@@ -162,11 +162,12 @@ const Register = () => {
 
                 <input
                     type="password"
-                    placeholder="Confirm Password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
+                    onPaste={(e) => e.preventDefault()}
+                    placeholder="Confirm Password"
                 />
+
 
                 <input
                     type="date"
