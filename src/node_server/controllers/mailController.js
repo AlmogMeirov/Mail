@@ -12,6 +12,7 @@ const userModel = require("../models/userModel");
 const createMail = async (req, res) => {
     const { labels = ["inbox"] } = req.body;
     const { sender, recipient, recipients, subject, content } = req.body;
+    const groupId = uuidv4();
 
     // ----- build recipients list (back-compat) -----
     const recipientsList = Array.isArray(recipients)
@@ -24,7 +25,7 @@ const createMail = async (req, res) => {
 
     /* Edited by Meir to allow empty subject and content. The old code was:
     if (recipientsList.length === 0 || !subject || !content) {*/
-    if (recipientsList.length === 0 ) {
+    if (recipientsList.length === 0) {
         return res.status(400).json({ error: "Missing required fields" });
     }
     if (!inboxMap.has(sender)) {
@@ -64,6 +65,7 @@ const createMail = async (req, res) => {
             subject,
             content,
             labels,
+            groupId, // Added by Tomer in exercises 4
             timestamp: new Date().toISOString(),
         };
         inboxMap.get(r).push(mail);
@@ -166,7 +168,7 @@ function getMailById(req, res) {
                                     profileImage: user.profileImage
                                 }
                                 : { email };
-                            })
+                        })
                         : [];
                     return res.status(200).json({
                         id: mail.id,
@@ -268,6 +270,7 @@ function deleteMailById(req, res) {
         return res.status(404).json({ error: "Mail not found or not authorized to delete" });
     }
 }
+/*
 
 // This function searches for mails that match a query string in the user's inbox
 function searchMails(req, res) {
@@ -320,6 +323,80 @@ function searchMails(req, res) {
     })));
 
 }
+*/
+
+function searchMails(req, res) {
+    const userEmail = req.user.email;
+    const query = req.query.q;
+
+    if (!query) {
+        return res.status(400).json({ error: "Missing search query" });
+    }
+
+    const q = query.toLowerCase();
+
+    // inbox של המשתמש
+    const inbox = inboxMap.get(userEmail) || [];
+
+    // מיילים שהמשתמש שלח
+    const sent = [];
+    for (const mails of inboxMap.values()) {
+        for (const mail of mails) {
+            if (mail.sender === userEmail) {
+                sent.push(mail);
+            }
+        }
+    }
+
+    // חיבור בין מיילים נכנסים ויוצאים
+    const combined = inbox.concat(sent);
+
+    // סינון לפי תוכן החיפוש
+    const results = combined.filter(mail => {
+        const subject = mail.subject?.toLowerCase() || "";
+        const content = mail.content?.toLowerCase() || "";
+        const sender = mail.sender?.toLowerCase() || "";
+
+        const recipientsArray = Array.isArray(mail.recipients)
+            ? mail.recipients
+            : [mail.recipient];
+        const recipientsJoined = recipientsArray.map(r => r.toLowerCase()).join(" ");
+
+        return (
+            subject.includes(q) ||
+            content.includes(q) ||
+            sender.includes(q) ||
+            recipientsJoined.includes(q)
+        );
+    });
+
+    if (results.length === 0) {
+        return res.status(404).json({ error: "No matching mails found" });
+    }
+
+    // הסרת כפילויות לפי id (כדי לא להציג את אותו מייל שנשלח לקבוצה כמה פעמים)
+    // סינון תוצאות כפולות לפי groupId
+    const seenGroups = new Set();
+    const uniqueResults = results.filter(mail => {
+        if (mail.groupId && seenGroups.has(mail.groupId)) return false;
+        seenGroups.add(mail.groupId || mail.id); // fallback for older mails
+        return true;
+    });
+
+
+    // בניית הפלט עם recipients כ-array
+    return res.json(uniqueResults.map(mail => ({
+        id: mail.id,
+        subject: mail.subject,
+        timestamp: mail.timestamp,
+        direction: mail.sender === userEmail ? "sent" : "received",
+        sender: mail.sender,
+        recipients: Array.isArray(mail.recipients) ? mail.recipients : [mail.recipient],
+        content: mail.content,
+    })));
+}
+
+
 // This function updates the labels for a specific mail for the authenticated user.
 function updateMailLabelsForUser(req, res) {
     console.log("Reached updateMailLabelsForUser with id:", req.params.id);
