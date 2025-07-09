@@ -15,69 +15,69 @@ function InboxPage() {
   const token = localStorage.getItem("token");// Add in exercises 4 - for moving mails to labels
   const [searchParams, setSearchParams] = useSearchParams();
 
-/*useEffect(() => {
-    const fetchMails = async () => {
-      try {
-        const response = await fetch("/api/mails", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
-        if (!response.ok) {
-          throw new Error("Failed to fetch mails");
+  /*useEffect(() => {
+      const fetchMails = async () => {
+        try {
+          const response = await fetch("/api/mails", {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          });
+          if (!response.ok) {
+            throw new Error("Failed to fetch mails");
+          }
+          
+          
+          const data = await response.json();
+          setMails(Array.isArray(data.recent_mails) ? data.recent_mails : []);
+          console.log("Mail object example:", data.recent_mails[0]);
+        } catch (err) {
+          console.error("Error fetching mails:", err);
+        } finally {
+          setLoading(false);
         }
-        
-        
-        const data = await response.json();
-        setMails(Array.isArray(data.recent_mails) ? data.recent_mails : []);
-        console.log("Mail object example:", data.recent_mails[0]);
-      } catch (err) {
-        console.error("Error fetching mails:", err);
-      } finally {
-        setLoading(false);
-      }
-    };*/
+      };*/
 
   // Helper: fetch mails (all or by query)
   const fetchMails = async (query = null) => {
-  setLoading(true);
-  try {
-    const url = query
-      ? `/api/mails/search?q=${encodeURIComponent(query)}`
-      : "/api/mails";
+    setLoading(true);
+    try {
+      const url = query
+        ? `/api/mails/search?q=${encodeURIComponent(query)}`
+        : "/api/mails";
 
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
 
-    if (!response.ok) throw new Error("Failed to fetch mails");
+      if (!response.ok) throw new Error("Failed to fetch mails");
 
-    const data = await response.json();
-    if (Array.isArray(data.recent_mails)) {
-      setMails(data.recent_mails);
-    } else if (Array.isArray(data)) {
-      setMails(data);
-    } else {
+      const data = await response.json();
+      if (Array.isArray(data.recent_mails)) {
+        setMails(data.recent_mails);
+      } else if (Array.isArray(data)) {
+        setMails(data);
+      } else {
+        setMails([]);
+      }
+
+      // New part: fetch labels as well
+      const token = localStorage.getItem("token");
+      fetchWithAuth("/labels", token)
+        .then(setAllLabels)
+        .catch(console.error);
+
+    } catch (err) {
+      console.error("Fetch error:", err);
       setMails([]);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // New part: fetch labels as well
-    const token = localStorage.getItem("token");
-    fetchWithAuth("/labels", token)
-      .then(setAllLabels)
-      .catch(console.error);
-
-  } catch (err) {
-    console.error("Fetch error:", err);
-    setMails([]);
-  } finally {
-    setLoading(false);
-  }
-};
-
-// Add in exercises 4 - move mail to label
+  // Add in exercises 4 - move mail to label
   const handleMove = async (mailId, toLabelId) => {
     try {
       await moveMailToLabel(mailId, "inbox", toLabelId, token); // from inbox
@@ -128,9 +128,6 @@ function InboxPage() {
         <h1>Inbox</h1>
         <LogoutButton />
       </div>
-
-      <h1>Inbox</h1>
-
       <button onClick={() => setShowComponent(true)}>Send Mail</button>
       {showComponent && (
         <>
@@ -171,11 +168,12 @@ function InboxPage() {
               }}
             >
               <strong>{mail.direction === "sent" ? "To" : "From"}:</strong>{" "}
-              {mail.otherParty?.firstName
-                ? `${mail.otherParty.firstName} ${mail.otherParty.lastName}`
-                : mail.otherParty?.email ||
-                (mail.direction === "sent" ? mail.recipient : mail.sender) ||
-                "(unknown)"}
+              {mail.direction === "sent"
+                ? (Array.isArray(mail.recipients)
+                  ? mail.recipients.join(", ")
+                  : mail.recipient || "(unknown)")
+                : mail.sender || "(unknown)"}
+
               <br />
               <strong>Subject:</strong>{" "}
               {mail.subject || <em>(no subject)</em>} <br />
@@ -186,37 +184,37 @@ function InboxPage() {
                   <em>(no content)</em>
                 )}
               </p>
-               {/* dropdown to move mail to another label */}
-            <label>Move to:</label>{" "}
-            <select
-              defaultValue=""
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => {
-                if (e.target.value) {
-                  handleMove(mail.id, e.target.value);
-                }
-              }}
-            >
-              <option value="" disabled>Select label</option>
-              {allLabels.map((label) => (
-                <option key={label.id} value={label.id}>
-                  {label.name}
-                </option>
-              ))}
-            </select>
-
-            {Array.isArray(mail.labels) && mail.labels.length > 0 && (
-              <div className="mail-labels">
-                {mail.labels.map((label) => (
-                  <span
-                    key={label}
-                    className="mail-label"
-                  >
-                    {label}
-                  </span>
+              {/* dropdown to move mail to another label */}
+              <label>Move to:</label>{" "}
+              <select
+                defaultValue=""
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    handleMove(mail.id, e.target.value);
+                  }
+                }}
+              >
+                <option value="" disabled>Select label</option>
+                {allLabels.map((label) => (
+                  <option key={label.id} value={label.id}>
+                    {label.name}
+                  </option>
                 ))}
-              </div>
-            )}
+              </select>
+
+              {Array.isArray(mail.labels) && mail.labels.length > 0 && (
+                <div className="mail-labels">
+                  {mail.labels.map((label) => (
+                    <span
+                      key={label}
+                      className="mail-label"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
             </li>
           ))}
         </ul>

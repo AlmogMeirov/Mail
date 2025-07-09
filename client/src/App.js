@@ -7,11 +7,11 @@ import HomePage from "./pages/HomePage";
 
 
 // Add in exercises 4 for layout and navigation
-import SentPage from "./pages/SentPage"; 
+import SentPage from "./pages/SentPage";
 import LabelPage from "./pages/LabelPage";
-import Sidebar from "./components/Sidebar"; 
-import './App.css'; 
-import Layout from "./components/Layout"; 
+import Sidebar from "./components/Sidebar";
+import './App.css';
+import Layout from "./components/Layout";
 
 
 function App() {

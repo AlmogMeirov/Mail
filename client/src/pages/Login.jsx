@@ -101,6 +101,12 @@ const Login = () => {
                 {isLoading && <p>Logging in...</p>}
 
                 <button type="submit">Login</button>
+                <p>
+                    Don't have an account?{" "}
+                    <span onClick={() => navigate("/register")} style={{ color: "blue", cursor: "pointer" }}>
+                        Sign up here
+                    </span>
+                </p>
             </form>
         </div>
     );

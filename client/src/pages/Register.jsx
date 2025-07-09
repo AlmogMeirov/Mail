@@ -22,10 +22,21 @@ const Register = () => {
 
     // Validate inputs before sending
     const validateForm = () => {
+        const nameRegex = /^[A-Za-z\u0590-\u05FF\s'-]+$/; // כולל עברית, רווחים, מקפים
+        if (!nameRegex.test(firstName) || !nameRegex.test(lastName)) {
+            setErrorMessage("Names can only contain letters");
+            return false;
+        }
+        // Check if required fields are filled
         if (!firstName || !lastName || !email || !password || !confirmPassword) {
             setErrorMessage("All fields must be filled (except profile picture)");
             return false;
         }
+        if (!firstName.trim() || !lastName.trim() || !email.trim()) {
+            setErrorMessage("Name and email fields cannot be empty or spaces only");
+            return false;
+        }
+
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
@@ -42,6 +53,27 @@ const Register = () => {
             setErrorMessage("Passwords do not match");
             return false;
         }
+        if (birthDate && new Date(birthDate) > new Date()) {
+            setErrorMessage("Birth date cannot be in the future");
+            return false;
+        }
+        if (email.includes(" ")) {
+            setErrorMessage("Email cannot contain spaces");
+            return false;
+        }
+
+
+
+        // If phone number is provided, validate it contains digits only
+        if (phone) {
+            const digitsOnly = phone.replace(/-/g, '');
+            if (!/^\d{10,11}$/.test(digitsOnly)) {
+                setErrorMessage("Phone number must contain 10–11 digits (digits only, dash allowed after 3 digits)");
+                return false;
+            }
+        }
+
+
 
         setErrorMessage('');
         return true;
@@ -152,11 +184,12 @@ const Register = () => {
 
                 <input
                     type="password"
-                    placeholder="Confirm Password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
+                    onPaste={(e) => e.preventDefault()}
+                    placeholder="Confirm Password"
                 />
+
 
                 <input
                     type="date"
@@ -169,8 +202,15 @@ const Register = () => {
                     type="text"
                     placeholder="Phone Number"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => {
+                        let value = e.target.value.replace(/[^\d]/g, ''); // remove non-digits
+                        if (value.length > 3) {
+                            value = value.slice(0, 3) + '-' + value.slice(3);
+                        }
+                        setPhone(value);
+                    }}
                 />
+
 
                 <select
                     value={gender}
@@ -191,13 +231,15 @@ const Register = () => {
 
                 {isLoading && <p>Registering...</p>}
 
-                <button type="submit">Register</button>
+                <button type="submit" disabled={isLoading}>Register</button>
                 <p>
                     Already have an account?{" "}
                     <span onClick={() => navigate("/login")} style={{ color: "blue", cursor: "pointer" }}>
                         Login here
                     </span>
                 </p>
+
+
 
             </form>
         </div>
