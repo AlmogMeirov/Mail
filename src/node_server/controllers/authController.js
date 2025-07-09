@@ -49,9 +49,8 @@ function register(req, res) {
     gender,
     profileImage
   );
-  inboxMap.set(newUser.email, []);
-  // Store the user's inbox in the in-memory map
-
+  inboxMap.set(newUser.email, []); // Store the user's inbox in the in-memory map
+  require('../models/labels').addLabel(newUser.email, "Spam"); // Added by Meir in ex4: Initialize the "Spam" label for the user
   // Return safe fields only
   res.status(201).json({
     id: newUser.id,

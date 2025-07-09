@@ -47,7 +47,19 @@ const createMail = async (req, res) => {
         const urls = extractUrls(`${subject} ${content}`);
         const results = await Promise.all(urls.map(checkUrlBlacklist));
         if (results.includes(true)) {
-            return res.status(400).json({ error: "Message contains blacklisted URL" });
+            // make sure 'Spam' label exists for sender. It should be existing by default, but just in case.
+            labels = ["Spam"]; // override any other label
+            for (const r of recipientsList) {
+                const userLabels = getAllLabels(r).map(l => l.name.toLowerCase());
+                if (!userLabels.includes("spam")) {
+                    labelModel.addLabel(r, "Spam");
+                }
+            } // override any other label
+            /*
+            *Edited by Meir for ex4.
+            *Previous line:
+            *return res.status(400).json({ error: "Message contains blacklisted URL" });
+            */
         }
     } catch (err) {
         console.error("Error while checking blacklist:", err);
