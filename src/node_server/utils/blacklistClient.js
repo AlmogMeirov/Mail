@@ -49,6 +49,7 @@ function addUrlToBlacklist(url) {
   return new Promise((resolve, reject) => {
     const client = net.createConnection({ host: "blacklist-server", port: 5555 }, () => {
       client.write(`POST ${url}\n`);
+      client.end();
     });
 
     let buffer = "";
@@ -56,7 +57,7 @@ function addUrlToBlacklist(url) {
 
     client.on("data", (data) => { buffer += data; });
     client.on("end", () => {
-      if (buffer.trim() === "201 Created") {
+      if (buffer.includes("201 Created")) {
         resolve();
       } else {
         reject(new Error(`Unexpected response: ${buffer.trim()}`));
@@ -71,6 +72,7 @@ function deleteUrlFromBlacklist(url) {
   return new Promise((resolve, reject) => {
     const client = net.createConnection({ host: "blacklist-server", port: 5555 }, () => {
       client.write(`DELETE ${url}\n`);
+      client.end();
     });
 
     let buffer = "";
