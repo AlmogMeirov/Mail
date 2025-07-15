@@ -1,4 +1,5 @@
 const labelModel = require("../models/labels");
+const { extractUrls } = require("../utils/extractUrls");
 
 // Get all labels for the current user
 function getAll(req, res) {
@@ -53,15 +54,36 @@ function search(req, res) {
 /**Add in exercises 4**/
 
 // Add a label to a mail
-function tagMail(req, res) {
+async function tagMail(req, res) { // Meir made it async
   const userId = req.user.email;
   const { mailId, labelId } = req.body;
+  console.log(">> Entered tagMail! mailId =", mailId, "labelId =", labelId);
 
   if (!mailId || !labelId) {
     return res.status(400).json({ error: "mailId and labelId are required" });
   }
 
   labelModel.addLabelToMail(userId, mailId, labelId);
+
+  //If user tagged this mail with "Spam", add all its URLs to the blacklist
+  const labels = labelModel.getAllLabels(userId); // Get all labels for the user
+  const label = labels.find(l => l.id === labelId); // Find the label by ID (since you can't find by name)
+  if (label && label.name.toLowerCase() === "spam") { // Added by Meir
+    const inboxMap = require('../utils/inboxMap');
+    const inbox = inboxMap.get(userId) || [];
+    const mail = inbox.find(m => m.id === mailId);
+    if (mail) {
+      const urls = extractUrls(`${mail.subject} ${mail.content}`);
+      for (const url of urls) {
+        try {
+          await require("../utils/blacklistClient").addUrlToBlacklist(url);
+        } catch (err) {
+          console.error("Failed to add URL to blacklist:", url, err.message);
+        }
+      }
+    }
+  }
+
   res.status(200).json({ success: true });
 }
 

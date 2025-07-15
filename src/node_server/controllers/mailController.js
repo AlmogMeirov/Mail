@@ -7,10 +7,11 @@ const inboxMap = require('../utils/inboxMap');
 const { getAllLabels } = require('../models/labels');
 const labelModel = require('../models/labels'); // Add in exercises 4 to support assigning labels to mails
 const userModel = require("../models/userModel");
+const { addUrlToBlacklist } = require("../utils/blacklistClient"); // Added by Meir in exercises 4 to support adding URLs to blacklist
 
 // mailController.js
 const createMail = async (req, res) => {
-    const { labels = ["inbox"] } = req.body;
+    let { labels = ["inbox"] } = req.body; // changed by Meir in exercise 4 from "const { labels = ["inbox"] } = req.body;"
     const { sender, recipient, recipients, subject, content } = req.body;
     const groupId = uuidv4();
 
@@ -43,18 +44,57 @@ const createMail = async (req, res) => {
     }
 
     // ----- blacklist check (once for whole message) -----
+    let finalLabels = labels;
     try {
         const urls = extractUrls(`${subject} ${content}`);
         const results = await Promise.all(urls.map(checkUrlBlacklist));
         if (results.includes(true)) {
-            // make sure 'Spam' label exists for sender. It should be existing by default, but just in case.
-            labels = ["Spam"]; // override any other label
+            // add mail to spam for each recipient
+            console.log("Message contains blacklisted URL, marking as spam");
+            const spamLabelMap = new Map(); // key: recipient, value: spam label id
+            for (const r of recipientsList) {
+                let spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
+                if (!spamLabel) {
+                    spamLabel = labelModel.addLabel(r, "Spam");
+                }
+                spamLabelMap.set(r, spamLabel.id);
+            }
+            const sent = [];
+            for (const r of recipientsList) {
+                const mail = {
+                    id: uuidv4(),
+                    sender,
+                    recipient: r,
+                    recipients: recipientsList,
+                    subject,
+                    content,
+                    labels: [spamLabelMap.get(r)],
+                    groupId,
+                    timestamp: new Date().toISOString(),
+                };
+                inboxMap.get(r).push(mail);
+                sent.push(mail);
+                labelModel.addLabelToMail(sender, mail.id, spamLabelMap.get(r));
+                labelModel.addLabelToMail(r, mail.id, spamLabelMap.get(r));
+            }
+
+            return res.status(201).json({ message: "Mail sent to spam", sent });
+            /*const spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
+            const spamLabelId = spamLabel?.id;
+             // override any other label
+            if (!spamLabelId) {
+                const newLabel = labelModel.addLabelToMail(r, "Spam");
+                labels = [newLabel.id];
+            } else {
+                labels = [spamLabelId];
+            }
+            console.log("Marking message as spam, labels now:", labels);
             for (const r of recipientsList) {
                 const userLabels = getAllLabels(r).map(l => l.name.toLowerCase());
                 if (!userLabels.includes("spam")) {
                     labelModel.addLabel(r, "Spam");
                 }
-            } // override any other label
+            } // override any other label*/
             /*
             *Edited by Meir for ex4.
             *Previous line:
@@ -410,7 +450,7 @@ function searchMails(req, res) {
 
 
 // This function updates the labels for a specific mail for the authenticated user.
-function updateMailLabelsForUser(req, res) {
+async function updateMailLabelsForUser(req, res) { // became async by Meir in ex4 to support adding URLs to blacklist
     console.log("Reached updateMailLabelsForUser with id:", req.params.id);
     const userEmail = req.user.email;
     const mailId = req.params.id;
@@ -446,6 +486,24 @@ function updateMailLabelsForUser(req, res) {
                 }
 
                 mail.labels[userEmail] = labels;
+                //If the mail added to the Spam label, add URLs to the blacklist. Added by Meir in ex4
+                const previousLabels = mail.labels[userEmail] || [];
+                const addedSpam = !previousLabels.map(l => l.toLowerCase()).includes("spam") &&
+                  labels.map(l => l.toLowerCase()).includes("spam");
+                if (addedSpam) {
+                    console.log("[SpamLabel] Spam label was added manually");
+                    const urls = extractUrls(`${mail.subject} ${mail.content}`);
+                    console.log("[SpamLabel] Extracted URLs:", urls);
+                    for (const url of urls) {
+                        try {
+                            await addUrlToBlacklist(url);
+                            console.log(`Added URL to blacklist: ${url}`);
+                        } catch (err) {
+                            console.error(`Failed to add URL to blacklist: ${url}`, err.message);
+                        }
+                    }
+                }
+
                 return res.status(200).json({ message: "Labels updated", labels: mail.labels[userEmail] });
             }
         }
