@@ -52,7 +52,8 @@ function addUrlToBlacklist(url) {
   // check if URL already exists
   for (const [id, savedUrl] of blacklist.entries()) {
     if (savedUrl === url) {
-      return Promise.resolve({ id, url }); // prevent duplicates
+      //return Promise.resolve({ id, url }); // prevent duplicates
+      return resolve({ status: 200, alreadyExists: true, id, url });
     }
   }
 
@@ -61,6 +62,7 @@ function addUrlToBlacklist(url) {
       client.write(`POST ${url}\n`);
       client.end();
     });
+
 
     let buffer = "";
     client.setEncoding("utf8");
