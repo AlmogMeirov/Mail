@@ -4,7 +4,7 @@ const net = require("net");
 function checkUrlBlacklist(url) {
   return new Promise((resolve, reject) => {
     console.log("[BlacklistClient] Connecting to TCP server...");
-
+    // change to "localhost" if you want to run with terminal instead of docker
     const client = net.createConnection({ host: "blacklist-server", port: 5555 }, () => {
       client.write(`GET ${url}\n`);
     });
@@ -45,8 +45,9 @@ function checkUrlBlacklist(url) {
   });
 }
 
-function addUrlToBlacklist(url) {
+async function addUrlToBlacklist(url) { // became async by Meir in exercise 4
   return new Promise((resolve, reject) => {
+    // change to "localhost" if you want to run with terminal instead of docker
     const client = net.createConnection({ host: "blacklist-server", port: 5555 }, () => {
       client.write(`POST ${url}\n`);
     });
@@ -69,6 +70,7 @@ function addUrlToBlacklist(url) {
 
 function deleteUrlFromBlacklist(url) {
   return new Promise((resolve, reject) => {
+// change to "localhost" if you want to run with terminal instead of docker
     const client = net.createConnection({ host: "blacklist-server", port: 5555 }, () => {
       client.write(`DELETE ${url}\n`);
     });

@@ -7,11 +7,13 @@ const inboxMap = require('../utils/inboxMap');
 const { getAllLabels } = require('../models/labels');
 const labelModel = require('../models/labels'); // Add in exercises 4 to support assigning labels to mails
 const userModel = require("../models/userModel");
+const { addUrlToBlacklist } = require("../utils/blacklistClient"); // Added by Meir in exercises 4 to support adding URLs to blacklist
 
 // mailController.js
 const createMail = async (req, res) => {
-    const { labels = ["inbox"] } = req.body;
+    let { labels = ["inbox"] } = req.body; // changed by Meir in exercise 4 from "const { labels = ["inbox"] } = req.body;"
     const { sender, recipient, recipients, subject, content } = req.body;
+    const groupId = uuidv4();
 
     // ----- build recipients list (back-compat) -----
     const recipientsList = Array.isArray(recipients)
@@ -24,7 +26,7 @@ const createMail = async (req, res) => {
 
     /* Edited by Meir to allow empty subject and content. The old code was:
     if (recipientsList.length === 0 || !subject || !content) {*/
-    if (recipientsList.length === 0 ) {
+    if (recipientsList.length === 0) {
         return res.status(400).json({ error: "Missing required fields" });
     }
     if (!inboxMap.has(sender)) {
@@ -42,11 +44,62 @@ const createMail = async (req, res) => {
     }
 
     // ----- blacklist check (once for whole message) -----
+    let finalLabels = labels;
     try {
         const urls = extractUrls(`${subject} ${content}`);
         const results = await Promise.all(urls.map(checkUrlBlacklist));
         if (results.includes(true)) {
-            return res.status(400).json({ error: "Message contains blacklisted URL" });
+            // add mail to spam for each recipient
+            console.log("Message contains blacklisted URL, marking as spam");
+            const spamLabelMap = new Map(); // key: recipient, value: spam label id
+            for (const r of recipientsList) {
+                let spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
+                if (!spamLabel) {
+                    spamLabel = labelModel.addLabel(r, "Spam");
+                }
+                spamLabelMap.set(r, spamLabel.id);
+            }
+            const sent = [];
+            for (const r of recipientsList) {
+                const mail = {
+                    id: uuidv4(),
+                    sender,
+                    recipient: r,
+                    recipients: recipientsList,
+                    subject,
+                    content,
+                    labels: [spamLabelMap.get(r)],
+                    groupId,
+                    timestamp: new Date().toISOString(),
+                };
+                inboxMap.get(r).push(mail);
+                sent.push(mail);
+                labelModel.addLabelToMail(sender, mail.id, spamLabelMap.get(r));
+                labelModel.addLabelToMail(r, mail.id, spamLabelMap.get(r));
+            }
+
+            return res.status(201).json({ message: "Mail sent to spam", sent });
+            /*const spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
+            const spamLabelId = spamLabel?.id;
+             // override any other label
+            if (!spamLabelId) {
+                const newLabel = labelModel.addLabelToMail(r, "Spam");
+                labels = [newLabel.id];
+            } else {
+                labels = [spamLabelId];
+            }
+            console.log("Marking message as spam, labels now:", labels);
+            for (const r of recipientsList) {
+                const userLabels = getAllLabels(r).map(l => l.name.toLowerCase());
+                if (!userLabels.includes("spam")) {
+                    labelModel.addLabel(r, "Spam");
+                }
+            } // override any other label*/
+            /*
+            *Edited by Meir for ex4.
+            *Previous line:
+            *return res.status(400).json({ error: "Message contains blacklisted URL" });
+            */
         }
     } catch (err) {
         console.error("Error while checking blacklist:", err);
@@ -64,6 +117,7 @@ const createMail = async (req, res) => {
             subject,
             content,
             labels,
+            groupId, // Added by Tomer in exercises 4
             timestamp: new Date().toISOString(),
         };
         inboxMap.get(r).push(mail);
@@ -166,7 +220,7 @@ function getMailById(req, res) {
                                     profileImage: user.profileImage
                                 }
                                 : { email };
-                            })
+                        })
                         : [];
                     return res.status(200).json({
                         id: mail.id,
@@ -268,6 +322,7 @@ function deleteMailById(req, res) {
         return res.status(404).json({ error: "Mail not found or not authorized to delete" });
     }
 }
+/*
 
 // This function searches for mails that match a query string in the user's inbox
 function searchMails(req, res) {
@@ -320,8 +375,82 @@ function searchMails(req, res) {
     })));
 
 }
+*/
+
+function searchMails(req, res) {
+    const userEmail = req.user.email;
+    const query = req.query.q;
+
+    if (!query) {
+        return res.status(400).json({ error: "Missing search query" });
+    }
+
+    const q = query.toLowerCase();
+
+    // inbox של המשתמש
+    const inbox = inboxMap.get(userEmail) || [];
+
+    // מיילים שהמשתמש שלח
+    const sent = [];
+    for (const mails of inboxMap.values()) {
+        for (const mail of mails) {
+            if (mail.sender === userEmail) {
+                sent.push(mail);
+            }
+        }
+    }
+
+    // חיבור בין מיילים נכנסים ויוצאים
+    const combined = inbox.concat(sent);
+
+    // סינון לפי תוכן החיפוש
+    const results = combined.filter(mail => {
+        const subject = mail.subject?.toLowerCase() || "";
+        const content = mail.content?.toLowerCase() || "";
+        const sender = mail.sender?.toLowerCase() || "";
+
+        const recipientsArray = Array.isArray(mail.recipients)
+            ? mail.recipients
+            : [mail.recipient];
+        const recipientsJoined = recipientsArray.map(r => r.toLowerCase()).join(" ");
+
+        return (
+            subject.includes(q) ||
+            content.includes(q) ||
+            sender.includes(q) ||
+            recipientsJoined.includes(q)
+        );
+    });
+
+    if (results.length === 0) {
+        return res.status(404).json({ error: "No matching mails found" });
+    }
+
+    // הסרת כפילויות לפי id (כדי לא להציג את אותו מייל שנשלח לקבוצה כמה פעמים)
+    // סינון תוצאות כפולות לפי groupId
+    const seenGroups = new Set();
+    const uniqueResults = results.filter(mail => {
+        if (mail.groupId && seenGroups.has(mail.groupId)) return false;
+        seenGroups.add(mail.groupId || mail.id); // fallback for older mails
+        return true;
+    });
+
+
+    // בניית הפלט עם recipients כ-array
+    return res.json(uniqueResults.map(mail => ({
+        id: mail.id,
+        subject: mail.subject,
+        timestamp: mail.timestamp,
+        direction: mail.sender === userEmail ? "sent" : "received",
+        sender: mail.sender,
+        recipients: Array.isArray(mail.recipients) ? mail.recipients : [mail.recipient],
+        content: mail.content,
+    })));
+}
+
+
 // This function updates the labels for a specific mail for the authenticated user.
-function updateMailLabelsForUser(req, res) {
+async function updateMailLabelsForUser(req, res) { // became async by Meir in ex4 to support adding URLs to blacklist
     console.log("Reached updateMailLabelsForUser with id:", req.params.id);
     const userEmail = req.user.email;
     const mailId = req.params.id;
@@ -357,6 +486,24 @@ function updateMailLabelsForUser(req, res) {
                 }
 
                 mail.labels[userEmail] = labels;
+                //If the mail added to the Spam label, add URLs to the blacklist. Added by Meir in ex4
+                const previousLabels = mail.labels[userEmail] || [];
+                const addedSpam = !previousLabels.map(l => l.toLowerCase()).includes("spam") &&
+                  labels.map(l => l.toLowerCase()).includes("spam");
+                if (addedSpam) {
+                    console.log("[SpamLabel] Spam label was added manually");
+                    const urls = extractUrls(`${mail.subject} ${mail.content}`);
+                    console.log("[SpamLabel] Extracted URLs:", urls);
+                    for (const url of urls) {
+                        try {
+                            await addUrlToBlacklist(url);
+                            console.log(`Added URL to blacklist: ${url}`);
+                        } catch (err) {
+                            console.error(`Failed to add URL to blacklist: ${url}`, err.message);
+                        }
+                    }
+                }
+
                 return res.status(200).json({ message: "Labels updated", labels: mail.labels[userEmail] });
             }
         }

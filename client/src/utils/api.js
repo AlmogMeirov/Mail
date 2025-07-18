@@ -15,7 +15,7 @@ export async function fetchWithAuth(url, token) {
 }
 
 export async function moveMailToLabel(mailId, fromLabelId, toLabelId, token) {
-
+console.log("[moveMailToLabel] moving", mailId, "to", toLabelId); // Added for debugging by Meir
  // Ensure the mail is removed from the old label and added to the new one - ADD IN EXERCISE 4
   await fetch(`${API_BASE}/labels/tag`, {
     method: "POST",
