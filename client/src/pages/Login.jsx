@@ -45,7 +45,7 @@ const Login = () => {
                 const { token } = await res.json();
                 localStorage.setItem('token', token);
                 localStorage.setItem('email', email); // Added by Meir so that we can use it in SendMailComponent
-                navigate('/inbox');
+                navigate('/label/inbox');
             } else {
                 let errorMsg = 'Login failed';
                 try {
