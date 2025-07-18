@@ -24,7 +24,6 @@ const Sidebar = () => {
     fetchLabels();
   }, []);
 
-
   const handleCreateLabel = async () => {
     if (!newLabel.trim()) return;
 
@@ -41,8 +40,8 @@ const Sidebar = () => {
       if (!res.ok) throw new Error("Failed to create label");
 
       const created = await res.json();
-      setLabels([...labels, created]); 
-      setNewLabel(""); 
+      setLabels([...labels, created]);
+      setNewLabel("");
     } catch (err) {
       console.error("Error creating label:", err);
     }
@@ -52,10 +51,11 @@ const Sidebar = () => {
     <nav className="sidebar">
       <h2>MyMail</h2>
       <ul>
-        <li><NavLink to="/inbox">Inbox</NavLink></li>
-        <li><NavLink to="/sent">Sent</NavLink></li>
+        {/* Static system labels */}
+        <li><NavLink to="/label/inbox">Inbox</NavLink></li>
+        <li><NavLink to="/label/sent">Sent</NavLink></li>
 
-        {/* Dynamic label links */}
+        {/* Dynamic user-created labels */}
         {labels.map(label => (
           <li key={label.id}>
             <NavLink to={`/label/${label.id}`}>{label.name}</NavLink>
