@@ -13,6 +13,7 @@ const LabelPage = () => {
   const [error, setError] = useState("");
   const [showComposer, setShowComposer] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLabelMap, setSelectedLabelMap] = useState({});
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
@@ -43,16 +44,7 @@ const LabelPage = () => {
 
           const sentList = Array.isArray(data?.sent) ? data.sent : [];
 
-          let list = [];
-          if (labelId === "inbox") {
-            list = inboxList;
-          } else if (labelId === "sent") {
-            list = sentList;
-          } else {
-            setError("Unsupported label ID");
-            return;
-          }
-
+          let list = labelId === "inbox" ? inboxList : sentList;
           setMails(list);
         } else {
           const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
@@ -68,15 +60,14 @@ const LabelPage = () => {
     };
 
     fetchMails();
-
-    fetchWithAuth("/labels", token)
-      .then(setAllLabels)
-      .catch(console.error);
+    fetchWithAuth("/labels", token).then(setAllLabels).catch(console.error);
   }, [labelId, token]);
 
-  const handleMove = async (mailId, toLabelId) => {
+  const handleMove = async (mailId, toLabelIds) => {
     try {
-      await moveMailToLabel(mailId, labelId, toLabelId, token);
+      for (const toLabelId of toLabelIds) {
+        await moveMailToLabel(mailId, labelId, toLabelId, token);
+      }
       window.location.reload();
     } catch (err) {
       alert("Failed to move mail.");
@@ -85,24 +76,10 @@ const LabelPage = () => {
   };
 
   const renderSender = (mail) => {
-    const sender = mail.sender;
-
-    if (sender) {
-      if (typeof sender === "string") return sender;
-      if (sender.email) return sender.email;
-      if (sender.firstName || sender.lastName)
-        return `${sender.firstName || ""} ${sender.lastName || ""}`.trim();
-    }
-
-    const other = mail.otherParty;
-    if (other) {
-      if (typeof other === "string") return other;
-      if (other.email) return other.email;
-      if (other.firstName || other.lastName)
-        return `${other.firstName || ""} ${other.lastName || ""}`.trim();
-    }
-
-    return "(unknown)";
+    const sender = mail.sender || mail.otherParty;
+    if (!sender) return "(unknown)";
+    if (typeof sender === "string") return sender;
+    return sender.email || `${sender.firstName || ""} ${sender.lastName || ""}`.trim();
   };
 
   const handleSearch = (query) => {
@@ -169,43 +146,61 @@ const LabelPage = () => {
             >
               <strong>From:</strong> {renderSender(mail)} <br />
               <strong>Subject:</strong> {mail.subject || <em>(no subject)</em>} <br />
-              <strong>Date:</strong>{" "}
-              {mail.timestamp
-                ? new Date(mail.timestamp).toLocaleString()
-                : "Invalid Date"}{" "}
-              <br />
-              <p style={{ color: "#666" }}>
-                {mail.preview || mail.content?.slice(0, 100) || (
-                  <em>(no content)</em>
-                )}
-              </p>
+              <strong>Date:</strong> {mail.timestamp ? new Date(mail.timestamp).toLocaleString() : "Invalid Date"}<br />
+              <p style={{ color: "#666" }}>{mail.preview || mail.content?.slice(0, 100) || <em>(no content)</em>}</p>
 
-              <label>Move to:</label>{" "}
-              <select
-                defaultValue=""
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    handleMove(mail.id, e.target.value);
-                  }
+              <details onClick={(e) => e.stopPropagation()} style={{ marginBottom: "0.5rem" }}>
+                <summary style={{ cursor: "pointer", color: "#174ea6", fontWeight: "500", marginBottom: "0.3rem" }}>
+                  Tag as:
+                </summary>
+                <div style={{ padding: "0.5rem 0", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                  {allLabels.filter(lbl => lbl.id !== labelId).map((label) => (
+                    <label
+                      key={label.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        backgroundColor: "#f1f3f4",
+                        padding: "4px 10px",
+                        borderRadius: "16px",
+                        border: "1px solid #ccc",
+                        fontSize: "0.85rem",
+                        cursor: "pointer"
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        style={{ marginRight: "6px" }}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setSelectedLabelMap(prev => {
+                            const mailLabels = new Set(prev[mail.id] || []);
+                            e.target.checked ? mailLabels.add(label.id) : mailLabels.delete(label.id);
+                            return { ...prev, [mail.id]: Array.from(mailLabels) };
+                          });
+                        }}
+                        checked={selectedLabelMap[mail.id]?.includes(label.id) || false}
+                      />
+                      {label.name}
+                    </label>
+                  ))}
+                </div>
+              </details>
+              <button
+                className="move-button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const selected = selectedLabelMap[mail.id] || [];
+                  handleMove(mail.id, selected);
                 }}
               >
-                <option value="" disabled>Select label</option>
-                {allLabels
-                  .filter((lbl) => lbl.id !== labelId)
-                  .map((label) => (
-                    <option key={label.id} value={label.id}>
-                      {label.name}
-                    </option>
-                  ))}
-              </select>
+                Move
+              </button>
 
               {Array.isArray(mail.labels) && mail.labels.length > 0 && (
                 <div className="mail-labels">
                   {mail.labels.map((label) => (
-                    <span key={label} className="mail-label">
-                      {label}
-                    </span>
+                    <span key={label} className="mail-label">{label}</span>
                   ))}
                 </div>
               )}
