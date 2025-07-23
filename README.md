@@ -148,18 +148,12 @@ curl -i -X GET http://localhost:3000/api/labels/<LABEL_ID> -H "Authorization: Be
   ### Add a malicious URL
 
    ```
-    echo "POST http://www.bad.com" | nc localhost 5555
-
-(new version)
 curl -i -X POST http://localhost:3000/api/blacklist -H "Content-Type: application/json" -d '{"url":"enter url"}'
 
    ```
 
   ### Remove a malicious URL
   ```
-echo "DELETE http://www.bad.com" | nc localhost 5555
-
-(new version)
 curl -i -X DELETE http://localhost:3000/api/blacklist/id
 
 ```
