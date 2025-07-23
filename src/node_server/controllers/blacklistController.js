@@ -8,7 +8,7 @@ async function add(req, res) {
     // If the URL is successfully added, respond with 201 Created
     const result = await addUrlToBlacklist(url); // { id, url }
     res.status(201).json(result);// Return the ID and URL of the added entry
-    res.status(201).json({ id: result.id }); // 👈 מוסיף כאן החזרה של ה־id
+    res.status(201).json({ id: result.id }); // Return only the ID of the added entry
 
   } catch (err) {
     console.error("Error adding URL to blacklist:", err.message);

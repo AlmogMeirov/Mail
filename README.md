@@ -227,7 +227,7 @@ Keep-Alive: timeout=5
 
 # Bob fetches all last 50 mails associated with his account
 
-curl -i -X GET http://localhost:3000/api/mails -H "Authorization: Bearer $BOB_TOKEN"/mails -H "Authorization: Bearer $BOB_TOKEN"
+curl -i -X GET http://localhost:3000/api/mails -H "Authorization: Bearer $BOB_TOKEN"
 
 HTTP/1.1 200 OK
 X-Powered-By: Express
@@ -242,7 +242,7 @@ Keep-Alive: timeout=5
 
 # Assign label
 
-curl -i -X POST http://localhost:3000/api/labels -H "Authorization: Bearer $BOB_TOKEN" -H "Content-Type: application/json" -d '{"name":"Work"}'/json" -d '{"name":"Work"}'
+curl -i -X POST http://localhost:3000/api/labels -H "Authorization: Bearer $BOB_TOKEN" -H "Content-Type: application/json" -d '{"name":"Work"}'
 
 HTTP/1.1 201 Created
 X-Powered-By: Express
@@ -255,7 +255,7 @@ Keep-Alive: timeout=5
 
 {"id":"1cbadb9e-058e-403b-82f2-837232f06fce","name":"Work"}
 
-curl -i -X PATCH http://localhost:3000/api/mails/64dda02f-cbcd-4e34-8fb8-f974b0dd5976/label -H "Authorization: Bearer $BOB_TOKEN" -H "Content-Type: application/json" -d '{"labels":["Work"]}'tion/json" -d '{"labels":["Work"]}'
+curl -i -X PATCH http://localhost:3000/api/mails/64dda02f-cbcd-4e34-8fb8-f974b0dd5976/label -H "Authorization: Bearer $BOB_TOKEN" -H "Content-Type: application/json" -d '{"labels":["Work"]}'
 HTTP/1.1 200 OK
 X-Powered-By: Express
 Content-Type: application/json; charset=utf-8
