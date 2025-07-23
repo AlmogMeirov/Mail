@@ -44,20 +44,36 @@ function checkUrlBlacklist(url) {
     });
   });
 }
+// add to map in memory every url that is added to blacklist
+const blacklist = new Map(); // id -> url
+let nextId = 1;
 
 function addUrlToBlacklist(url) {
+  // check if URL already exists
+  for (const [id, savedUrl] of blacklist.entries()) {
+    if (savedUrl === url) {
+      //return Promise.resolve({ id, url }); // prevent duplicates
+      return resolve({ status: 200, alreadyExists: true, id, url });
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const client = net.createConnection({ host: "blacklist-server", port: 5555 }, () => {
       client.write(`POST ${url}\n`);
+      client.end();
     });
+
 
     let buffer = "";
     client.setEncoding("utf8");
 
     client.on("data", (data) => { buffer += data; });
+
     client.on("end", () => {
-      if (buffer.trim() === "201 Created") {
-        resolve();
+      if (buffer.includes("201 Created")) {
+        const id = nextId++;
+        blacklist.set(id, url);
+        resolve({ id, url });
       } else {
         reject(new Error(`Unexpected response: ${buffer.trim()}`));
       }
@@ -67,26 +83,42 @@ function addUrlToBlacklist(url) {
   });
 }
 
-function deleteUrlFromBlacklist(url) {
+function deleteUrlFromBlacklist(id) {
   return new Promise((resolve, reject) => {
+    if (!blacklist.has(id)) {
+      return resolve({ status: 404 }); // id doesn't exist
+    }
+    const url = blacklist.get(id);
+    if (!url) {
+      return resolve({ status: 404 }); // id doesn't exist
+    }
+
     const client = net.createConnection({ host: "blacklist-server", port: 5555 }, () => {
       client.write(`DELETE ${url}\n`);
+      client.end();
     });
 
     let buffer = "";
     client.setEncoding("utf8");
 
+    console.log("Removing URL from blacklist:", url);
+
     client.on("data", (data) => { buffer += data; });
     client.on("end", () => {
       const response = buffer.trim();
-      if (response === "204 No Content") return resolve({ status: 204 });
-      if (response === "404 Not Found") return resolve({ status: 404 });
-      reject(new Error(`Unexpected response: ${response}`));
+      console.log("📡 TCP response:", response); // debug log
+      if (response.includes("204")) {
+        blacklist.delete(id) // remove from in-memory map
+        return resolve({ status: 204 });
+      }
+      if (response.includes("404")) return resolve({ status: 404 });
+      reject(new Error(`Unexpected response: '${response}'`));
     });
 
     client.on("error", reject);
   });
 }
+
 
 module.exports = {
   checkUrlBlacklist,
