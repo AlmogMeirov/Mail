@@ -149,13 +149,11 @@ curl -i -X GET http://localhost:3000/api/labels/<LABEL_ID> -H "Authorization: Be
 
    ```
 curl -i -X POST http://localhost:3000/api/blacklist -H "Content-Type: application/json" -d '{"url":"enter url"}'
-
    ```
 
   ### Remove a malicious URL
   ```
 curl -i -X DELETE http://localhost:3000/api/blacklist/id
-
 ```
 
 If you're using the same terminal, press Ctrl+C to exit this part and continue with the email section.
@@ -270,6 +268,7 @@ Keep-Alive: timeout=5
 {"message":"Labels updated","labels":["Work"]}
 
 
+#NEED TO CHANGE!!!!!!!!!!!!!!!
 # Blocked URL case
 
 echo "POST http://www.bad.com/" | nc localhost 5555
