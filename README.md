@@ -56,7 +56,13 @@ They can also be executed on Windows using CMD or PowerShell, with appropriate s
   ```
     BOB_TOKEN=$(curl -s -X POST http://localhost:3000/api/tokens -H "Content-Type: application/json" -d '{"email":"<EMAIL>","password":"<PASSWORD>"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
   ```
-    Save the token from the response to use in future authenticated requests. (not exist in CMD, when you work in CMD you need to write down the token every time it requries).
+  Save the token from the response to use in future authenticated requests. (not exist in CMD, when you work in CMD you need to write down the token every time it requries).
+
+  ### Get user by ID
+   ```
+   curl -i -X GET http://localhost:3000/api/users/<ID> -H "Content-Type: application/json" -H "Authorization: Bearer $<TOKEN>"
+   ```
+  
 
 ## Mail
 
