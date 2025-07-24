@@ -9,7 +9,7 @@ const upload = multer({ dest: 'uploads/' }); // Set up multer for file uploads, 
 //router.post('/users', authController.register);
 router.post('/tokens', authController.login);
 
-//router.get('/api/users/:id', authenticateToken, authController.getProfile);
+router.get('/users/:id', authenticateToken, authController.getProfile);
 
 router.post('/users', upload.single('profileImage'), authController.register);
 
