@@ -217,7 +217,7 @@ function deleteMailById(req, res) {
 // This function searches for mails that match a query string in the user's inbox
 function searchMails(req, res) {
     const userEmail = req.user.email;
-    const query = req.query.q;
+    const query = req.params.query;
 
     if (!query) {
         return res.status(400).json({ error: "Missing search query" });
