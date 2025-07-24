@@ -283,7 +283,7 @@ Keep-Alive: timeout=5
 
 {"id":1,"url":"http://gidi.gov"}
 
- curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer $ALICE_TOKEN" -H "Content-Type: application/json" -d '{"sender":"alice@example.com", "recipient":"bob@example.com", "subject":"Project Update", "content":"http://www.bad.com/"}'
+ curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer $ALICE_TOKEN" -H "Content-Type: application/json" -d '{"sender":"alice@example.com", "recipient":"bob@example.com", "subject":"Project Update", "content":"http://gidi.gov"}'
 HTTP/1.1 400 Bad Request
 X-Powered-By: Express
 Content-Type: application/json; charset=utf-8
