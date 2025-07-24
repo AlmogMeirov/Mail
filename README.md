@@ -92,7 +92,7 @@ They can also be executed on Windows using CMD or PowerShell, with appropriate s
   ### Search mails by query
 
   ```
-    curl -i -X GET http://localhost:3000/api/mails?q="<QUERY>" -H "Authorization: Bearer $<TOKEN>"
+    curl -i -X GET http://localhost:3000/api/mails/search/<QUERY> -H "Authorization: Bearer $<TOKEN>"
 ```
     Replace <QUERY> with the search string you want.
   
