@@ -100,7 +100,6 @@ function getProfile(req, res) {
   res.status(200).json({
     email: user.email,
     name: `${user.firstName} ${user.lastName}`,
-    gender: user.gender,
     profileImage: user.profileImage
   });
 }
