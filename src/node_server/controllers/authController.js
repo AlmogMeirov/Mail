@@ -87,7 +87,26 @@ function login(req, res) {
   });
 
 }
+
+function getProfile(req, res) {
+  const userId = Number(req.params.id); // Get user ID from the request parameters
+  const user = userModel.findUserById(userId); // Find the user by ID in the in-memory model
+
+  if (!user) {
+    return res.status(404).send("User not found"); // Return 404 if user does not exist
+  }
+
+  // Return safe fields only
+  res.status(200).json({
+    email: user.email,
+    name: `${user.firstName} ${user.lastName}`,
+    gender: user.gender,
+    profileImage: user.profileImage
+  });
+}
+
 module.exports = {
   login,
-  register
+  register,
+  getProfile
 }
