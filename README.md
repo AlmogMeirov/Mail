@@ -267,8 +267,6 @@ Keep-Alive: timeout=5
 
 {"message":"Labels updated","labels":["Work"]}
 
-
-
 # Blocked URL case
 
 curl -i -X POST http://localhost:3000/api/blacklist -H "Content-Type: application/json" -d '{"url":"http://gidi.gov"}'
