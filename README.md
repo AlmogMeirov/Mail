@@ -268,12 +268,20 @@ Keep-Alive: timeout=5
 {"message":"Labels updated","labels":["Work"]}
 
 
-#NEED TO CHANGE!!!!!!!!!!!!!!!
+
 # Blocked URL case
 
-echo "POST http://www.bad.com/" | nc localhost 5555
-201 Created
+curl -i -X POST http://localhost:3000/api/blacklist -H "Content-Type: application/json" -d '{"url":"http://gidi.gov"}'
+HTTP/1.1 201 Created
+X-Powered-By: Express
+Content-Type: application/json; charset=utf-8
+Content-Length: 32
+ETag: W/"20-0WV+Ikol2wEW84pr4ea9j67h1us"
+Date: Thu, 24 Jul 2025 10:32:32 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
 
+{"id":2,"url":"http://gidi.gov"}
  curl -i -X POST http://localhost:3000/api/mails -H "Authorization: Bearer $ALICE_TOKEN" -H "Content-Type: application/json" -d '{"sender":"alice@example.com", "recipient":"bob@example.com", "subject":"Project Update", "content":"http://www.bad.com/"}'
 HTTP/1.1 400 Bad Request
 X-Powered-By: Express
