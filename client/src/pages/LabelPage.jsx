@@ -1,3 +1,4 @@
+import { FaTrash } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth, moveMailToLabel } from "../utils/api";
@@ -47,11 +48,24 @@ const LabelPage = () => {
           let list = labelId === "inbox" ? inboxList : sentList;
           setMails(list);
         } else {
+          // Defensive check in case response is null or empty
           const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
-          const fullMails = await Promise.all(
-            ids.map(id => fetchWithAuth(`/mails/${id}`, token))
-          );
-          setMails(fullMails);
+          if (!Array.isArray(ids) || ids.length === 0) {
+            setMails([]);
+          } else {
+            const fullMails = await Promise.all(
+              ids.map(async (id) => {
+                try {
+                  const mail = await fetchWithAuth(`/mails/${id}`, token);
+                  return mail || null;
+                } catch (err) {
+                  console.warn(`Failed to fetch mail ${id}:`, err);
+                  return null;
+                }
+              })
+            );
+            setMails(fullMails.filter(m => m !== null));
+          }
         }
       } catch (err) {
         console.error("Fetch error:", err);
@@ -186,6 +200,31 @@ const LabelPage = () => {
                   ))}
                 </div>
               </details>
+              
+              <button
+                className="trash-button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const trashLabel = allLabels.find(l => l.name.toLowerCase() === "trash");
+                  if (trashLabel) {
+                    handleMove(mail.id, [trashLabel.id]);
+                  } else {
+                    alert("Trash label not found");
+                  }
+                }}
+                title="Move to Trash"
+                style={{
+                  marginLeft: "0.5rem",
+                  backgroundColor: "#f8d7da",
+                  color: "#721c24",
+                  border: "1px solid #f5c6cb",
+                  borderRadius: "4px",
+                  padding: "4px 8px",
+                  cursor: "pointer"
+                }}
+              >
+                <FaTrash />
+              </button>
               <button
                 className="move-button"
                 onClick={(e) => {
@@ -196,6 +235,38 @@ const LabelPage = () => {
               >
                 Move
               </button>
+
+              {labelName.toLowerCase() === "trash" && (
+                <button
+                  className="delete-button"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      await fetch(`/api/mails/${mail.id}`, {
+                        method: "DELETE",
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                        },
+                      });
+                      window.location.reload();
+                    } catch (err) {
+                      console.error("Failed to delete mail:", err);
+                      alert("Failed to delete mail.");
+                    }
+                  }}
+                  style={{
+                    marginLeft: "0.5rem",
+                    backgroundColor: "#dc3545",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    cursor: "pointer"
+                  }}
+                >
+                  Delete Forever
+                </button>
+              )}
 
               {Array.isArray(mail.labels) && mail.labels.length > 0 && (
                 <div className="mail-labels">
