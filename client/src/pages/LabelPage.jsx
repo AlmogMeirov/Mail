@@ -1,3 +1,4 @@
+import { FaTrash } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth, moveMailToLabel } from "../utils/api";
@@ -13,6 +14,7 @@ const LabelPage = () => {
   const [error, setError] = useState("");
   const [showComposer, setShowComposer] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLabelMap, setSelectedLabelMap] = useState({});
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
@@ -43,23 +45,27 @@ const LabelPage = () => {
 
           const sentList = Array.isArray(data?.sent) ? data.sent : [];
 
-          let list = [];
-          if (labelId === "inbox") {
-            list = inboxList;
-          } else if (labelId === "sent") {
-            list = sentList;
-          } else {
-            setError("Unsupported label ID");
-            return;
-          }
-
+          let list = labelId === "inbox" ? inboxList : sentList;
           setMails(list);
         } else {
+          // Defensive check in case response is null or empty
           const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
-          const fullMails = await Promise.all(
-            ids.map(id => fetchWithAuth(`/mails/${id}`, token))
-          );
-          setMails(fullMails);
+          if (!Array.isArray(ids) || ids.length === 0) {
+            setMails([]);
+          } else {
+            const fullMails = await Promise.all(
+              ids.map(async (id) => {
+                try {
+                  const mail = await fetchWithAuth(`/mails/${id}`, token);
+                  return mail || null;
+                } catch (err) {
+                  console.warn(`Failed to fetch mail ${id}:`, err);
+                  return null;
+                }
+              })
+            );
+            setMails(fullMails.filter(m => m !== null));
+          }
         }
       } catch (err) {
         console.error("Fetch error:", err);
@@ -68,15 +74,14 @@ const LabelPage = () => {
     };
 
     fetchMails();
-
-    fetchWithAuth("/labels", token)
-      .then(setAllLabels)
-      .catch(console.error);
+    fetchWithAuth("/labels", token).then(setAllLabels).catch(console.error);
   }, [labelId, token]);
 
-  const handleMove = async (mailId, toLabelId) => {
+  const handleMove = async (mailId, toLabelIds) => {
     try {
-      await moveMailToLabel(mailId, labelId, toLabelId, token);
+      for (const toLabelId of toLabelIds) {
+        await moveMailToLabel(mailId, labelId, toLabelId, token);
+      }
       window.location.reload();
     } catch (err) {
       alert("Failed to move mail.");
@@ -85,24 +90,10 @@ const LabelPage = () => {
   };
 
   const renderSender = (mail) => {
-    const sender = mail.sender;
-
-    if (sender) {
-      if (typeof sender === "string") return sender;
-      if (sender.email) return sender.email;
-      if (sender.firstName || sender.lastName)
-        return `${sender.firstName || ""} ${sender.lastName || ""}`.trim();
-    }
-
-    const other = mail.otherParty;
-    if (other) {
-      if (typeof other === "string") return other;
-      if (other.email) return other.email;
-      if (other.firstName || other.lastName)
-        return `${other.firstName || ""} ${other.lastName || ""}`.trim();
-    }
-
-    return "(unknown)";
+    const sender = mail.sender || mail.otherParty;
+    if (!sender) return "(unknown)";
+    if (typeof sender === "string") return sender;
+    return sender.email || `${sender.firstName || ""} ${sender.lastName || ""}`.trim();
   };
 
   const handleSearch = (query) => {
@@ -169,43 +160,118 @@ const LabelPage = () => {
             >
               <strong>From:</strong> {renderSender(mail)} <br />
               <strong>Subject:</strong> {mail.subject || <em>(no subject)</em>} <br />
-              <strong>Date:</strong>{" "}
-              {mail.timestamp
-                ? new Date(mail.timestamp).toLocaleString()
-                : "Invalid Date"}{" "}
-              <br />
-              <p style={{ color: "#666" }}>
-                {mail.preview || mail.content?.slice(0, 100) || (
-                  <em>(no content)</em>
-                )}
-              </p>
+              <strong>Date:</strong> {mail.timestamp ? new Date(mail.timestamp).toLocaleString() : "Invalid Date"}<br />
+              <p style={{ color: "#666" }}>{mail.preview || mail.content?.slice(0, 100) || <em>(no content)</em>}</p>
 
-              <label>Move to:</label>{" "}
-              <select
-                defaultValue=""
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    handleMove(mail.id, e.target.value);
+              <details onClick={(e) => e.stopPropagation()} style={{ marginBottom: "0.5rem" }}>
+                <summary style={{ cursor: "pointer", color: "#174ea6", fontWeight: "500", marginBottom: "0.3rem" }}>
+                  Tag as:
+                </summary>
+                <div style={{ padding: "0.5rem 0", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+                  {allLabels.filter(lbl => lbl.id !== labelId).map((label) => (
+                    <label
+                      key={label.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        backgroundColor: "#f1f3f4",
+                        padding: "4px 10px",
+                        borderRadius: "16px",
+                        border: "1px solid #ccc",
+                        fontSize: "0.85rem",
+                        cursor: "pointer"
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        style={{ marginRight: "6px" }}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setSelectedLabelMap(prev => {
+                            const mailLabels = new Set(prev[mail.id] || []);
+                            e.target.checked ? mailLabels.add(label.id) : mailLabels.delete(label.id);
+                            return { ...prev, [mail.id]: Array.from(mailLabels) };
+                          });
+                        }}
+                        checked={selectedLabelMap[mail.id]?.includes(label.id) || false}
+                      />
+                      {label.name}
+                    </label>
+                  ))}
+                </div>
+              </details>
+              
+              <button
+                className="trash-button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const trashLabel = allLabels.find(l => l.name.toLowerCase() === "trash");
+                  if (trashLabel) {
+                    handleMove(mail.id, [trashLabel.id]);
+                  } else {
+                    alert("Trash label not found");
                   }
                 }}
+                title="Move to Trash"
+                style={{
+                  marginLeft: "0.5rem",
+                  backgroundColor: "#f8d7da",
+                  color: "#721c24",
+                  border: "1px solid #f5c6cb",
+                  borderRadius: "4px",
+                  padding: "4px 8px",
+                  cursor: "pointer"
+                }}
               >
-                <option value="" disabled>Select label</option>
-                {allLabels
-                  .filter((lbl) => lbl.id !== labelId)
-                  .map((label) => (
-                    <option key={label.id} value={label.id}>
-                      {label.name}
-                    </option>
-                  ))}
-              </select>
+                <FaTrash />
+              </button>
+              <button
+                className="move-button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const selected = selectedLabelMap[mail.id] || [];
+                  handleMove(mail.id, selected);
+                }}
+              >
+                Move
+              </button>
+
+              {labelName.toLowerCase() === "trash" && (
+                <button
+                  className="delete-button"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      await fetch(`/api/mails/${mail.id}`, {
+                        method: "DELETE",
+                        headers: {
+                          Authorization: `Bearer ${token}`,
+                        },
+                      });
+                      window.location.reload();
+                    } catch (err) {
+                      console.error("Failed to delete mail:", err);
+                      alert("Failed to delete mail.");
+                    }
+                  }}
+                  style={{
+                    marginLeft: "0.5rem",
+                    backgroundColor: "#dc3545",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    padding: "4px 8px",
+                    cursor: "pointer"
+                  }}
+                >
+                  Delete Forever
+                </button>
+              )}
 
               {Array.isArray(mail.labels) && mail.labels.length > 0 && (
                 <div className="mail-labels">
                   {mail.labels.map((label) => (
-                    <span key={label} className="mail-label">
-                      {label}
-                    </span>
+                    <span key={label} className="mail-label">{label}</span>
                   ))}
                 </div>
               )}
