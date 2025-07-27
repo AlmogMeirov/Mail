@@ -7,21 +7,41 @@ const Sidebar = () => {
   const [newLabel, setNewLabel] = useState("");
 
   useEffect(() => {
-    const fetchLabels = async () => {
+    const token = localStorage.getItem("token");
+
+    const fetchLabelsAndEnsureTrash = async () => {
       try {
         const res = await fetch("/api/labels", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
         setLabels(data);
+
+        const trashExists = data.some(
+          label => label.name.toLowerCase() === "trash"
+        );
+
+        if (!trashExists) {
+          const createRes = await fetch("/api/labels", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ name: "Trash" }),
+          });
+
+          if (!createRes.ok) throw new Error("Failed to create Trash label");
+
+          const created = await createRes.json();
+          setLabels(prev => [...prev, created]);
+        }
       } catch (err) {
-        console.error("Failed to fetch labels", err);
+        console.error("Failed to fetch or create labels", err);
       }
     };
 
-    fetchLabels();
+    fetchLabelsAndEnsureTrash();
   }, []);
 
   const handleCreateLabel = async () => {
