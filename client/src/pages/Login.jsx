@@ -1,6 +1,7 @@
 // src/pages/Login.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import '../styles/Login.css'; // Assuming you have a CSS file for styling
 
 const Login = () => {
     // --- state ---
@@ -66,48 +67,54 @@ const Login = () => {
 
     // --- render ---
     return (
-        <div>
-            <h2>Login</h2>
+        <div className="login-container">
+            <div className="login-box">
+                <h2>כניסה</h2>
+                <p className="login-subtitle">המשך אל Gmail</p>
 
-            {errorMessage && (
-                <div style={{
-                    backgroundColor: 'red',
-                    color: 'white',
-                    padding: '10px',
-                    borderRadius: '5px',
-                    marginBottom: '15px'
-                }}>
-                    {errorMessage}
-                </div>
-            )}
+                {errorMessage && (
+                    <div className="login-error">
+                        {errorMessage}
+                    </div>
+                )}
 
-            <form onSubmit={handleSubmit}>
-                <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                />
+                <form onSubmit={handleSubmit}>
+                    <div className="input-group">
+                        <label htmlFor="email">אימייל</label>
+                        <input
+                            id="email"
+                            type="email"
+                            placeholder="Email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                        />
+                    </div>
 
-                <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                />
+                    <div className="input-group">
+                        <label htmlFor="password">סיסמה</label>
+                        <input
+                            id="password"
+                            type="password"
+                            placeholder="Password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                        />
+                    </div>
 
-                {isLoading && <p>Logging in...</p>}
+                    {isLoading && <p className="login-loading">Logging in...</p>}
 
-                <button type="submit">Login</button>
-                <p>
-                    Don't have an account?{" "}
-                    <span onClick={() => navigate("/register")} style={{ color: "blue", cursor: "pointer" }}>
-                        Sign up here
-                    </span>
-                </p>
-            </form>
+                    <button type="submit" className="login-button">הבא</button>
+
+                    <p className="register-link">
+                        אין לך חשבון?{" "}
+                        <span onClick={() => navigate("/register")}>
+                            הירשם כאן
+                        </span>
+                    </p>
+                </form>
+            </div>
         </div>
     );
 };
