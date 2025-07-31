@@ -36,19 +36,15 @@ const LabelPage = () => {
             headers: { Authorization: `Bearer ${token}` },
           });
           const data = await response.json();
-
           const inboxList = Array.isArray(data?.inbox)
             ? data.inbox
             : Array.isArray(data?.recent_mails)
               ? data.recent_mails
               : [];
-
           const sentList = Array.isArray(data?.sent) ? data.sent : [];
-
           let list = labelId === "inbox" ? inboxList : sentList;
           setMails(list);
         } else {
-          // Defensive check in case response is null or empty
           const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
           if (!Array.isArray(ids) || ids.length === 0) {
             setMails([]);
@@ -77,6 +73,7 @@ const LabelPage = () => {
     fetchWithAuth("/labels", token).then(setAllLabels).catch(console.error);
   }, [labelId, token]);
 
+  // Move mail to another label
   const handleMove = async (mailId, toLabelIds) => {
     try {
       for (const toLabelId of toLabelIds) {
@@ -86,6 +83,52 @@ const LabelPage = () => {
     } catch (err) {
       alert("Failed to move mail.");
       console.error(err);
+    }
+  };
+
+  // Remove all labels and set only 'Trash'
+  const moveMailToTrashOnly = async (mailId) => {
+    try {
+      const trashLabel = allLabels.find(l => l.name.toLowerCase() === "trash");
+      if (!trashLabel) {
+        alert("Trash label not found");
+        return;
+      }
+
+      // Get current labels for this mail
+      const res = await fetch(`/api/labels/mail/${mailId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const currentLabels = await res.json();
+
+      // Remove all current labels
+      await Promise.all(
+        currentLabels.map(labelId =>
+          fetch(`/api/labels/untag`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ mailId, labelId })
+          })
+        )
+      );
+
+      // Tag only Trash
+      await fetch(`/api/labels/tag`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ mailId, labelId: trashLabel.id })
+      });
+
+      window.location.reload();
+    } catch (err) {
+      console.error("Error moving mail to trash:", err);
+      alert("Failed to move mail to trash");
     }
   };
 
@@ -200,17 +243,13 @@ const LabelPage = () => {
                   ))}
                 </div>
               </details>
-              
+
+              {/* Move to Trash only */}
               <button
                 className="trash-button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const trashLabel = allLabels.find(l => l.name.toLowerCase() === "trash");
-                  if (trashLabel) {
-                    handleMove(mail.id, [trashLabel.id]);
-                  } else {
-                    alert("Trash label not found");
-                  }
+                  moveMailToTrashOnly(mail.id);
                 }}
                 title="Move to Trash"
                 style={{
@@ -225,6 +264,8 @@ const LabelPage = () => {
               >
                 <FaTrash />
               </button>
+
+              {/* Move to selected labels */}
               <button
                 className="move-button"
                 onClick={(e) => {
@@ -236,6 +277,7 @@ const LabelPage = () => {
                 Move
               </button>
 
+              {/* Delete Forever (only from Trash) */}
               {labelName.toLowerCase() === "trash" && (
                 <button
                   className="delete-button"
@@ -267,14 +309,7 @@ const LabelPage = () => {
                   Delete Forever
                 </button>
               )}
-
-              {Array.isArray(mail.labels) && mail.labels.length > 0 && (
-                <div className="mail-labels">
-                  {mail.labels.map((label) => (
-                    <span key={label} className="mail-label">{label}</span>
-                  ))}
-                </div>
-              )}
+              
             </li>
           ))}
         </ul>
