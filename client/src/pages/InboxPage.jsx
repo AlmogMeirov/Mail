@@ -1,7 +1,7 @@
 // src/pages/InboxPage.jsx
 import React, { useEffect, useState } from "react";
 import { fetchWithAuth, moveMailToLabel } from "../utils/api"; // Add in exercises 4 - for moving mails to labels
-import SendMailComponent from "../components/SendMailComponent";
+//import SendMailComponent from "../components/SendMailComponent";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SearchBar from "../components/SearchBar";
 import LogoutButton from "../components/LogoutButton";
@@ -10,7 +10,7 @@ function InboxPage() {
   const [mails, setMails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [allLabels, setAllLabels] = useState([]);// Add in exercises 4 - for moving mails to labels
-  const [showComponent, setShowComponent] = useState(false);
+  //const [showComponent, setShowComponent] = useState(false);
   const navigate = useNavigate();
   const token = localStorage.getItem("token");// Add in exercises 4 - for moving mails to labels
   const [searchParams, setSearchParams] = useSearchParams();
@@ -128,24 +128,7 @@ function InboxPage() {
         <h1>Inbox</h1>
         <LogoutButton />
       </div>
-      <button onClick={() => setShowComponent(true)}>Send Mail</button>
-      {showComponent && (
-        <>
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              zIndex: 998,
-            }}
-            onClick={() => setShowComponent(false)}
-          />
-          <SendMailComponent onClose={() => setShowComponent(false)} />
-        </>
-      )}
+      
 
       {loading ? (
         <p>Loading...</p>

@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth, moveMailToLabel } from "../utils/api";
 import SearchBar from "../components/SearchBar";
 import LogoutButton from "../components/LogoutButton";
-import SendMailComponent from "../components/SendMailComponent";
+//import SendMailComponent from "../components/SendMailComponent";
 
 const LabelPage = () => {
   const { labelId } = useParams();
@@ -12,7 +12,7 @@ const LabelPage = () => {
   const [labelName, setLabelName] = useState("");
   const [allLabels, setAllLabels] = useState([]);
   const [error, setError] = useState("");
-  const [showComposer, setShowComposer] = useState(false);
+  //const [showComposer, setShowComposer] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLabelMap, setSelectedLabelMap] = useState({});
   const navigate = useNavigate();
@@ -117,7 +117,7 @@ const LabelPage = () => {
             <h1>{labelName}</h1>
             <LogoutButton />
           </div>
-          <button onClick={() => setShowComposer(true)}>Send Mail</button>
+          {/*<button onClick={() => setShowComposer(true)}>Send Mail</button>
           {showComposer && (
             <>
               <div
@@ -134,7 +134,7 @@ const LabelPage = () => {
               />
               <SendMailComponent onClose={() => setShowComposer(false)} />
             </>
-          )}
+          )}*/}
         </>
       )}
 
