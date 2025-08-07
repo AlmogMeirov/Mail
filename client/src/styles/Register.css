@@ -52,8 +52,8 @@
     padding: 10px;
     border: 1px solid #555;
     border-radius: 8px;
-    background-color: #2c2c2c;
-    color: #fff;
+    background-color: #efe9e9;
+    color: #131111;
 }
 
 .input-group input::placeholder {
