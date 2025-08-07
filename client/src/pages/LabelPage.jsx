@@ -1,7 +1,7 @@
 import { FaTrash } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { fetchWithAuth, moveMailToLabel } from "../utils/api";
+import { fetchWithAuth } from "../utils/api";
 //import SearchBar from "../components/SearchBar";
 //import LogoutButton from "../components/LogoutButton";
 //import Topbar from "../components/Topbar";
@@ -17,7 +17,7 @@ const LabelPage = () => {
   //const [showComposer, setShowComposer] = useState(false);
   //const [searchQuery, setSearchQuery] = useState("");
   const { searchQuery, setSearchQuery } = useSearch();
-  const [selectedLabelMap, setSelectedLabelMap] = useState({});
+  //const [selectedLabelMap, setSelectedLabelMap] = useState({});
   const [currentMailLabels, setCurrentMailLabels] = useState({});
   const [openLabelManagement, setOpenLabelManagement] = useState({});
   const [pendingLabelChanges, setPendingLabelChanges] = useState({});
@@ -37,7 +37,96 @@ const LabelPage = () => {
         .catch(() => setLabelName(labelId));
     }
 
-    const fetchMails = async () => {
+  const fetchMails = async () => {
+    try {
+      let validMails = [];
+      
+      if (labelId === "inbox" || labelId === "sent") {
+        const response = await fetch("/api/mails", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        
+        if (labelId === "inbox") {
+          const inboxList = Array.isArray(data?.inbox) ? data.inbox : [];
+          validMails = inboxList;
+        } else if (labelId === "sent") {
+          const sentList = Array.isArray(data?.sent) ? data.sent : [];
+          validMails = sentList;
+        }
+        
+        const filteredMails = [];
+        for (const mail of validMails) {
+          try {
+            const res = await fetch(`/api/labels/mail/${mail.id}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            const labels = await res.json();
+            const labelNames = await Promise.all(
+              labels.map(async (labelId) => {
+                try {
+                  const labelData = await fetchWithAuth(`/labels/${labelId}`, token);
+                  return labelData?.name?.toLowerCase() || '';
+                } catch (err) {
+                  return '';
+                }
+              })
+            );
+            
+            if (!labelNames.includes('trash')) {
+              filteredMails.push(mail);
+            }
+          } catch (err) {
+            filteredMails.push(mail);
+          }
+        }
+        validMails = filteredMails;
+        
+      } else {
+        const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
+        
+        if (!Array.isArray(ids) || ids.length === 0) {
+          validMails = [];
+        } else {
+          const fullMails = await Promise.all(
+            ids.map(async (id) => {
+              try {
+                const mail = await fetchWithAuth(`/mails/${id}`, token);
+                return mail || null;
+              } catch (err) {
+                console.warn(`Failed to fetch mail ${id}:`, err);
+                return null;
+              }
+            })
+          );
+          validMails = fullMails.filter(m => m !== null);
+        }
+      }
+      
+      setMails(validMails);
+      
+      // Fetch current labels for each mail
+      const mailLabelsMap = {};
+      for (const mail of validMails) {
+        try {
+          const res = await fetch(`/api/labels/mail/${mail.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const labels = await res.json();
+          mailLabelsMap[mail.id] = Array.isArray(labels) ? labels : [];
+        } catch (err) {
+          console.warn(`Failed to fetch labels for mail ${mail.id}:`, err);
+          mailLabelsMap[mail.id] = [];
+        }
+      }
+      setCurrentMailLabels(mailLabelsMap);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setError("Failed to load mail data");
+    }
+  };
+
+    /*const fetchMails = async () => {
       try {
         // Use the same label-based approach for all labels, including inbox and sent
         const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
@@ -128,7 +217,7 @@ const LabelPage = () => {
         console.error("Fetch error:", err);
         setError("Failed to load mail data");
       }
-    };
+    };*/
 
     fetchMails();
     fetchWithAuth("/labels", token).then(setAllLabels).catch(console.error);
@@ -346,7 +435,7 @@ const LabelPage = () => {
                       {allLabels
                         .filter(label => label.name.toLowerCase() !== "trash")
                         .map((label) => {
-                          const isCurrentlyLabeled = (currentMailLabels[mail.id] || []).includes(label.id);
+                          //const isCurrentlyLabeled = (currentMailLabels[mail.id] || []).includes(label.id);
                           const isPendingSelection = (pendingLabelChanges[mail.id] || []).includes(label.id);
                           
                           // Initialize pending changes with current labels when first opening

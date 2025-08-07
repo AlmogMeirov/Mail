@@ -140,6 +140,79 @@ const getMails = (req, res) => {
         const userEmail = req.user.email;
 
         if (!inboxMap || inboxMap.size === 0) {
+            return res.status(200).json({ 
+                message: "No mails exist in the system", 
+                inbox: [], 
+                sent: [],
+                recent_mails: []
+            });
+        }
+
+        const inbox = inboxMap.get(userEmail) || [];
+
+        const sent = [];
+        for (const [recipient, mails] of inboxMap.entries()) {
+            mails.forEach(mail => {
+                if (mail.sender === userEmail) {
+                    sent.push(mail);
+                }
+            });
+        }
+
+        if (inbox.length === 0 && sent.length === 0) {
+            return res.status(200).json({ 
+                message: "No mails found for this user", 
+                inbox: [], 
+                sent: [],
+                recent_mails: []
+            });
+        }
+        
+        // Sort by timestamp (descending) and limit to the latest 50 mails
+        const sorted = inbox.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const recent_mails = sorted.slice(0, 50).map(mail => {
+            const isSent = mail.sender === userEmail;
+            const otherEmail = isSent ? mail.recipient : mail.sender;
+            const otherUser = userModel.findUserByEmail(otherEmail);
+
+            return {
+                id: mail.id,
+                subject: mail.subject,
+                timestamp: mail.timestamp,
+                direction: isSent ? 'sent' : 'received',
+                otherParty: otherUser
+                    ? {
+                        email: otherUser.email,
+                        firstName: otherUser.firstName,
+                        lastName: otherUser.lastName,
+                        profileImage: otherUser.profileImage
+                    }
+                    : { email: otherEmail },
+                preview: mail.content?.slice(0, 100) || ""
+            };
+        });
+
+        res.status(200).json({
+            message: "Mails fetched successfully",
+            inbox: inbox,
+            recent_mails,
+            sent
+        });
+
+    } catch (err) {
+        console.error("Failed to fetch mails:", err.message);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+/*const getMails = (req, res) => {
+    try {
+        if (!req.user || !req.user.email) {
+            return res.status(401).json({ error: "Unauthorized: missing user data" });
+        }
+
+        const userEmail = req.user.email;
+
+        if (!inboxMap || inboxMap.size === 0) {
             return res.status(200).json({ message: "No mails exist in the system", inbox: [], sent: [] });
         }
 
@@ -192,7 +265,7 @@ const getMails = (req, res) => {
         console.error("Failed to fetch mails:", err.message);
         res.status(500).json({ error: "Internal server error" });
     }
-};
+};*/
 // This function retrieves a mail by its ID if the user is authorized (as sender or recipient).
 function getMailById(req, res) {
     const userEmail = req.user.email;
