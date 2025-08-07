@@ -2,23 +2,27 @@ import { FaTrash } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth, moveMailToLabel } from "../utils/api";
-import SearchBar from "../components/SearchBar";
-import LogoutButton from "../components/LogoutButton";
-import SendMailComponent from "../components/SendMailComponent";
+//import SearchBar from "../components/SearchBar";
+//import LogoutButton from "../components/LogoutButton";
+//import Topbar from "../components/Topbar";
+import { useSearch } from "../context/SearchContext";
 
 const LabelPage = () => {
   const { labelId } = useParams();
   const [mails, setMails] = useState([]);
   const [labelName, setLabelName] = useState("");
+  //const [userEmail, setUserEmail] = useState("");
   const [allLabels, setAllLabels] = useState([]);
   const [error, setError] = useState("");
-  const [showComposer, setShowComposer] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  //const [showComposer, setShowComposer] = useState(false);
+  //const [searchQuery, setSearchQuery] = useState("");
+  const { searchQuery, setSearchQuery } = useSearch();
   const [selectedLabelMap, setSelectedLabelMap] = useState({});
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
   useEffect(() => {
+    setSearchQuery(""); // Clear search query when entering label page
     if (!token) return;
 
     if (labelId === "inbox" || labelId === "sent") {
@@ -75,7 +79,7 @@ const LabelPage = () => {
 
     fetchMails();
     fetchWithAuth("/labels", token).then(setAllLabels).catch(console.error);
-  }, [labelId, token]);
+  }, [labelId, token, setSearchQuery]);
 
   const handleMove = async (mailId, toLabelIds) => {
     try {
@@ -96,49 +100,60 @@ const LabelPage = () => {
     return sender.email || `${sender.firstName || ""} ${sender.lastName || ""}`.trim();
   };
 
-  const handleSearch = (query) => {
+  /*const handleSearch = (query) => {
     setSearchQuery(query.trim().toLowerCase());
-  };
+  };*/
 
-  const filteredMails = searchQuery
+  /*const filteredMails = searchQuery
     ? mails.filter(mail =>
         (mail.subject || "").toLowerCase().includes(searchQuery) ||
         (mail.content || "").toLowerCase().includes(searchQuery) ||
         renderSender(mail).toLowerCase().includes(searchQuery)
       )
-    : mails;
+    : mails;*/
+
+  const normalize = (text) => (text || "").toString().trim().toLowerCase();
+
+  const filteredMails = mails.filter((mail) => {
+    const search = normalize(searchQuery);
+
+    const sender = typeof mail.sender === "string"
+      ? normalize(mail.sender)
+      : normalize(mail.sender?.email || "");
+
+    const recipient = typeof mail.recipient === "string"
+      ? normalize(mail.recipient)
+      : normalize(mail.recipient?.email || "");
+
+    const subject = normalize(mail.subject);
+    const content = normalize(mail.content);
+
+    if (search === "") return true;
+
+    return (
+      subject.includes(search) ||
+      content.includes(search) ||
+      sender.includes(search) ||
+      recipient.includes(search)
+    );
+  });
+
+
 
   return (
     <div style={{ padding: "1rem" }}>
       {labelId === "inbox" && (
         <>
-          <SearchBar onSearch={handleSearch} />
+          {/*<Topbar onSearch={handleSearch} />
+          <SearchBar onSearch={handleSearch} />*/}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h1>{labelName}</h1>
-            <LogoutButton />
+            {/*<h1>{labelName}</h1>
+            {/*<LogoutButton />*/}
           </div>
-          <button onClick={() => setShowComposer(true)}>Send Mail</button>
-          {showComposer && (
-            <>
-              <div
-                style={{
-                  position: "fixed",
-                  top: 0,
-                  left: 0,
-                  width: "100vw",
-                  height: "100vh",
-                  backgroundColor: "rgba(0, 0, 0, 0.5)",
-                  zIndex: 998,
-                }}
-                onClick={() => setShowComposer(false)}
-              />
-              <SendMailComponent onClose={() => setShowComposer(false)} />
-            </>
-          )}
         </>
       )}
 
-      {labelId !== "inbox" && <h1>{labelName}</h1>}
+      {labelId !== "inbox"}
       {error && <p style={{ color: "red" }}>{error}</p>}
 
       {filteredMails.length === 0 ? (

@@ -1,16 +1,17 @@
 // src/pages/InboxPage.jsx
 import React, { useEffect, useState } from "react";
 import { fetchWithAuth, moveMailToLabel } from "../utils/api"; // Add in exercises 4 - for moving mails to labels
-import SendMailComponent from "../components/SendMailComponent";
+import Topbar from "../components/Topbar";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SearchBar from "../components/SearchBar";
 import LogoutButton from "../components/LogoutButton";
 
 function InboxPage() {
+  const user = JSON.parse(localStorage.getItem("user"));
   const [mails, setMails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [allLabels, setAllLabels] = useState([]);// Add in exercises 4 - for moving mails to labels
-  const [showComponent, setShowComponent] = useState(false);
+  //const [showComponent, setShowComponent] = useState(false);
   const navigate = useNavigate();
   const token = localStorage.getItem("token");// Add in exercises 4 - for moving mails to labels
   const [searchParams, setSearchParams] = useSearchParams();
@@ -122,104 +123,91 @@ function InboxPage() {
   };
 
   return (
-    <div style={{ padding: "1rem" }}>
-      <SearchBar onSearch={handleSearch} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Inbox</h1>
-        <LogoutButton />
-      </div>
-      <button onClick={() => setShowComponent(true)}>Send Mail</button>
-      {showComponent && (
-        <>
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              zIndex: 998,
-            }}
-            onClick={() => setShowComponent(false)}
-          />
-          <SendMailComponent onClose={() => setShowComponent(false)} />
-        </>
-      )}
+    <>
+      <Topbar onSearch={handleSearch} />
 
-      {loading ? (
-        <p>Loading...</p>
+      <div style={{ padding: "1rem" }}>
+        <SearchBar onSearch={handleSearch} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h1>Inbox</h1>
+          <LogoutButton />
+        </div>
+        
 
-      ) : mails.length === 0 ? (
-        <p>No mails found.</p>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {mails.map((mail) => (
-            <li
-              key={mail.id}
-              onClick={() => navigate(`/mail/${mail.id}`)}
-              style={{
-                cursor: "pointer",
-                border: "1px solid #ccc",
-                padding: "1rem",
-                marginBottom: "1rem",
-                borderRadius: "8px",
-                backgroundColor: "#f9f9f9",
-              }}
-            >
-              <strong>{mail.direction === "sent" ? "To" : "From"}:</strong>{" "}
-              {mail.direction === "sent"
-                ? (Array.isArray(mail.recipients)
-                  ? mail.recipients.join(", ")
-                  : mail.recipient || "(unknown)")
-                : mail.sender || "(unknown)"}
+        {loading ? (
+          <p>Loading...</p>
 
-              <br />
-              <strong>Subject:</strong>{" "}
-              {mail.subject || <em>(no subject)</em>} <br />
-              <strong>Date:</strong>{" "}
-              {new Date(mail.timestamp).toLocaleString()} <br />
-              <p style={{ color: "#666" }}>
-                {mail.preview || mail.content?.slice(0, 100) || (
-                  <em>(no content)</em>
-                )}
-              </p>
-              {/* dropdown to move mail to another label */}
-              <label>Move to:</label>{" "}
-              <select
-                defaultValue=""
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    handleMove(mail.id, e.target.value);
-                  }
+        ) : mails.length === 0 ? (
+          <p>No mails found.</p>
+        ) : (
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {mails.map((mail) => (
+              <li
+                key={mail.id}
+                onClick={() => navigate(`/mail/${mail.id}`)}
+                style={{
+                  cursor: "pointer",
+                  border: "1px solid #ccc",
+                  padding: "1rem",
+                  marginBottom: "1rem",
+                  borderRadius: "8px",
+                  backgroundColor: "#f9f9f9",
                 }}
               >
-                <option value="" disabled>Select label</option>
-                {allLabels.map((label) => (
-                  <option key={label.id} value={label.id}>
-                    {label.name}
-                  </option>
-                ))}
-              </select>
+                <strong>{mail.direction === "sent" ? "To" : "From"}:</strong>{" "}
+                {mail.direction === "sent"
+                  ? (Array.isArray(mail.recipients)
+                    ? mail.recipients.join(", ")
+                    : mail.recipient || "(unknown)")
+                  : mail.sender || "(unknown)"}
 
-              {Array.isArray(mail.labels) && mail.labels.length > 0 && (
-                <div className="mail-labels">
-                  {mail.labels.map((label) => (
-                    <span
-                      key={label}
-                      className="mail-label"
-                    >
-                      {label}
-                    </span>
+                <br />
+                <strong>Subject:</strong>{" "}
+                {mail.subject || <em>(no subject)</em>} <br />
+                <strong>Date:</strong>{" "}
+                {new Date(mail.timestamp).toLocaleString()} <br />
+                <p style={{ color: "#666" }}>
+                  {mail.preview || mail.content?.slice(0, 100) || (
+                    <em>(no content)</em>
+                  )}
+                </p>
+                {/* dropdown to move mail to another label */}
+                <label>Move to:</label>{" "}
+                <select
+                  defaultValue=""
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleMove(mail.id, e.target.value);
+                    }
+                  }}
+                >
+                  <option value="" disabled>Select label</option>
+                  {allLabels.map((label) => (
+                    <option key={label.id} value={label.id}>
+                      {label.name}
+                    </option>
                   ))}
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+                </select>
+
+                {Array.isArray(mail.labels) && mail.labels.length > 0 && (
+                  <div className="mail-labels">
+                    {mail.labels.map((label) => (
+                      <span
+                        key={label}
+                        className="mail-label"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
   );
 };
 
