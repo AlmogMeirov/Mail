@@ -79,7 +79,7 @@ const LabelPage = () => {
 
     fetchMails();
     fetchWithAuth("/labels", token).then(setAllLabels).catch(console.error);
-  }, [labelId, token]);
+  }, [labelId, token, setSearchQuery]);
 
   const handleMove = async (mailId, toLabelIds) => {
     try {
@@ -147,13 +147,13 @@ const LabelPage = () => {
           {/*<Topbar onSearch={handleSearch} />
           <SearchBar onSearch={handleSearch} />*/}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h1>{labelName}</h1>
+            {/*<h1>{labelName}</h1>
             {/*<LogoutButton />*/}
           </div>
         </>
       )}
 
-      {labelId !== "inbox" && <h1>{labelName}</h1>}
+      {labelId !== "inbox"}
       {error && <p style={{ color: "red" }}>{error}</p>}
 
       {filteredMails.length === 0 ? (
