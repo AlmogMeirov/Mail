@@ -57,12 +57,24 @@ const Sidebar = () => {
         },
         body: JSON.stringify({ name }),
       });
-      if (!res.ok) throw new Error("Failed to create label");
+      if (!res.ok) {
+        let errorMsg = `Failed to create label (${res.status})`;
+        try {
+          const errorData = await res.json();
+          if (errorData?.error) {
+            errorMsg = errorData.error;
+          }
+        } catch {
+          // If there's no JSON body, it's okay – we'll keep the generic message
+        }
+        throw new Error(errorMsg);
+    }
       const created = await res.json();
       setLabels((prev) => [...prev, created]);
       setNewLabel("");
     } catch (e) {
       console.error("Create label error:", e);
+      alert(e.message || "An unexpected error occurred while creating the label.");
     }
   };
 
