@@ -7,18 +7,6 @@ import { SearchProvider } from "../context/SearchContext"; // Context provider f
 import { Outlet } from "react-router-dom";
 import "../App.css"; // Importing styles for the layout
 
-/*const Layout = ({ children }) => {
-  return (
-    <div className="app-layout">
-      <Sidebar />
-      <main className="main-content">
-        {children}
-        <Outlet />
-      </main>
-    </div>
-  );
-};*/
-
 const Layout = () => {
   return (
     <SearchProvider>
@@ -26,7 +14,9 @@ const Layout = () => {
         <Sidebar />
         <div className="main-content">
           <Topbar />
-          <Outlet />
+          <div className="route-scroll">
+            <Outlet />
+          </div>
         </div>
       </div>
     </SearchProvider>

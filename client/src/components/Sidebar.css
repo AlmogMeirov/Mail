@@ -3,6 +3,8 @@
   background-color: #f1f3f4;
   padding: 20px;
   border-right: 1px solid #ccc;
+  height: 100vh;  /* added by Meir - Independent scrolling */
+  overflow: auto; /* added by Meir - Independent scrolling */
 }
 
 .sidebar h2 {
