@@ -191,6 +191,12 @@ const Sidebar = () => {
           placeholder="New label name"
           value={newLabel}
           onChange={(e) => setNewLabel(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault(); // prevent form submission
+              handleCreateLabel();
+            }
+          }}
         />
         <button onClick={handleCreateLabel}>Create Label</button>
       </div>
