@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import SendMailComponent from "../components/SendMailComponent";
+import Loading from "../components/Loading";
 
 function MailViewPage() {
   const { id } = useParams();
@@ -35,7 +36,7 @@ function MailViewPage() {
   }, [id]);
 
   if (error) return <p>{error}</p>;
-  if (!mail) return <p>Loading mail...</p>;
+  if (!mail) return <Loading label="Loading mail…" />;
 
   return (
   <div style={{ padding: "1rem" }}>

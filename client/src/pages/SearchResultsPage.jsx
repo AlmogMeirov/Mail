@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
+import Loading from "../components/Loading";
 
 const SearchResultsPage = () => {
   const location = useLocation();
@@ -36,7 +37,7 @@ const SearchResultsPage = () => {
     <div style={{ padding: "1rem" }}>
       <h1>Search Results for: "{query}"</h1>
       {isLoading ? (
-        <p>Loading...</p>
+        <Loading label="Searching…" />
       ) : mails.length === 0 ? (
         <p>No matching mails found.</p>
       ) : (

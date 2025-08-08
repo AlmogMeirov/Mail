@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
 import { useSearch } from "../context/SearchContext";
+import Loading from "../components/Loading"; // NEW by Meir
 
 const LabelPage = () => {
   const { labelId } = useParams();
@@ -274,13 +275,11 @@ const LabelPage = () => {
 
       {labelId !== "inbox"}
 
-      {isLoading ? ( // NEW — loading first
-        <div role="status" aria-live="polite" style={{ padding: "1rem" }}>
-          Loading…
-        </div>
-      ) : error ? ( // CHANGED — show error only after loading
+      {isLoading ? ( 
+        <Loading label="Loading mails…" />
+      ) : error ? ( // show error only after loading
         <p style={{ color: "red" }}>{error}</p>
-      ) : filteredMails.length === 0 ? ( // CHANGED — 'No mails' only when not loading
+      ) : filteredMails.length === 0 ? ( // 'No mails' only when not loading
         <p>No mails found.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
