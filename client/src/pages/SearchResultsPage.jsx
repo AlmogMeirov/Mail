@@ -9,12 +9,14 @@ const SearchResultsPage = () => {
   const navigate = useNavigate();
   const query = new URLSearchParams(location.search).get("q") || "";
   const [mails, setMails] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   //const [error, setError] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token || !query) return;
 
+    setIsLoading(true);
     fetchWithAuth(`/mails/search?q=${encodeURIComponent(query)}`, token)
       .then((results) => {
         setMails(results);
@@ -24,14 +26,18 @@ const SearchResultsPage = () => {
         console.error(err);
         setMails([]);
         //setError("Failed to load search results");
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
   }, [query]);
 
   return (
     <div style={{ padding: "1rem" }}>
       <h1>Search Results for: "{query}"</h1>
-      {/*error && <p style={{ color: "red" }}>{error}</p>*/}
-      {mails.length === 0 ? (
+      {isLoading ? (
+        <p>Loading...</p>
+      ) : mails.length === 0 ? (
         <p>No matching mails found.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
