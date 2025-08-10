@@ -37,94 +37,99 @@ const LabelPage = () => {
         .catch(() => setLabelName(labelId));
     }
 
-  const fetchMails = async () => {
-    try {
-      let validMails = [];
-      
-      if (labelId === "inbox" || labelId === "sent") {
-        const response = await fetch("/api/mails", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json();
-        
-        if (labelId === "inbox") {
-          const inboxList = Array.isArray(data?.inbox) ? data.inbox : [];
-          validMails = inboxList;
-        } else if (labelId === "sent") {
-          const sentList = Array.isArray(data?.sent) ? data.sent : [];
-          validMails = sentList;
+    const fetchMails = async () => {
+      try {
+        let validMails = [];
+
+        if (labelId === "inbox" || labelId === "sent") {
+          const response = await fetch("/api/mails", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await response.json();
+
+          if (labelId === "inbox") {
+            const inboxList = Array.isArray(data?.inbox) ? data.inbox : [];
+            const filteredInbox = inboxList.filter(m => !m.isDraft && !(m.labels || []).includes("drafts")); // Filter out drafts
+            // Filter out mails that are in trash
+            validMails = filteredInbox;
+          } else if (labelId === "sent") {
+            const sentList = Array.isArray(data?.sent) ? data.sent : [];
+            const filteredSent = sentList.filter(m => !m.isDraft && !(m.labels || []).includes("drafts"));  // Filter out drafts
+            // Filter out mails that are in trash
+            validMails = filteredSent;
+          }
+
+
+          const filteredMails = [];
+          for (const mail of validMails) {
+            try {
+              const res = await fetch(`/api/labels/mail/${mail.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              const labels = await res.json();
+              const labelNames = await Promise.all(
+                labels.map(async (labelId) => {
+                  try {
+                    const labelData = await fetchWithAuth(`/labels/${labelId}`, token);
+                    return labelData?.name?.toLowerCase() || '';
+                  } catch (err) {
+                    return '';
+                  }
+                })
+              );
+
+              if (!labelNames.includes('trash')) {
+                filteredMails.push(mail);
+              }
+            } catch (err) {
+              filteredMails.push(mail);
+            }
+          }
+          validMails = filteredMails;
+
+        } else {
+          const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
+
+          if (!Array.isArray(ids) || ids.length === 0) {
+            validMails = [];
+          } else {
+            const fullMails = await Promise.all(
+              ids.map(async (id) => {
+                try {
+                  const mail = await fetchWithAuth(`/mails/${id}`, token);
+                  return mail || null;
+                } catch (err) {
+                  console.warn(`Failed to fetch mail ${id}:`, err);
+                  return null;
+                }
+              })
+            );
+            validMails = fullMails.filter(m => m !== null);
+          }
         }
-        
-        const filteredMails = [];
+
+        setMails(validMails);
+
+        // Fetch current labels for each mail
+        const mailLabelsMap = {};
         for (const mail of validMails) {
           try {
             const res = await fetch(`/api/labels/mail/${mail.id}`, {
               headers: { Authorization: `Bearer ${token}` }
             });
             const labels = await res.json();
-            const labelNames = await Promise.all(
-              labels.map(async (labelId) => {
-                try {
-                  const labelData = await fetchWithAuth(`/labels/${labelId}`, token);
-                  return labelData?.name?.toLowerCase() || '';
-                } catch (err) {
-                  return '';
-                }
-              })
-            );
-            
-            if (!labelNames.includes('trash')) {
-              filteredMails.push(mail);
-            }
+            mailLabelsMap[mail.id] = Array.isArray(labels) ? labels : [];
           } catch (err) {
-            filteredMails.push(mail);
+            console.warn(`Failed to fetch labels for mail ${mail.id}:`, err);
+            mailLabelsMap[mail.id] = [];
           }
         }
-        validMails = filteredMails;
-        
-      } else {
-        const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
-        
-        if (!Array.isArray(ids) || ids.length === 0) {
-          validMails = [];
-        } else {
-          const fullMails = await Promise.all(
-            ids.map(async (id) => {
-              try {
-                const mail = await fetchWithAuth(`/mails/${id}`, token);
-                return mail || null;
-              } catch (err) {
-                console.warn(`Failed to fetch mail ${id}:`, err);
-                return null;
-              }
-            })
-          );
-          validMails = fullMails.filter(m => m !== null);
-        }
+        setCurrentMailLabels(mailLabelsMap);
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setError("Failed to load mail data");
       }
-      
-      setMails(validMails);
-      
-      // Fetch current labels for each mail
-      const mailLabelsMap = {};
-      for (const mail of validMails) {
-        try {
-          const res = await fetch(`/api/labels/mail/${mail.id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          const labels = await res.json();
-          mailLabelsMap[mail.id] = Array.isArray(labels) ? labels : [];
-        } catch (err) {
-          console.warn(`Failed to fetch labels for mail ${mail.id}:`, err);
-          mailLabelsMap[mail.id] = [];
-        }
-      }
-      setCurrentMailLabels(mailLabelsMap);
-    } catch (err) {
-      console.error("Fetch error:", err);
-      setError("Failed to load mail data");
-    }
-  };
+    };
 
     /*const fetchMails = async () => {
       try {
@@ -228,7 +233,7 @@ const LabelPage = () => {
     try {
       const selectedLabels = pendingLabelChanges[mailId] || [];
       const currentLabels = currentMailLabels[mailId] || [];
-      
+
       // Add new labels
       for (const labelId of selectedLabels) {
         if (!currentLabels.includes(labelId)) {
@@ -339,6 +344,9 @@ const LabelPage = () => {
 
   const normalize = (text) => (text || "").toString().trim().toLowerCase();
 
+  const isDraftMail = (mail) => mail?.isDraft || (mail?.labels || []).includes("drafts"); //
+
+
   const filteredMails = mails.filter((mail) => {
     const search = normalize(searchQuery);
 
@@ -361,7 +369,9 @@ const LabelPage = () => {
       sender.includes(search) ||
       recipient.includes(search)
     );
-  });
+  }
+
+  );
 
 
 
@@ -404,7 +414,7 @@ const LabelPage = () => {
               <p style={{ color: "#666" }}>{mail.preview || mail.content?.slice(0, 100) || <em>(no content)</em>}</p>
 
               {/* Only show tagging options for non-trash labels */}
-              {labelName.toLowerCase() !== "trash" && (
+              {!["trash", "drafts"].includes(labelName.toLowerCase()) && (
                 <div style={{ marginBottom: "0.5rem" }}>
                   <button
                     onClick={(e) => {
@@ -426,9 +436,9 @@ const LabelPage = () => {
                   >
                     {openLabelManagement[mail.id] ? "Hide Labels" : "Manage Labels"}
                   </button>
-                  
+
                   {openLabelManagement[mail.id] && (
-                    <div 
+                    <div
                       onClick={(e) => e.stopPropagation()}
                       style={{ padding: "0.5rem 0", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}
                     >
@@ -437,7 +447,7 @@ const LabelPage = () => {
                         .map((label) => {
                           //const isCurrentlyLabeled = (currentMailLabels[mail.id] || []).includes(label.id);
                           const isPendingSelection = (pendingLabelChanges[mail.id] || []).includes(label.id);
-                          
+
                           // Initialize pending changes with current labels when first opening
                           if (openLabelManagement[mail.id] && !pendingLabelChanges[mail.id]) {
                             setPendingLabelChanges(prev => ({
@@ -445,7 +455,7 @@ const LabelPage = () => {
                               [mail.id]: currentMailLabels[mail.id] || []
                             }));
                           }
-                          
+
                           return (
                             <label
                               key={label.id}
@@ -570,7 +580,7 @@ const LabelPage = () => {
                   Delete Forever
                 </button>
               )}
-              
+
             </li>
           ))}
         </ul>

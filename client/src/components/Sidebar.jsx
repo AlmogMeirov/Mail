@@ -80,6 +80,7 @@ const Sidebar = () => {
         {/* Static system labels */}
         <li><NavLink to="/label/inbox">Inbox</NavLink></li>
         <li><NavLink to="/label/sent">Sent</NavLink></li>
+        <li><NavLink to="/label/drafts">Drafts</NavLink></li>
 
         {/* Dynamic user-created labels */}
         {labels.map(label => (
