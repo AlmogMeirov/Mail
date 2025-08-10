@@ -52,6 +52,9 @@ const LabelPage = () => {
           validMails = inboxList;
         } else if (labelId === "sent") {
           const sentList = Array.isArray(data?.sent) ? data.sent : [];
+          let list = labelId === "inbox" ? inboxList : sentList;
+          list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Sort by timestamp descending(ADD on 331)
+          setMails(list);
           validMails = sentList;
         }
         
@@ -322,7 +325,7 @@ const LabelPage = () => {
     const sender = mail.sender || mail.otherParty;
     if (!sender) return "(unknown)";
     if (typeof sender === "string") return sender;
-    return sender.email || `${sender.firstName || ""} ${sender.lastName || ""}`.trim();
+    return `${sender.firstName || ""} ${sender.lastName || ""}`.trim() || sender.email;
   };
 
   /*const handleSearch = (query) => {
@@ -362,6 +365,7 @@ const LabelPage = () => {
       recipient.includes(search)
     );
   });
+
 
 
 
