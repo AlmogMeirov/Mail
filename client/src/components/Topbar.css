@@ -1,7 +1,7 @@
 .topbar {
     position: sticky; /* Added by Meir for sticky topbar */
     top: 0; /* Added by Meir for sticky topbar */
-    z-index: 1000; /* Added by Meir for sticky topbar */
+    z-index: 998; /* Added by Meir for sticky topbar */
     height: 56px;
     display: flex;
     justify-content: space-between;

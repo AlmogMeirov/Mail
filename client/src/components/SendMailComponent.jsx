@@ -64,7 +64,7 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
   return (
     <div style={{
       position: "fixed", top: "20%", left: "50%", transform: "translateX(-50%)",
-      backgroundColor: "white", padding: "1rem", border: "1px solid gray", zIndex: 999
+      backgroundColor: "white", padding: "1rem", border: "1px solid gray", zIndex: 1000
     }}>
       <h3>Send Mail</h3>
       <input placeholder="To" value={recipient} onChange={e => setRecipient(e.target.value)} /><br />

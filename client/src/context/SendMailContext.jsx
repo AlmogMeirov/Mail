@@ -23,7 +23,7 @@ export function SendMailProvider({ children }) {
               width: "100vw",
               height: "100vh",
               backgroundColor: "rgba(0, 0, 0, 0.5)",
-              zIndex: 998,
+              zIndex: 999,
             }}
             onClick={() => setShow(false)}
           />
