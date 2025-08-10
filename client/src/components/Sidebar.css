@@ -68,3 +68,32 @@
 .new-label-form button:hover {
   background-color: #1669c1;
 }
+
+.new-mail button {
+  width: 100%;
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  font-size: 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.new-mail button:hover {
+  background-color: #1669c1;
+}
+
+.new-mail button::before {
+  content: "\f4c9";
+  font-family: "Bootstrap Icons", "bootstrap-icons", sans-serif;
+  font-style: normal;
+  font-weight: normal;
+  display: inline-block;
+  margin-right: 8px;
+  font-size: 1.1rem;
+  vertical-align: middle;
+  position: relative;
+  top: 0.05em;
+}

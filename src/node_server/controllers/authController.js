@@ -92,7 +92,27 @@ function login(req, res) {
   });
 
 }
+
+function getCurrentUser(req, res) { // Added by Meir in exercise 4
+  // This function retrieves the current user's information based on the JWT token
+  const userId = req.user.userId; 
+
+  const user = userModel.findUserById(userId);
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  res.status(200).json({
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    profileImage: user.profileImage || null
+  });
+}
+
 module.exports = {
   login,
-  register
+  register,
+  getCurrentUser // Added by Meir in exercise 4
 }

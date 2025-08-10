@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { useSendMail } from "../context/SendMailContext";
 import './Sidebar.css';
 
 const Sidebar = () => {
   const [labels, setLabels] = useState([]);
   const [newLabel, setNewLabel] = useState("");
+  const { setShow } = useSendMail();
+
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -69,7 +72,10 @@ const Sidebar = () => {
 
   return (
     <nav className="sidebar">
-      <h2>MyMail</h2>
+      <h2>FooMail</h2>
+      <div className="new-mail">
+        <button onClick={() => setShow(true)}>Compose</button>
+      </div>
       <ul>
         {/* Static system labels */}
         <li><NavLink to="/label/inbox">Inbox</NavLink></li>
