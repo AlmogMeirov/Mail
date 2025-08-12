@@ -30,7 +30,7 @@ const LabelPage = () => {
     }
 
     // Set the display name
-    if (labelId === "inbox" || labelId === "sent") {
+    if (labelId === "inbox" || labelId === "sent" || labelId === "trash") {
       setLabelName(labelId);
     } else {
       fetchWithAuth(`/labels/${labelId}`, token)
@@ -84,7 +84,31 @@ const LabelPage = () => {
         validMails = filteredMails;
         
       } else {
-        const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
+        //const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
+        let ids;
+
+        // Check if labelId is "trash" and handle it separately
+        if (labelId === "trash") {
+          try {
+            const labelsList = await fetchWithAuth(`/labels`, token);
+            const t = (Array.isArray(labelsList) ? labelsList : []).find(
+              (l) => (l.name || "").toLowerCase() === "trash" || l.name === "אשפה"
+            );
+            const trashId = t?.id ?? t?._id ?? null;
+
+            if (trashId) {
+              ids = await fetchWithAuth(`/labels/by-label/${trashId}`, token);
+            } else {
+              // If no trash label found, return empty array
+              ids = [];
+            }
+          } catch {
+            ids = [];
+          }
+        } else {
+          // For other labels, fetch normally
+          ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
+        }
         
         if (!Array.isArray(ids) || ids.length === 0) {
           validMails = [];
