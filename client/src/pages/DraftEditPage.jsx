@@ -5,7 +5,6 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
 
-
 const getDraftLabelId = (labelsList) => {
     const drafts = (labelsList || []).find(l => (l.name || "").toLowerCase() === "drafts");
     return drafts ? drafts.id : null;
@@ -16,8 +15,24 @@ const hasNameDraft = (labelsOrNames) => {
     return labelsOrNames.some(x => typeof x === "string" && x.toLowerCase() === "drafts");
 };
 
+const validateEmail = (s) => {
+    // simple but effective
+    const v = (s || "").trim();
+    if (!v) return false;
+    // very lightweight validation to avoid rejecting legitimate addresses
+    return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v);
+};
+
+const parseRecipients = (raw) => {
+    // split by comma, semicolon, or whitespace
+    return (raw || "")
+        .split(/[,;\s]+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+};
+
 const DraftEditPage = () => {
-    const { id } = useParams();          // draft id
+    const { id } = useParams(); // draft id
     const navigate = useNavigate();
     const location = useLocation();
     const token = localStorage.getItem("token");
@@ -28,17 +43,13 @@ const DraftEditPage = () => {
     const [mail, setMail] = useState(null);
 
     // editable fields
-    const [fromEmail, setFromEmail] = useState("");   // NEW: sender
-    const [to, setTo] = useState("");
+    const [fromEmail, setFromEmail] = useState(""); // sender
+    const [to, setTo] = useState("");               // can contain multiple addresses
     const [subject, setSubject] = useState("");
     const [body, setBody] = useState("");
 
     const assumeDraft = location.state?.assumeDraft === true;
 
-    // try to derive sender from several sources
-
-    // NOTE: comments in English only
- 
     const resolveSender = (m) => {
         // 1) from loaded mail
         const fromMail =
@@ -91,7 +102,7 @@ const DraftEditPage = () => {
 
                 const draftLabelId = getDraftLabelId(labelsList) || null;
 
-                // Robust draft detection:
+                // Robust draft detection
                 let isDraft = false;
                 if (m?.isDraft === true) {
                     isDraft = true;
@@ -107,7 +118,7 @@ const DraftEditPage = () => {
                 }
 
                 setMail(m);
-                setFromEmail(resolveSender(m)); // <-- set sender
+                setFromEmail(resolveSender(m));
                 setTo(m?.to || m?.recipient?.email || m?.recipient || "");
                 setSubject(m?.subject || "");
                 setBody(m?.body || m?.content || "");
@@ -120,77 +131,98 @@ const DraftEditPage = () => {
 
         return () => { killed = true; };
     }, [id, token, navigate, assumeDraft]);
-    // NOTE: comments in English only
-    // NOTE: comments in English only
-
 
     const sendDraft = async () => {
         if (sending) return;
         setSending(true);
 
-        const token = localStorage.getItem("token");
+        const auth = localStorage.getItem("token");
         const sender = (fromEmail || "").trim();
-        const recipient = (to || "").trim();
+        const parsed = parseRecipients(to);
 
-        if (!sender || !sender.includes("@")) {
-            alert("Sender is required (a valid email known to the system).");
-            setSending(false);
-            return;
-        }
-        if (!recipient || !recipient.includes("@")) {
-            alert("Invalid recipient address.");
+        // validate sender
+        if (!validateEmail(sender)) {
+            alert("Sender is required (valid email).");
             setSending(false);
             return;
         }
 
-        // map UI fields to server schema
-        const payload = {
-            sender,                  // REQUIRED by your API
-            recipient,               // server expects 'recipient'
-            subject: subject || "",
-            content: body || "",     // server expects 'content'
+        // validate recipients
+        const invalid = parsed.filter(e => !validateEmail(e));
+        const recipients = parsed.filter(e => validateEmail(e));
+
+        if (invalid.length) {
+            alert(`Invalid recipient(s): ${invalid.join(", ")}`);
+        }
+        if (!recipients.length) {
+            alert("No valid recipients.");
+            setSending(false);
+            return;
+        }
+
+        // helper to POST once and return rich result
+        const postOnce = async (payload) => {
+            try {
+                const res = await fetch(`/api/mails`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${auth}`,
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                let detail = "";
+                try {
+                    const ct = res.headers.get("content-type") || "";
+                    if (ct.includes("application/json")) {
+                        const j = await res.json();
+                        detail = j?.message || j?.error || JSON.stringify(j);
+                    } else {
+                        detail = await res.text();
+                    }
+                } catch { }
+
+                return { ok: res.ok || res.status === 201 || res.status === 202, status: res.status, detail };
+            } catch (e) {
+                return { ok: false, status: 0, detail: `Network error: ${e.message}` };
+            }
         };
 
         try {
-            const res = await fetch(`/api/mails`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify(payload),
-            });
 
-            // read body for helpful error
-            let detail = "";
-            try {
-                const ct = res.headers.get("content-type") || "";
-                if (ct.includes("application/json")) {
-                    const j = await res.json();
-                    detail = j?.message || j?.error || JSON.stringify(j);
-                } else {
-                    detail = await res.text();
+            // 2) Single sends for each recipient
+            const results = [];
+            for (const r of recipients) {
+                const payload = {
+                    sender,
+                    recipient: r,      // single-recipient schema
+                    subject: subject || "",
+                    content: body || "",
+                };
+                // eslint-disable-next-line no-await-in-loop
+                const out = await postOnce(payload);
+                results.push({ r, ...out });
+            }
+
+            const okCount = results.filter(x => x.ok).length;
+            const fail = results.filter(x => !x.ok);
+
+            if (okCount > 0) {
+                // delete draft best-effort
+                if (id) {
+                    fetch(`/api/mails/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${auth}` } }).catch(() => { });
                 }
-            } catch { }
-
-            if (!(res.ok || res.status === 201 || res.status === 202)) {
-                alert(`Send failed (${res.status}) ${detail || ""}`);
-                setSending(false);
-                return;
+                if (fail.length) {
+                    alert(`Sent to ${okCount} recipient(s). Failed for: ${fail.map(f => `${f.r} (${f.status})`).join(", ")}`);
+                }
+                navigate("/label/sent", { replace: true });
+            } else {
+                const msg = fail.length
+                    ? `All sends failed: ${fail.map(f => `${f.r} → ${f.status} ${f.detail || ""}`).join(" | ")}`
+                    : "Send failed (unknown error)";
+                alert(msg);
             }
-
-            // optional: delete the draft now that it was sent
-            if (id) {
-                fetch(`/api/mails/${id}`, {
-                    method: "DELETE",
-                    headers: { Authorization: `Bearer ${token}` },
-                }).catch(() => { });
-            }
-
-            navigate("/label/sent", { replace: true });
-        } catch (e) {
-            console.error(e);
-            alert("Network error.");
         } finally {
             setSending(false);
         }
@@ -220,7 +252,8 @@ const DraftEditPage = () => {
                         value={to}
                         onChange={(e) => setTo(e.target.value)}
                         style={{ width: "100%", padding: 8, marginTop: 4 }}
-                        placeholder="recipient@example.com"
+                        placeholder="alice@example.com, bob@example.com; charlie@example.com"
+                        title="Separate multiple recipients with comma, semicolon, or space"
                     />
                 </label>
 
