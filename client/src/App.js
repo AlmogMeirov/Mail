@@ -7,6 +7,7 @@ import { SendMailProvider } from "./context/SendMailContext";
 import LabelPage from "./pages/LabelPage";
 //import Sidebar from "./components/Sidebar";
 import SearchResultsPage from "./pages/SearchResultsPage";
+import DraftEditPage from "./pages/DraftEditPage";
 import Layout from "./components/Layout";
 import "./App.css";
 
@@ -24,6 +25,8 @@ function App() {
             <Route path="/label/:labelId" element={<LabelPage />} />
             <Route path="/mail/:id" element={<MailViewPage />} />
             <Route path="/search" element={<SearchResultsPage />} />
+            <Route path="/draft/:id" element={<DraftEditPage />} />
+
           </Route>
         </Routes>
       </BrowserRouter>

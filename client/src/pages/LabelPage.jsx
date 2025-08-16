@@ -1,39 +1,102 @@
+// LabelPage.jsx
 import { FaTrash } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
-//import SearchBar from "../components/SearchBar";
-//import LogoutButton from "../components/LogoutButton";
-//import Topbar from "../components/Topbar";
 import { useSearch } from "../context/SearchContext";
+import { useLocation } from "react-router-dom";
+
 
 const LabelPage = () => {
   const { labelId } = useParams();
   const [mails, setMails] = useState([]);
   const [labelName, setLabelName] = useState("");
-  //const [userEmail, setUserEmail] = useState("");
   const [allLabels, setAllLabels] = useState([]);
   const [error, setError] = useState("");
-  //const [showComposer, setShowComposer] = useState(false);
-  //const [searchQuery, setSearchQuery] = useState("");
   const { searchQuery, setSearchQuery } = useSearch();
-  //const [selectedLabelMap, setSelectedLabelMap] = useState({});
+  const location = useLocation();
+
+
+  // label + draft detection helpers
+  const [draftLabelId, setDraftLabelId] = useState(null);
+  const [labelsReady, setLabelsReady] = useState(false); // true after /labels loaded
+
+  // per-mail labels and UI state
   const [currentMailLabels, setCurrentMailLabels] = useState({});
   const [openLabelManagement, setOpenLabelManagement] = useState({});
   const [pendingLabelChanges, setPendingLabelChanges] = useState({});
+
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
+  // ---------- helpers (comments in English only) ----------
+  const normalize = (text) => (text || "").toString().trim().toLowerCase();
+
+  const getDraftLabelId = (labelsList) => {
+    const drafts = (labelsList || []).find(
+      (l) => (l.name || "").toLowerCase() === "drafts"
+    );
+    return drafts ? drafts.id : null;
+  };
+
+  const hasNameDraft = (labelsOrNames) => {
+    // detect 'drafts' string among names
+    if (!Array.isArray(labelsOrNames)) return false;
+    return labelsOrNames.some(
+      (x) => typeof x === "string" && normalize(x) === "drafts"
+    );
+  };
+
+  const includesId = (arr, id) =>
+    Array.isArray(arr) && id != null ? arr.includes(id) : false;
+
+  const isDraftMailRobust = (mail) => {
+    // 1) explicit boolean from server
+    if (mail?.isDraft === true) return true;
+
+    // 2) labels on the mail object itself (could be ids or names)
+    if (Array.isArray(mail?.labels)) {
+      if (draftLabelId && includesId(mail.labels, draftLabelId)) return true;
+      if (hasNameDraft(mail.labels)) return true;
+    }
+
+    // 3) labels we fetched per mail id (ids only)
+    const idsForMail = currentMailLabels[mail?.id] || [];
+    if (draftLabelId && includesId(idsForMail, draftLabelId)) return true;
+
+    // 4) current page is drafts label (extra safety)
+    if (normalize(labelName) === "drafts" || normalize(labelId) === "drafts")
+      return true;
+
+    return false;
+  };
+
+  const safeOpenMail = (mail) => {
+    // If labels are not ready yet AND server didn't mark isDraft=true,
+    // avoid accidental opening – wait until labelsReady.
+    if (!labelsReady && mail?.isDraft !== true) {
+      // You can show a toast here if you want.
+      return;
+    }
+
+    if (isDraftMailRobust(mail)) {
+      navigate(`/draft/${mail.id}`);
+      return;
+    }
+    navigate(`/mail/${mail.id}`);
+  };
+
+  // ---------- effects ----------
   useEffect(() => {
-    setSearchQuery(""); // Clear search query when entering label page
+    setSearchQuery("");
     if (!token) return;
 
-    // Set the display name
+    // compute display name for label
     if (labelId === "inbox" || labelId === "sent") {
       setLabelName(labelId);
     } else {
       fetchWithAuth(`/labels/${labelId}`, token)
-        .then(data => setLabelName(data?.name || labelId))
+        .then((data) => setLabelName(data?.name || labelId))
         .catch(() => setLabelName(labelId));
     }
 
@@ -47,53 +110,50 @@ const LabelPage = () => {
           });
           const data = await response.json();
 
-          if (labelId === "inbox") {
-            const inboxList = Array.isArray(data?.inbox) ? data.inbox : [];
-            const filteredInbox = inboxList.filter(m => !m.isDraft && !(m.labels || []).includes("drafts")); // Filter out drafts
-            // Filter out mails that are in trash
-            validMails = filteredInbox;
-          } else if (labelId === "sent") {
-            const sentList = Array.isArray(data?.sent) ? data.sent : [];
-            const filteredSent = sentList.filter(m => !m.isDraft && !(m.labels || []).includes("drafts"));  // Filter out drafts
-            // Filter out mails that are in trash
-            validMails = filteredSent;
-          }
+          const list =
+            labelId === "inbox"
+              ? Array.isArray(data?.inbox)
+                ? data.inbox
+                : []
+              : Array.isArray(data?.sent)
+                ? data.sent
+                : [];
 
+          // exclude drafts immediately by explicit flag; names fallback remains
+          const prelim = list.filter(
+            (m) => m?.isDraft !== true && !hasNameDraft(m?.labels || [])
+          );
 
-          const filteredMails = [];
-          for (const mail of validMails) {
+          // filter out trash by querying label names
+          const final = [];
+          for (const mail of prelim) {
             try {
               const res = await fetch(`/api/labels/mail/${mail.id}`, {
-                headers: { Authorization: `Bearer ${token}` }
+                headers: { Authorization: `Bearer ${token}` },
               });
-              const labels = await res.json();
-              const labelNames = await Promise.all(
-                labels.map(async (labelId) => {
+              const labelIds = await res.json();
+              const names = await Promise.all(
+                (labelIds || []).map(async (lid) => {
                   try {
-                    const labelData = await fetchWithAuth(`/labels/${labelId}`, token);
-                    return labelData?.name?.toLowerCase() || '';
-                  } catch (err) {
-                    return '';
+                    const ld = await fetchWithAuth(`/labels/${lid}`, token);
+                    return ld?.name?.toLowerCase() || "";
+                  } catch {
+                    return "";
                   }
                 })
               );
-
-              if (!labelNames.includes('trash')) {
-                filteredMails.push(mail);
-              }
-            } catch (err) {
-              filteredMails.push(mail);
+              if (!names.includes("trash")) final.push(mail);
+            } catch {
+              final.push(mail);
             }
           }
-          validMails = filteredMails;
 
+          validMails = final;
         } else {
+          // generic label view
           const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
-
-          if (!Array.isArray(ids) || ids.length === 0) {
-            validMails = [];
-          } else {
-            const fullMails = await Promise.all(
+          if (Array.isArray(ids) && ids.length > 0) {
+            const full = await Promise.all(
               ids.map(async (id) => {
                 try {
                   const mail = await fetchWithAuth(`/mails/${id}`, token);
@@ -104,18 +164,20 @@ const LabelPage = () => {
                 }
               })
             );
-            validMails = fullMails.filter(m => m !== null);
+            validMails = full.filter(Boolean);
+          } else {
+            validMails = [];
           }
         }
 
         setMails(validMails);
 
-        // Fetch current labels for each mail
+        // fetch labels per mail id
         const mailLabelsMap = {};
         for (const mail of validMails) {
           try {
             const res = await fetch(`/api/labels/mail/${mail.id}`, {
-              headers: { Authorization: `Bearer ${token}` }
+              headers: { Authorization: `Bearer ${token}` },
             });
             const labels = await res.json();
             mailLabelsMap[mail.id] = Array.isArray(labels) ? labels : [];
@@ -131,145 +193,75 @@ const LabelPage = () => {
       }
     };
 
-    /*const fetchMails = async () => {
-      try {
-        // Use the same label-based approach for all labels, including inbox and sent
-        const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
-        
-        let validMails = [];
-        
-        if (!Array.isArray(ids) || ids.length === 0) {
-          // For sent emails, fallback to /api/mails if no label-based results
-          if (labelId === "sent") {
-            try {
-              const response = await fetch("/api/mails", {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              const data = await response.json();
-              const sentList = Array.isArray(data?.sent) ? data.sent : [];
-              
-              // Filter out emails that are in trash
-              const filteredSentList = [];
-              for (const mail of sentList) {
-                try {
-                  const res = await fetch(`/api/labels/mail/${mail.id}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                  });
-                  const labels = await res.json();
-                  const labelNames = await Promise.all(
-                    labels.map(async (labelId) => {
-                      try {
-                        const labelData = await fetchWithAuth(`/labels/${labelId}`, token);
-                        return labelData?.name?.toLowerCase() || '';
-                      } catch (err) {
-                        return '';
-                      }
-                    })
-                  );
-                  
-                  // Only include if not in trash
-                  if (!labelNames.includes('trash')) {
-                    filteredSentList.push(mail);
-                  }
-                } catch (err) {
-                  // If we can't fetch labels, include the mail (safer default)
-                  filteredSentList.push(mail);
-                }
-              }
-              
-              validMails = filteredSentList;
-            } catch (fallbackErr) {
-              console.warn("Fallback fetch failed:", fallbackErr);
-            }
-          }
-          
-          if (validMails.length === 0) {
-            setMails([]);
-          }
-        } else {
-          const fullMails = await Promise.all(
-            ids.map(async (id) => {
-              try {
-                const mail = await fetchWithAuth(`/mails/${id}`, token);
-                return mail || null;
-              } catch (err) {
-                console.warn(`Failed to fetch mail ${id}:`, err);
-                return null;
-              }
-            })
-          );
-          validMails = fullMails.filter(m => m !== null);
-        }
-        
-        setMails(validMails);
-        
-        // Fetch current labels for each mail
-        const mailLabelsMap = {};
-        for (const mail of validMails) {
-          try {
-            const res = await fetch(`/api/labels/mail/${mail.id}`, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            const labels = await res.json();
-            mailLabelsMap[mail.id] = Array.isArray(labels) ? labels : [];
-          } catch (err) {
-            console.warn(`Failed to fetch labels for mail ${mail.id}:`, err);
-            mailLabelsMap[mail.id] = [];
-          }
-        }
-        setCurrentMailLabels(mailLabelsMap);
-      } catch (err) {
-        console.error("Fetch error:", err);
-        setError("Failed to load mail data");
-      }
-    };*/
-
     fetchMails();
-    fetchWithAuth("/labels", token).then(setAllLabels).catch(console.error);
-  }, [labelId, token, setSearchQuery]);
 
-  // Apply multiple label changes for a mail
+    // load labels once and mark ready
+    fetchWithAuth("/labels", token)
+      .then((list) => {
+        setAllLabels(list);
+        setDraftLabelId(getDraftLabelId(list));
+        setLabelsReady(true);
+      })
+      .catch((e) => {
+        console.error(e);
+        setLabelsReady(true); // even on error, avoid blocking clicks forever
+      });
+  }, [labelId, token, setSearchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // initialize pending selection when a label-management popover is opened
+  useEffect(() => {
+    const updates = {};
+    let needUpdate = false;
+
+    for (const [mid, isOpen] of Object.entries(openLabelManagement)) {
+      if (isOpen && !pendingLabelChanges[mid]) {
+        updates[mid] = currentMailLabels[mid] || [];
+        needUpdate = true;
+      }
+    }
+    if (needUpdate) {
+      setPendingLabelChanges((prev) => ({ ...prev, ...updates }));
+    }
+  }, [openLabelManagement, currentMailLabels]); // do not include pendingLabelChanges
+
+  // ---------- actions ----------
   const handleMoveToLabels = async (mailId) => {
     try {
       const selectedLabels = pendingLabelChanges[mailId] || [];
       const currentLabels = currentMailLabels[mailId] || [];
 
-      // Add new labels
       for (const labelId of selectedLabels) {
         if (!currentLabels.includes(labelId)) {
           await fetch("/api/labels/tag", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`
+              Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ mailId, labelId })
+            body: JSON.stringify({ mailId, labelId }),
           });
         }
       }
 
-      // Remove labels that are no longer selected
       for (const labelId of currentLabels) {
         if (!selectedLabels.includes(labelId)) {
           await fetch("/api/labels/untag", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`
+              Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ mailId, labelId })
+            body: JSON.stringify({ mailId, labelId }),
           });
         }
       }
 
-      // Clear pending changes for this mail
-      setPendingLabelChanges(prev => {
-        const newPending = { ...prev };
-        delete newPending[mailId];
-        return newPending;
+      setPendingLabelChanges((prev) => {
+        const next = { ...prev };
+        delete next[mailId];
+        return next;
       });
 
-      // Refresh the page to show updated results
       window.location.reload();
     } catch (err) {
       console.error("Error applying label changes:", err);
@@ -277,43 +269,77 @@ const LabelPage = () => {
     }
   };
 
-  // Remove all labels and set only 'Trash'
+  // NOTE: comments in English only
+  // NOTE: comments in English only
+  const discardDraft = async (mailId) => {
+    try {
+      const res = await fetch(`/api/mails/${mailId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`delete failed ${res.status}`);
+
+      // pass the deleted id so LabelPage can update immediately
+      navigate("/label/drafts", { replace: true, state: { justDeletedId: mailId, ts: Date.now() } });
+    } catch (e) {
+      console.error(e);
+      alert("Failed to discard draft.");
+    }
+  };
+
+
+  useEffect(() => {
+    const deletedId = location.state?.justDeletedId;
+    if (!deletedId) return;
+
+    // optimistic remove from UI
+    setMails(prev => prev.filter(m => m.id !== deletedId));
+    setCurrentMailLabels(prev => {
+      const next = { ...prev };
+      delete next[deletedId];
+      return next;
+    });
+
+    // clear the state so it won't re-apply on back/forward
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state?.justDeletedId]);
+
+
   const moveMailToTrashOnly = async (mailId) => {
     try {
-      const trashLabel = allLabels.find(l => l.name.toLowerCase() === "trash");
+      const trashLabel = allLabels.find(
+        (l) => (l.name || "").toLowerCase() === "trash"
+      );
       if (!trashLabel) {
         alert("Trash label not found");
         return;
       }
 
-      // Get current labels for this mail
       const res = await fetch(`/api/labels/mail/${mailId}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
       const currentLabels = await res.json();
 
-      // Remove all current labels
       await Promise.all(
-        currentLabels.map(labelId =>
+        (currentLabels || []).map((labelId) =>
           fetch(`/api/labels/untag`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`
+              Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ mailId, labelId })
+            body: JSON.stringify({ mailId, labelId }),
           })
         )
       );
 
-      // Tag only Trash
       await fetch(`/api/labels/tag`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ mailId, labelId: trashLabel.id })
+        body: JSON.stringify({ mailId, labelId: trashLabel.id }),
       });
 
       window.location.reload();
@@ -323,40 +349,19 @@ const LabelPage = () => {
     }
   };
 
-  const renderSender = (mail) => {
-    const sender = mail.sender || mail.otherParty;
-    if (!sender) return "(unknown)";
-    if (typeof sender === "string") return sender;
-    return sender.email || `${sender.firstName || ""} ${sender.lastName || ""}`.trim();
-  };
-
-  /*const handleSearch = (query) => {
-    setSearchQuery(query.trim().toLowerCase());
-  };*/
-
-  /*const filteredMails = searchQuery
-    ? mails.filter(mail =>
-        (mail.subject || "").toLowerCase().includes(searchQuery) ||
-        (mail.content || "").toLowerCase().includes(searchQuery) ||
-        renderSender(mail).toLowerCase().includes(searchQuery)
-      )
-    : mails;*/
-
-  const normalize = (text) => (text || "").toString().trim().toLowerCase();
-
-  const isDraftMail = (mail) => mail?.isDraft || (mail?.labels || []).includes("drafts"); //
-
-
+  // ---------- filtering ----------
   const filteredMails = mails.filter((mail) => {
     const search = normalize(searchQuery);
 
-    const sender = typeof mail.sender === "string"
-      ? normalize(mail.sender)
-      : normalize(mail.sender?.email || "");
+    const sender =
+      typeof mail.sender === "string"
+        ? normalize(mail.sender)
+        : normalize(mail.sender?.email || "");
 
-    const recipient = typeof mail.recipient === "string"
-      ? normalize(mail.recipient)
-      : normalize(mail.recipient?.email || "");
+    const recipient =
+      typeof mail.recipient === "string"
+        ? normalize(mail.recipient)
+        : normalize(mail.recipient?.email || "");
 
     const subject = normalize(mail.subject);
     const content = normalize(mail.content);
@@ -369,22 +374,20 @@ const LabelPage = () => {
       sender.includes(search) ||
       recipient.includes(search)
     );
-  }
+  });
 
-  );
-
-
-
+  // ---------- render ----------
   return (
     <div style={{ padding: "1rem" }}>
       {labelId === "inbox" && (
         <>
-          {/*<Topbar onSearch={handleSearch} />
-          <SearchBar onSearch={handleSearch} />*/}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            {/*<h1>{labelName}</h1>
-            {/*<LogoutButton />*/}
-          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          />
         </>
       )}
 
@@ -395,194 +398,272 @@ const LabelPage = () => {
         <p>No mails found.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
-          {filteredMails.map((mail) => (
-            <li
-              key={mail.id}
-              onClick={() => navigate(`/mail/${mail.id}`)}
-              style={{
-                cursor: "pointer",
-                border: "1px solid #ccc",
-                padding: "1rem",
-                marginBottom: "1rem",
-                borderRadius: "8px",
-                backgroundColor: "#f9f9f9",
-              }}
-            >
-              <strong>From:</strong> {renderSender(mail)} <br />
-              <strong>Subject:</strong> {mail.subject || <em>(no subject)</em>} <br />
-              <strong>Date:</strong> {mail.timestamp ? new Date(mail.timestamp).toLocaleString() : "Invalid Date"}<br />
-              <p style={{ color: "#666" }}>{mail.preview || mail.content?.slice(0, 100) || <em>(no content)</em>}</p>
+          {filteredMails.map((mail) => {
+            const draft = isDraftMailRobust(mail); // NOTE: comments in English only
 
-              {/* Only show tagging options for non-trash labels */}
-              {!["trash", "drafts"].includes(labelName.toLowerCase()) && (
-                <div style={{ marginBottom: "0.5rem" }}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenLabelManagement(prev => ({
-                        ...prev,
-                        [mail.id]: !prev[mail.id]
-                      }));
-                    }}
-                    style={{
-                      cursor: "pointer",
-                      color: "#174ea6",
-                      fontWeight: "500",
-                      marginBottom: "0.3rem",
-                      background: "none",
-                      border: "none",
-                      textDecoration: "underline"
-                    }}
-                  >
-                    {openLabelManagement[mail.id] ? "Hide Labels" : "Manage Labels"}
-                  </button>
+            return (
+              <li
+                key={mail.id}
+                // do not attach onClick for drafts to avoid accidental navigation
+                onClick={draft ? undefined : () => safeOpenMail(mail)}
+                style={{
+                  cursor: draft ? "default" : "pointer",
+                  border: "1px solid #ccc",
+                  padding: "1rem",
+                  marginBottom: "1rem",
+                  borderRadius: "8px",
+                  backgroundColor: draft ? "#fff7e6" : "#f9f9f9",
+                }}
+              >
+                <strong>From:</strong>{" "}
+                {(() => {
+                  const sender = mail.sender || mail.otherParty;
+                  if (!sender) return "(unknown)";
+                  if (typeof sender === "string") return sender;
+                  return sender.email || `${sender.firstName || ""} ${sender.lastName || ""}`.trim();
+                })()}
+                <br />
+                <strong>Subject:</strong> {mail.subject || <em>(no subject)</em>} <br />
+                <strong>Date:</strong>{" "}
+                {mail.timestamp ? new Date(mail.timestamp).toLocaleString() : "Invalid Date"}
+                <br />
+                <p style={{ color: "#666" }}>
+                  {mail.preview || mail.content?.slice(0, 100) || <em>(no content)</em>}
+                </p>
 
-                  {openLabelManagement[mail.id] && (
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      style={{ padding: "0.5rem 0", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}
+                {draft ? (
+                  // Drafts: show explicit Edit button and block parent click bubbling
+                  <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.stopPropagation()} // prevent parent from seeing this click
+                      onClick={(e) => {
+                        e.stopPropagation(); // belt-and-suspenders
+                        navigate(`/draft/${mail.id}`, { state: { assumeDraft: true } }); // <-- add state
+                      }}
+                      style={{
+                        backgroundColor: "#e8f0fe",
+                        border: "1px solid #c6dafc",
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                      }}
                     >
-                      {allLabels
-                        .filter(label => label.name.toLowerCase() !== "trash")
-                        .map((label) => {
-                          //const isCurrentlyLabeled = (currentMailLabels[mail.id] || []).includes(label.id);
-                          const isPendingSelection = (pendingLabelChanges[mail.id] || []).includes(label.id);
+                      Edit Draft
+                    </button>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm("Discard this draft permanently?")) {
+                          discardDraft(mail.id); // <-- now defined
+                        }
+                      }}
+                      style={{
+                        backgroundColor: "#dc3545",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Discard Draft
+                    </button>
 
-                          // Initialize pending changes with current labels when first opening
-                          if (openLabelManagement[mail.id] && !pendingLabelChanges[mail.id]) {
-                            setPendingLabelChanges(prev => ({
-                              ...prev,
-                              [mail.id]: currentMailLabels[mail.id] || []
-                            }));
-                          }
+                  </div>
+                ) : (
+                  <>
+                    {!["trash", "drafts"].includes(
+                      (labelName || "").toLowerCase()
+                    ) && (
+                        <div style={{ marginBottom: "0.5rem" }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenLabelManagement((prev) => ({
+                                ...prev,
+                                [mail.id]: !prev[mail.id],
+                              }));
+                            }}
+                            style={{
+                              cursor: "pointer",
+                              color: "#174ea6",
+                              fontWeight: "500",
+                              marginBottom: "0.3rem",
+                              background: "none",
+                              border: "none",
+                              textDecoration: "underline",
+                            }}
+                          >
+                            {openLabelManagement[mail.id]
+                              ? "Hide Labels"
+                              : "Manage Labels"}
+                          </button>
 
-                          return (
-                            <label
-                              key={label.id}
+                          {openLabelManagement[mail.id] && (
+                            <div
                               onClick={(e) => e.stopPropagation()}
                               style={{
+                                padding: "0.5rem 0",
                                 display: "flex",
-                                alignItems: "center",
-                                backgroundColor: isPendingSelection ? "#e8f0fe" : "#f1f3f4",
-                                color: isPendingSelection ? "#174ea6" : "#202124",
-                                padding: "4px 10px",
-                                borderRadius: "16px",
-                                border: isPendingSelection ? "1px solid #174ea6" : "1px solid #ccc",
-                                fontSize: "0.85rem",
-                                cursor: "pointer",
-                                fontWeight: isPendingSelection ? "500" : "normal"
+                                flexWrap: "wrap",
+                                gap: "0.5rem",
                               }}
                             >
-                              <input
-                                type="checkbox"
-                                style={{ marginRight: "6px" }}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  setPendingLabelChanges(prev => {
-                                    const pendingLabels = new Set(prev[mail.id] || currentMailLabels[mail.id] || []);
-                                    if (e.target.checked) {
-                                      pendingLabels.add(label.id);
-                                    } else {
-                                      pendingLabels.delete(label.id);
-                                    }
-                                    return { ...prev, [mail.id]: Array.from(pendingLabels) };
-                                  });
-                                }}
-                                checked={isPendingSelection}
-                              />
-                              <span onClick={(e) => e.stopPropagation()}>
-                                {label.name}
-                              </span>
-                            </label>
-                          );
-                        })}
-                    </div>
-                  )}
-                </div>
-              )}
+                              {allLabels
+                                .filter(
+                                  (label) =>
+                                    (label.name || "").toLowerCase() !== "trash"
+                                )
+                                .map((label) => {
+                                  const isPendingSelection = (
+                                    pendingLabelChanges[mail.id] || []
+                                  ).includes(label.id);
 
-              {/* Move to Trash only - available for all labels except trash itself */}
-              {labelName.toLowerCase() !== "trash" && (
-                <button
-                  className="trash-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    moveMailToTrashOnly(mail.id);
-                  }}
-                  title="Move to Trash"
-                  style={{
-                    marginLeft: "0.5rem",
-                    backgroundColor: "#f8d7da",
-                    color: "#721c24",
-                    border: "1px solid #f5c6cb",
-                    borderRadius: "4px",
-                    padding: "4px 8px",
-                    cursor: "pointer"
-                  }}
-                >
-                  <FaTrash />
-                </button>
-              )}
+                                  return (
+                                    <label
+                                      key={label.id}
+                                      onClick={(e) => e.stopPropagation()}
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        backgroundColor: isPendingSelection
+                                          ? "#e8f0fe"
+                                          : "#f1f3f4",
+                                        color: isPendingSelection
+                                          ? "#174ea6"
+                                          : "#202124",
+                                        padding: "4px 10px",
+                                        borderRadius: "16px",
+                                        border: isPendingSelection
+                                          ? "1px solid #174ea6"
+                                          : "1px solid #ccc",
+                                        fontSize: "0.85rem",
+                                        cursor: "pointer",
+                                        fontWeight: isPendingSelection
+                                          ? "500"
+                                          : "normal",
+                                      }}
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        style={{ marginRight: "6px" }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) => {
+                                          e.stopPropagation();
+                                          setPendingLabelChanges((prev) => {
+                                            const base =
+                                              prev[mail.id] ||
+                                              currentMailLabels[mail.id] ||
+                                              [];
+                                            const pending = new Set(base);
+                                            if (e.target.checked) {
+                                              pending.add(label.id);
+                                            } else {
+                                              pending.delete(label.id);
+                                            }
+                                            return {
+                                              ...prev,
+                                              [mail.id]: Array.from(pending),
+                                            };
+                                          });
+                                        }}
+                                        checked={isPendingSelection}
+                                      />
+                                      <span onClick={(e) => e.stopPropagation()}>
+                                        {label.name}
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-              {/* Move to selected labels - only for non-trash labels */}
-              {labelName.toLowerCase() !== "trash" && openLabelManagement[mail.id] && (
-                <button
-                  className="move-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleMoveToLabels(mail.id);
-                  }}
-                  style={{
-                    backgroundColor: "#e8f0fe",
-                    color: "#174ea6",
-                    border: "1px solid #c6dafc",
-                    padding: "4px 8px",
-                    fontSize: "0.8rem",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                    marginRight: "0.5rem"
-                  }}
-                >
-                  Apply Changes
-                </button>
-              )}
+                    {(labelName || "").toLowerCase() !== "trash" && (
+                      <button
+                        className="trash-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveMailToTrashOnly(mail.id);
+                        }}
+                        title="Move to Trash"
+                        style={{
+                          marginLeft: "0.5rem",
+                          backgroundColor: "#f8d7da",
+                          color: "#721c24",
+                          border: "1px solid #f5c6cb",
+                          borderRadius: "4px",
+                          padding: "4px 8px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <FaTrash />
+                      </button>
+                    )}
 
-              {/* Delete Forever (only from Trash) */}
-              {labelName.toLowerCase() === "trash" && (
-                <button
-                  className="delete-button"
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    try {
-                      await fetch(`/api/mails/${mail.id}`, {
-                        method: "DELETE",
-                        headers: {
-                          Authorization: `Bearer ${token}`,
-                        },
-                      });
-                      window.location.reload();
-                    } catch (err) {
-                      console.error("Failed to delete mail:", err);
-                      alert("Failed to delete mail.");
-                    }
-                  }}
-                  style={{
-                    marginLeft: "0.5rem",
-                    backgroundColor: "#dc3545",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "4px",
-                    padding: "4px 8px",
-                    cursor: "pointer"
-                  }}
-                >
-                  Delete Forever
-                </button>
-              )}
+                    {(labelName || "").toLowerCase() !== "trash" &&
+                      openLabelManagement[mail.id] && (
+                        <button
+                          className="move-button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveToLabels(mail.id);
+                          }}
+                          style={{
+                            backgroundColor: "#e8f0fe",
+                            color: "#174ea6",
+                            border: "1px solid #c6dafc",
+                            padding: "4px 8px",
+                            fontSize: "0.8rem",
+                            borderRadius: "4px",
+                            cursor: "pointer",
+                            marginRight: "0.5rem",
+                          }}
+                        >
+                          Apply Changes
+                        </button>
+                      )}
 
-            </li>
-          ))}
+                    {(labelName || "").toLowerCase() === "trash" && (
+                      <button
+                        className="delete-button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await fetch(`/api/mails/${mail.id}`, {
+                              method: "DELETE",
+                              headers: {
+                                Authorization: `Bearer ${token}`,
+                              },
+                            });
+                            window.location.reload();
+                          } catch (err) {
+                            console.error("Failed to delete mail:", err);
+                            alert("Failed to delete mail.");
+                          }
+                        }}
+                        style={{
+                          marginLeft: "0.5rem",
+                          backgroundColor: "#dc3545",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "4px",
+                          padding: "4px 8px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Delete Forever
+                      </button>
+                    )}
+                  </>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
