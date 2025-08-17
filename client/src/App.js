@@ -10,12 +10,13 @@ import Layout from "./components/Layout";
 import "./App.css";
 function App() {
   return (
+    <SendMailProvider>
 
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Login />} /> {/* Redirect to login by default */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Login />} /> {/* Redirect to login by default */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
           {/* Main layout with sidebar */}
           <Route element={<Layout />}>
@@ -25,6 +26,7 @@ function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+
     </SendMailProvider>
   );
 }
