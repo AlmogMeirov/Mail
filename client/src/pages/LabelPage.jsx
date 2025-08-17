@@ -1,5 +1,4 @@
 // LabelPage.jsx
-// NOTE: comments in English only
 
 import { FaTrash } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
@@ -29,8 +28,79 @@ const LabelPage = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  // ---------- helpers (comments in English only) ----------
+  // ---------- helpers ----------
   const normalize = (text) => (text || "").toString().trim().toLowerCase();
+/*<<<<<<< MAIL-333-Ensure-Real-Backend-Communication
+
+  const getDraftLabelId = (labelsList) => {
+    const drafts = (labelsList || []).find(
+      (l) => (l.name || "").toLowerCase() === "drafts"
+    );
+    return drafts ? drafts.id : null;
+  };
+
+  const hasNameDraft = (labelsOrNames) => {
+    // detect 'drafts' string among names
+    if (!Array.isArray(labelsOrNames)) return false;
+    return labelsOrNames.some(
+      (x) => typeof x === "string" && normalize(x) === "drafts"
+    );
+  };
+
+  const includesId = (arr, id) =>
+    Array.isArray(arr) && id != null ? arr.includes(id) : false;
+
+  const isDraftMailRobust = (mail) => {
+    // 1) explicit boolean from server
+    if (mail?.isDraft === true) return true;
+
+    // 2) labels on the mail object itself (could be ids or names)
+    if (Array.isArray(mail?.labels)) {
+      if (draftLabelId && includesId(mail.labels, draftLabelId)) return true;
+      if (hasNameDraft(mail.labels)) return true;
+    }
+
+    // 3) labels we fetched per mail id (ids only)
+    const idsForMail = currentMailLabels[mail?.id] || [];
+    if (draftLabelId && includesId(idsForMail, draftLabelId)) return true;
+
+    // 4) current page is drafts label (extra safety)
+    if (normalize(labelName) === "drafts" || normalize(labelId) === "drafts")
+      return true;
+
+    return false;
+  };
+
+  const safeOpenMail = (mail) => {
+    // If labels are not ready yet AND server didn't mark isDraft=true,
+    // avoid accidental opening – wait until labelsReady.
+    if (!labelsReady && mail?.isDraft !== true) {
+      // You can show a toast here if you want.
+      return;
+    }
+
+    if (isDraftMailRobust(mail)) {
+      navigate(`/draft/${mail.id}`);
+      return;
+    }
+    navigate(`/mail/${mail.id}`);
+  };
+
+  // ---------- effects ----------
+  useEffect(() => {
+    setSearchQuery("");
+    if (!token) return;
+
+    // compute display name for label
+    if (labelId === "inbox" || labelId === "sent") {
+      setLabelName(labelId);
+    } else {
+      fetchWithAuth(`/labels/${labelId}`, token)
+        .then((data) => setLabelName(data?.name || labelId))
+        .catch(() => setLabelName(labelId));
+    }
+
+=======*/
 
   const getDraftLabelId = (labelsList) => {
     const drafts = (labelsList || []).find(
@@ -150,7 +220,6 @@ const LabelPage = () => {
         .then((data) => setLabelName(data?.name || labelId))
         .catch(() => setLabelName(labelId));
     }
-
     const fetchMails = async () => {
       try {
         let validMails = [];
@@ -174,6 +243,7 @@ const LabelPage = () => {
           const prelim = list.filter(
             (m) => m?.isDraft !== true && !hasNameDraft(m?.labels || [])
           );
+
 
           // filter out trash by querying label names (compat with current backend)
           const final = [];
@@ -204,6 +274,7 @@ const LabelPage = () => {
           }
 
           validMails = final;
+          
         } else if (String(labelId).toLowerCase() === "trash") {
           // system "trash" page -> resolve to numeric id and list mails by that label
           const trashId = await resolveSystemLabelId("trash");
@@ -372,10 +443,8 @@ const LabelPage = () => {
       if (!res.ok) throw new Error(`delete failed ${res.status}`);
 
       // pass the deleted id so LabelPage can update immediately
-      navigate("/label/drafts", {
-        replace: true,
-        state: { justDeletedId: mailId, ts: Date.now() },
-      });
+      navigate("/label/drafts", { replace: true, state: { justDeletedId: mailId, ts: Date.now() } });
+
     } catch (e) {
       console.error(e);
       alert("Failed to discard draft.");
@@ -537,21 +606,14 @@ const LabelPage = () => {
 
                 {draft ? (
                   // Drafts: show explicit Edit button and block parent click bubbling
-                  <div
-                    style={{
-                      marginTop: "0.5rem",
-                      display: "flex",
-                      gap: "0.5rem",
-                    }}
-                  >
+                  <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
                     <button
                       type="button"
-                      onMouseDown={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()} // prevent parent from seeing this click
                       onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/draft/${mail.id}`, {
-                          state: { assumeDraft: true },
-                        });
+                        e.stopPropagation(); // belt-and-suspenders
+                        navigate(`/draft/${mail.id}`, { state: { assumeDraft: true } }); // <-- add state
+
                       }}
                       style={{
                         backgroundColor: "#e8f0fe",
@@ -569,7 +631,7 @@ const LabelPage = () => {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (window.confirm("Discard this draft permanently?")) {
-                          discardDraft(mail.id);
+                          discardDraft(mail.id); // <-- now defined
                         }
                       }}
                       style={{

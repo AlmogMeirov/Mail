@@ -154,6 +154,9 @@ const Sidebar = () => {
           <NavLink to="/label/spam">Spam</NavLink>
         </li>
         <li>
+            <NavLink to="/label/drafts">Drafts</NavLink>
+        </li>
+        <li>
           <NavLink to="/label/trash">Trash</NavLink>
         </li>
 

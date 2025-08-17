@@ -2,14 +2,52 @@ import { useState } from "react";
 
 export default function SendMailComponent({ onClose, initialRecipient = "", initialSubject = "", initialContent = "" }) {
 
- const [recipient, setRecipient] = useState(initialRecipient);
- const [subject, setSubject] = useState(initialSubject);
- const [content, setContent] = useState(initialContent);
+  const [recipient, setRecipient] = useState(initialRecipient);
+  const [subject, setSubject] = useState(initialSubject);
+  const [content, setContent] = useState(initialContent);
+
+  const handleSaveDraft = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const sender = localStorage.getItem("email");
+      const recipientsArray = recipient
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+
+      const res = await fetch("/api/mails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          sender,
+          recipients: recipientsArray,
+          subject,
+          content,
+          isDraft: true,       
+          labels: ["drafts"],   
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to save draft");
+      }
+
+      alert("Draft saved.");
+      onClose?.();
+    } catch (e) {
+      alert(e.message);
+      console.error(e);
+    }
+  };
 
   const handleSend = async () => {
     const token = localStorage.getItem("token");
     const sender = localStorage.getItem("email"); // Assuming email is stored in localStorage
-    
+
     if (!recipient) {
       alert("Recipient is required.");
       return;
@@ -31,8 +69,8 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
       const confirmSend = window.confirm(
         "Your email is missing a " +
         (!subject && !content ? "subject and content" :
-        !subject ? "subject" :
-        "content") +
+          !subject ? "subject" :
+            "content") +
         ". Do you want to send it anyway?"
       );
       if (!confirmSend) return;
@@ -72,7 +110,9 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
       <textarea placeholder="Message" value={content} onChange={e => setContent(e.target.value)} /><br />
       <button onClick={handleSend}>Send</button>
       <button onClick={onClose}>Cancel</button>
-    </div>
+      <button type="button" onClick={handleSaveDraft}>שמור כטיוטה</button>
+
+    </div >
   );
 
 }
