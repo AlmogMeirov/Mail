@@ -6,6 +6,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
 import { useSearch } from "../context/SearchContext";
 import { useLocation } from "react-router-dom";
+import Loading from "../components/Loading";
 
 const LabelPage = () => {
   const { labelId } = useParams();
@@ -15,6 +16,7 @@ const LabelPage = () => {
   const [error, setError] = useState("");
   const { searchQuery, setSearchQuery } = useSearch();
   const location = useLocation();
+  const [loading, setLoading] = useState(true);
 
   // label + draft detection helpers
   const [draftLabelId, setDraftLabelId] = useState(null);
@@ -357,8 +359,9 @@ const LabelPage = () => {
         setError("Failed to load mail data");
       }
     };
-
-    fetchMails();
+    setLoading(true);
+    fetchMails()
+      .finally(() => setLoading(false));
 
     // load labels once and mark ready
     fetchWithAuth("/labels", token)
@@ -558,14 +561,16 @@ const LabelPage = () => {
       )}
 
       {labelId !== "inbox"}
-      {error && <p style={{ color: "red" }}>{error}</p>}
-
-      {filteredMails.length === 0 ? (
+      {loading ? (
+        <Loading label="Loading Mails…" />
+      ) : error ? (
+        <p style={{ color: "red" }}>{error}</p>
+      ) : filteredMails.length === 0 ? (
         <p>No mails found.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
           {filteredMails.map((mail) => {
-            const draft = isDraftMailRobust(mail); // NOTE: comments in English only
+            const draft = isDraftMailRobust(mail);
 
             return (
               <li

@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
+import Loading from "../components/Loading";
 
 const getDraftLabelId = (labelsList) => {
     const drafts = (labelsList || []).find(l => (l.name || "").toLowerCase() === "drafts");
@@ -228,7 +229,7 @@ const DraftEditPage = () => {
         }
     };
 
-    if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
+    if (loading) return <Loading label="Loading Draft Editor…" />;
     if (error) return <div style={{ padding: 16, color: "red" }}>{error}</div>;
 
     return (
