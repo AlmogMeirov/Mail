@@ -237,16 +237,6 @@ const DraftEditPage = () => {
 
             <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
                 <label style={{ fontWeight: 600 }}>
-                    From
-                    <input
-                        value={fromEmail}
-                        onChange={(e) => setFromEmail(e.target.value)}
-                        style={{ width: "100%", padding: 8, marginTop: 4 }}
-                        placeholder="your-verified-email@example.com"
-                    />
-                </label>
-
-                <label style={{ fontWeight: 600 }}>
                     To
                     <input
                         value={to}

@@ -25,7 +25,7 @@ function App() {
             <Route path="/label/:labelId" element={<LabelPage />} />
             <Route path="/mail/:id" element={<MailViewPage />} />
             <Route path="/search" element={<SearchResultsPage />} />
-            <Route path="/draft/:id" element={<DraftEditPage />} />
+            <Route path="/draft/:id/" element={<DraftEditPage />} />
 
           </Route>
         </Routes>

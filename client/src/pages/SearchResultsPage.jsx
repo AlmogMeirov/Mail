@@ -1,12 +1,13 @@
 // client/src/pages/SearchResultsPage.jsx
 // NOTE: comments in English only
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
 
 const normalize = (s) => (s || "").toString().trim().toLowerCase();
 
+// Decode email from JWT payload
 const emailFromToken = (jwt) => {
   try {
     const b64 = (jwt || "").split(".")[1];
@@ -25,27 +26,46 @@ const emailFromToken = (jwt) => {
   }
 };
 
-const senderEmailOf = (mail) => {
-  if (!mail) return "";
-  if (typeof mail.sender === "string") return mail.sender;
-  if (mail.sender?.email) return mail.sender.email;
-  if (mail.from) return mail.from;
+// Extract a single email from string/object/array
+const extractEmail = (v) => {
+  if (!v) return "";
+  // string: maybe "Full Name <user@x>" or plain "user@x"
+  if (typeof v === "string") {
+    const m = v.match(/<([^>]+)>/); // capture address inside < >
+    const addr = m ? m[1] : v;
+    return normalize(addr);
+  }
+  // array: return first valid email we find
+  if (Array.isArray(v)) {
+    for (const el of v) {
+      const e = extractEmail(el);
+      if (e) return e;
+    }
+    return "";
+  }
+  // object: common fields { email } or { address } or { value: "name <mail>" }
+  if (typeof v === "object") {
+    if (typeof v.email === "string") return normalize(v.email);
+    if (typeof v.address === "string") return normalize(v.address);
+    if (typeof v.value === "string") return extractEmail(v.value);
+  }
   return "";
 };
 
-const recipientEmailOf = (mail) => {
-  if (!mail) return "";
-  if (typeof mail.recipient === "string") return mail.recipient;
-  if (mail.recipient?.email) return mail.recipient.email;
-  if (mail.to) return mail.to;
-  return "";
-};
+const senderEmailOf = (mail) =>
+  (mail && (extractEmail(mail.sender) || extractEmail(mail.from))) || "";
 
+const recipientEmailOf = (mail) =>
+  (mail && (extractEmail(mail.recipient) || extractEmail(mail.to))) || "";
+
+// Accepts array of strings OR objects with a `name` field
 const hasNameDraft = (labelsOrNames) => {
   if (!Array.isArray(labelsOrNames)) return false;
-  return labelsOrNames.some(
-    (x) => typeof x === "string" && normalize(x) === "drafts"
-  );
+  return labelsOrNames.some((x) => {
+    if (typeof x === "string") return normalize(x) === "drafts";
+    if (x && typeof x.name === "string") return normalize(x.name) === "drafts";
+    return false;
+  });
 };
 
 const SearchResultsPage = () => {
@@ -61,12 +81,17 @@ const SearchResultsPage = () => {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
+  // Caches to avoid duplicate network calls per mailId
+  const draftLabelCacheRef = useRef(new Map()); // mailId -> boolean
+  const inflightRef = useRef(new Map());        // mailId -> Promise<boolean>
+
   // 1) fetch labels to get the real "drafts" label id
   useEffect(() => {
     let dead = false;
     const run = async () => {
       if (!token) return;
       try {
+        // IMPORTANT: pass { token }
         const list = await fetchWithAuth("/labels", token);
         const drafts = (list || []).find(
           (l) => (l.name || "").toLowerCase() === "drafts"
@@ -80,20 +105,55 @@ const SearchResultsPage = () => {
     return () => { dead = true; };
   }, [token]);
 
-  // helper: check via /api/labels/mail/:id if a mail has the drafts label id
+  // Ask server if a mail has Drafts; supports multiple response shapes
   const checkIsDraftByServerLabels = async (mailId) => {
     if (!mailId || !token) return false;
-    try {
-      const res = await fetch(`/api/labels/mail/${mailId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return false;
-      const ids = await res.json();
-      if (!Array.isArray(ids)) return false;
-      return draftsId ? ids.includes(draftsId) : false;
-    } catch {
-      return false;
-    }
+
+    // cache hit
+    const cache = draftLabelCacheRef.current;
+    if (cache.has(mailId)) return cache.get(mailId);
+
+    // collapse concurrent calls for same id
+    const inflight = inflightRef.current;
+    if (inflight.has(mailId)) return inflight.get(mailId);
+
+    const p = (async () => {
+      try {
+        const res = await fetch(`/api/labels/mail/${mailId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return false;
+
+        const arr = await res.json();
+        if (!Array.isArray(arr)) return false;
+
+        // supports: ["Inbox","Drafts"] OR ["id1","id2"] OR [{id,name}, ...]
+        let result = false;
+        if (arr.length && typeof arr[0] === "object") {
+          result = arr.some(
+            (l) =>
+              normalize(l?.name) === "drafts" ||
+              (draftsId != null && String(l?.id) === String(draftsId))
+          );
+        } else if (arr.length && typeof arr[0] === "string") {
+          const names = arr.map(normalize);
+          if (names.includes("drafts")) result = true;
+          else if (draftsId != null) {
+            result = arr.map(String).includes(String(draftsId));
+          }
+        }
+
+        cache.set(mailId, result);
+        return result;
+      } catch {
+        return false;
+      } finally {
+        inflight.delete(mailId);
+      }
+    })();
+
+    inflight.set(mailId, p);
+    return p;
   };
 
   // 2) run search and hard-filter
@@ -110,12 +170,11 @@ const SearchResultsPage = () => {
       try {
         // try /api/mails/search first
         const tryFetch = async (path) => {
-          try {
-            return await fetchWithAuth(`${path}?q=${encodeURIComponent(q)}&ts=${Date.now()}`, token);
-          } catch (e) {
-            // fetchWithAuth throws on non-ok; rethrow to try fallback
-            throw e;
-          }
+          // IMPORTANT: pass { token }
+          return await fetchWithAuth(
+            `${path}?q=${encodeURIComponent(q)}&ts=${Date.now()}`,
+            token
+          );
         };
 
         let data;
@@ -123,14 +182,14 @@ const SearchResultsPage = () => {
           data = await tryFetch("/mails/search"); // resolves to /api/mails/search inside fetchWithAuth
         } catch (e1) {
           // fallback to /api/search if the first path doesn't exist
-          try {
-            data = await tryFetch("/search");
-          } catch (e2) {
-            throw e2;
-          }
+          data = await tryFetch("/search");
         }
 
-        const raw = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : [];
+        const raw = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.results)
+            ? data.results
+            : [];
 
         // enrich with precise draft flag by querying label ids when needed
         const enriched = await Promise.all(
@@ -138,13 +197,18 @@ const SearchResultsPage = () => {
             const sender = normalize(senderEmailOf(m));
             const recipient = normalize(recipientEmailOf(m));
 
-            // quick signals
             let isDraft =
               m?.isDraft === true ||
               hasNameDraft(m?.labels || []);
 
-            // if still unknown, ask the server for the mail's label ids
-            if (!isDraft && draftsId) {
+            // Prefer local labelIds if present; compare as strings
+            if (!isDraft && Array.isArray(m.labelIds) && draftsId != null) {
+              const ids = m.labelIds.map(String);
+              isDraft = ids.includes(String(draftsId));
+            }
+
+            // Fallback: even if draftsId is null, ask server (can detect by name)
+            if (!isDraft && !Array.isArray(m.labelIds)) {
               isDraft = await checkIsDraftByServerLabels(m.id);
             }
 
@@ -169,7 +233,7 @@ const SearchResultsPage = () => {
           return m.__sender === myEmail; // only my drafts
         });
 
-        // debug to console to see exactly what got filtered and why
+        // Debug traces (optional)
         console.table(
           enriched.map((m) => ({
             id: m.id,
@@ -178,6 +242,16 @@ const SearchResultsPage = () => {
             recipient: m.__recipient,
             isDraft: m.__isDraft,
             kept: safe.some((x) => x.id === m.id),
+          }))
+        );
+        console.log("[labels] draftsId:", draftsId);
+        console.table(
+          enriched.map((m) => ({
+            id: m.id,
+            hasIsDraft: m?.isDraft === true,
+            hasLabels: Array.isArray(m.labels),
+            hasLabelIds: Array.isArray(m.labelIds),
+            __isDraft: m.__isDraft,
           }))
         );
 
@@ -200,7 +274,7 @@ const SearchResultsPage = () => {
   const openItem = (m) => {
     if (!m?.id) return;
     if (m.__isDraft) {
-      navigate(`/draft/${m.id}`, { state: { assumeDraft: true } });
+      navigate(`/draft/${m.id}`, { state: { assumeDraft: true } }); // no /edit
     } else {
       navigate(`/mail/${m.id}`);
     }
@@ -236,12 +310,15 @@ const SearchResultsPage = () => {
               </strong>
               <br />
               <strong>From:</strong>{" "}
-              {senderEmailOf(m) || "(unknown)"}
+              {extractEmail(m.sender) || extractEmail(m.from) || "(unknown)"}
               <br />
               <strong>Date:</strong>{" "}
-              {m.timestamp ? new Date(m.timestamp).toLocaleString() : "Invalid Date"}
+              {m.timestamp
+                ? new Date(m.timestamp).toLocaleString()
+                : "Invalid Date"}
               <p style={{ color: "#666" }}>
-                {m.preview || (m.content || "").slice(0, 100) || <em>(no content)</em>}
+                {m.preview ||
+                  (m.content || "").slice(0, 100) || <em>(no content)</em>}
               </p>
             </li>
           ))}
