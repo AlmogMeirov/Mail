@@ -92,10 +92,10 @@ const SearchResultsPage = () => {
   useEffect(() => {
     let dead = false;
     const run = async () => {
-     if (!token || !query.trim()) {
-      setIsLoading(false);
-      return;
-    }
+      if (!token || !query.trim()) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       try {
         // IMPORTANT: pass { token }
@@ -293,7 +293,7 @@ const SearchResultsPage = () => {
       <h1>Search Results for: "{query}"</h1>
       {isLoading ? (
         <Loading label="Searching…" />
-      ) : mails.length === 0 ? (
+      ) : results.length === 0 ? (
         <p>No matching mails found.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
