@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import '../styles/Register.css'; // Assuming you have a CSS file for styling
 const Register = () => {
     // Local state for each field
     // Required fields
@@ -133,117 +133,83 @@ const Register = () => {
         }
     };
 
+
     return (
-        <div>
-            <h2>Register</h2>
+        <div className="login-container">
+            <div className="login-box">
+                <h2>הרשמה</h2>
+                <p className="login-subtitle">צור חשבון חדש</p>
 
-            {errorMessage && (
-                <div style={{
-                    color: 'white',
-                    backgroundColor: 'red',
-                    padding: '10px',
-                    borderRadius: '5px',
-                    marginBottom: '15px'
-                }}>
-                    {errorMessage}
-                </div>
-            )}
+                {errorMessage && <div className="login-error">{errorMessage}</div>}
 
-            <form onSubmit={handleSubmit}>
-                <input
-                    type="text"
-                    placeholder="First Name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                />
+                <form onSubmit={handleSubmit}>
+                    <div className="input-group">
+                        <label>שם פרטי</label>
+                        <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                    </div>
 
-                <input
-                    type="text"
-                    placeholder="Last Name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                />
+                    <div className="input-group">
+                        <label>שם משפחה</label>
+                        <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                    </div>
 
-                <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                />
+                    <div className="input-group">
+                        <label>אימייל</label>
+                        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                    </div>
 
-                <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                />
+                    <div className="input-group">
+                        <label>סיסמה</label>
+                        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    </div>
 
-                <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    onPaste={(e) => e.preventDefault()}
-                    placeholder="Confirm Password"
-                />
+                    <div className="input-group">
+                        <label>אימות סיסמה</label>
+                        <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onPaste={(e) => e.preventDefault()} required />
+                    </div>
 
+                    <div className="input-group">
+                        <label>תאריך לידה</label>
+                        <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+                    </div>
 
-                <input
-                    type="date"
-                    placeholder="Birth Date"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                />
+                    <div className="input-group">
+                        <label>טלפון</label>
+                        <input type="text" value={phone} onChange={(e) => {
+                            let value = e.target.value.replace(/[^\d]/g, '');
+                            if (value.length > 3) {
+                                value = value.slice(0, 3) + '-' + value.slice(3);
+                            }
+                            setPhone(value);
+                        }} />
+                    </div>
 
-                <input
-                    type="text"
-                    placeholder="Phone Number"
-                    value={phone}
-                    onChange={(e) => {
-                        let value = e.target.value.replace(/[^\d]/g, ''); // remove non-digits
-                        if (value.length > 3) {
-                            value = value.slice(0, 3) + '-' + value.slice(3);
-                        }
-                        setPhone(value);
-                    }}
-                />
+                    <div className="input-group">
+                        <label>מגדר</label>
+                        <select value={gender} onChange={(e) => setGender(e.target.value)}>
+                            <option value="">בחר מגדר</option>
+                            <option value="male">זכר</option>
+                            <option value="female">נקבה</option>
+                            <option value="other">אחר</option>
+                        </select>
+                    </div>
 
+                    <div className="input-group">
+                        <label>תמונת פרופיל</label>
+                        <input type="file" accept="image/*" onChange={handleImageChange} />
+                    </div>
 
-                <select
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                >
-                    <option value="">Select Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                </select>
+                    {isLoading && <p className="login-loading">Registering...</p>}
 
+                    <button className="login-button" type="submit" disabled={isLoading}>הרשמה</button>
 
-                <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                />
-
-                {isLoading && <p>Registering...</p>}
-
-                <button type="submit" disabled={isLoading}>Register</button>
-                <p>
-                    Already have an account?{" "}
-                    <span onClick={() => navigate("/login")} style={{ color: "blue", cursor: "pointer" }}>
-                        Login here
-                    </span>
-                </p>
-
-
-
-            </form>
+                    <p className="register-link">
+                        כבר יש לך חשבון?{' '}
+                        <span onClick={() => navigate('/login')}>התחבר כאן</span>
+                    </p>
+                </form>
+            </div>
         </div>
     );
 };
-
 export default Register;

@@ -4,6 +4,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
+import Loading from "../components/Loading";
 
 const normalize = (s) => (s || "").toString().trim().toLowerCase();
 
@@ -71,10 +72,12 @@ const hasNameDraft = (labelsOrNames) => {
 const SearchResultsPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const q = new URLSearchParams(location.search).get("q") || "";
-
   const token = localStorage.getItem("token") || "";
   const myEmail = useMemo(() => normalize(emailFromToken(token)), [token]);
+  const query = new URLSearchParams(location.search).get("q") || "";
+  const [mails, setMails] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  //const [error, setError] = useState("");
 
   const [draftsId, setDraftsId] = useState(null);
   const [results, setResults] = useState([]);
@@ -89,7 +92,11 @@ const SearchResultsPage = () => {
   useEffect(() => {
     let dead = false;
     const run = async () => {
-      if (!token) return;
+     if (!token || !query.trim()) {
+      setIsLoading(false);
+      return;
+    }
+      setIsLoading(true);
       try {
         // IMPORTANT: pass { token }
         const list = await fetchWithAuth("/labels", token);
@@ -161,7 +168,7 @@ const SearchResultsPage = () => {
     let dead = false;
 
     const run = async () => {
-      if (!token || !q.trim()) {
+      if (!token || !query.trim()) {
         setResults([]);
         return;
       }
@@ -172,7 +179,7 @@ const SearchResultsPage = () => {
         const tryFetch = async (path) => {
           // IMPORTANT: pass { token }
           return await fetchWithAuth(
-            `${path}?q=${encodeURIComponent(q)}&ts=${Date.now()}`,
+            `${path}?q=${encodeURIComponent(query)}&ts=${Date.now()}`,
             token
           );
         };
@@ -263,13 +270,13 @@ const SearchResultsPage = () => {
           setResults([]);
         }
       } finally {
-        if (!dead) setLoading(false);
+        if (!dead) setIsLoading(false);
       }
     };
 
     run();
     // re-run when query, token, or draftsId changes
-  }, [q, token, draftsId, myEmail]);
+  }, [query, token, draftsId, myEmail]);
 
   const openItem = (m) => {
     if (!m?.id) return;
@@ -280,14 +287,13 @@ const SearchResultsPage = () => {
     }
   };
 
+
   return (
     <div style={{ padding: "1rem" }}>
-      <h1>Search Results for: "{q}"</h1>
-
-      {loading && <p>Searching…</p>}
-      {err && <p style={{ color: "red" }}>{err}</p>}
-
-      {!loading && results.length === 0 ? (
+      <h1>Search Results for: "{query}"</h1>
+      {isLoading ? (
+        <Loading label="Searching…" />
+      ) : mails.length === 0 ? (
         <p>No matching mails found.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>

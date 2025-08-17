@@ -1,11 +1,11 @@
 // LabelPage.jsx
+
 import { FaTrash } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
 import { useSearch } from "../context/SearchContext";
 import { useLocation } from "react-router-dom";
-
 
 const LabelPage = () => {
   const { labelId } = useParams();
@@ -15,7 +15,6 @@ const LabelPage = () => {
   const [error, setError] = useState("");
   const { searchQuery, setSearchQuery } = useSearch();
   const location = useLocation();
-
 
   // label + draft detection helpers
   const [draftLabelId, setDraftLabelId] = useState(null);
@@ -29,8 +28,9 @@ const LabelPage = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  // ---------- helpers (comments in English only) ----------
+  // ---------- helpers ----------
   const normalize = (text) => (text || "").toString().trim().toLowerCase();
+/*<<<<<<< MAIL-333-Ensure-Real-Backend-Communication
 
   const getDraftLabelId = (labelsList) => {
     const drafts = (labelsList || []).find(
@@ -100,6 +100,126 @@ const LabelPage = () => {
         .catch(() => setLabelName(labelId));
     }
 
+=======*/
+
+  const getDraftLabelId = (labelsList) => {
+    const drafts = (labelsList || []).find(
+      (l) => (l.name || "").toLowerCase() === "drafts"
+    );
+    return drafts ? drafts.id : null;
+  };
+
+  const hasNameDraft = (labelsOrNames) => {
+    // detect 'drafts' string among names
+    if (!Array.isArray(labelsOrNames)) return false;
+    return labelsOrNames.some(
+      (x) => typeof x === "string" && normalize(x) === "drafts"
+    );
+  };
+
+  const includesId = (arr, id) =>
+    Array.isArray(arr) && id != null ? arr.includes(id) : false;
+
+  const isDraftMailRobust = (mail) => {
+    // 1) explicit boolean from server
+    if (mail?.isDraft === true) return true;
+
+    // 2) labels on the mail object itself (could be ids or names)
+    if (Array.isArray(mail?.labels)) {
+      if (draftLabelId && includesId(mail.labels, draftLabelId)) return true;
+      if (hasNameDraft(mail.labels)) return true;
+    }
+
+    // 3) labels we fetched per mail id (ids only)
+    const idsForMail = currentMailLabels[mail?.id] || [];
+    if (draftLabelId && includesId(idsForMail, draftLabelId)) return true;
+
+    // 4) current page is drafts label (extra safety)
+    if (normalize(labelName) === "drafts" || normalize(labelId) === "drafts")
+      return true;
+
+    return false;
+  };
+
+  // Ensure a labelId exists for a given label name (create if missing). Names are lowercased.
+  const ensureLabelIdByName = async (name) => {
+    const wanted = String(name || "").trim().toLowerCase();
+    if (!wanted) throw new Error("Invalid label name");
+
+    // 1) try to find in the loaded list
+    const exists = (allLabels || []).find(
+      (l) => (l.name || "").toLowerCase() === wanted
+    );
+    if (exists) return exists.id;
+
+    // 2) try to create once (backend must allow creating labels)
+    const res = await fetch("/api/labels", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name: wanted }),
+    });
+
+    if (!res.ok) {
+      // read error body (json or text) for real diagnostics
+      let msg = `Failed to create label '${wanted}' (${res.status})`;
+      try {
+        const ct = res.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const j = await res.json();
+          if (j?.error) msg = j.error;
+        } else {
+          const t = await res.text();
+          if (t) msg = t;
+        }
+      } catch { }
+      throw new Error(msg);
+    }
+
+    const created = await res.json();
+    setAllLabels((prev) => [...prev, created]); // keep client cache in sync
+    return created.id;
+  };
+
+  // Resolve a system label name ('trash'/'spam'/'drafts') to a real numeric labelId
+  const resolveSystemLabelId = async (nameLower) => {
+    const nm = String(nameLower || "").toLowerCase();
+    const found = (allLabels || []).find(
+      (l) => (l.name || "").toLowerCase() === nm
+    );
+    if (found) return found.id;
+    return await ensureLabelIdByName(nm);
+  };
+
+  const safeOpenMail = (mail) => {
+    // If labels are not ready yet AND server didn't mark isDraft=true,
+    // avoid accidental opening – wait until labelsReady.
+    if (!labelsReady && mail?.isDraft !== true) {
+      return;
+    }
+    if (isDraftMailRobust(mail)) {
+      navigate(`/draft/${mail.id}`);
+      return;
+    }
+    navigate(`/mail/${mail.id}`);
+  };
+
+  // ---------- effects ----------
+  useEffect(() => {
+    setSearchQuery("");
+    if (!token) return;
+
+    // compute display name for label (do not fetch system names)
+    const sysNames = new Set(["inbox", "sent", "trash", "spam", "drafts"]);
+    if (sysNames.has(String(labelId).toLowerCase())) {
+      setLabelName(String(labelId).toLowerCase());
+    } else {
+      fetchWithAuth(`/labels/${labelId}`, token)
+        .then((data) => setLabelName(data?.name || labelId))
+        .catch(() => setLabelName(labelId));
+    }
     const fetchMails = async () => {
       try {
         let validMails = [];
@@ -124,13 +244,18 @@ const LabelPage = () => {
             (m) => m?.isDraft !== true && !hasNameDraft(m?.labels || [])
           );
 
-          // filter out trash by querying label names
+
+          // filter out trash by querying label names (compat with current backend)
           const final = [];
           for (const mail of prelim) {
             try {
               const res = await fetch(`/api/labels/mail/${mail.id}`, {
                 headers: { Authorization: `Bearer ${token}` },
               });
+              if (!res.ok) {
+                final.push(mail);
+                continue;
+              }
               const labelIds = await res.json();
               const names = await Promise.all(
                 (labelIds || []).map(async (lid) => {
@@ -149,15 +274,51 @@ const LabelPage = () => {
           }
 
           validMails = final;
+          
+        } else if (String(labelId).toLowerCase() === "trash") {
+          // system "trash" page -> resolve to numeric id and list mails by that label
+          const trashId = await resolveSystemLabelId("trash");
+          const ids = await fetchWithAuth(`/labels/by-label/${trashId}`, token);
+          if (Array.isArray(ids) && ids.length > 0) {
+            const full = await Promise.all(
+              ids.map(async (id) => {
+                try {
+                  return await fetchWithAuth(`/mails/${id}`, token);
+                } catch {
+                  return null;
+                }
+              })
+            );
+            validMails = full.filter(Boolean);
+          } else {
+            validMails = [];
+          }
+        } else if (String(labelId).toLowerCase() === "spam") {
+          // system "spam" page -> resolve and list
+          const spamId = await resolveSystemLabelId("spam");
+          const ids = await fetchWithAuth(`/labels/by-label/${spamId}`, token);
+          if (Array.isArray(ids) && ids.length > 0) {
+            const full = await Promise.all(
+              ids.map(async (id) => {
+                try {
+                  return await fetchWithAuth(`/mails/${id}`, token);
+                } catch {
+                  return null;
+                }
+              })
+            );
+            validMails = full.filter(Boolean);
+          } else {
+            validMails = [];
+          }
         } else {
-          // generic label view
+          // generic label view (numeric id)
           const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
           if (Array.isArray(ids) && ids.length > 0) {
             const full = await Promise.all(
               ids.map(async (id) => {
                 try {
-                  const mail = await fetchWithAuth(`/mails/${id}`, token);
-                  return mail || null;
+                  return await fetchWithAuth(`/mails/${id}`, token);
                 } catch (err) {
                   console.warn(`Failed to fetch mail ${id}:`, err);
                   return null;
@@ -179,6 +340,10 @@ const LabelPage = () => {
             const res = await fetch(`/api/labels/mail/${mail.id}`, {
               headers: { Authorization: `Bearer ${token}` },
             });
+            if (!res.ok) {
+              mailLabelsMap[mail.id] = [];
+              continue;
+            }
             const labels = await res.json();
             mailLabelsMap[mail.id] = Array.isArray(labels) ? labels : [];
           } catch (err) {
@@ -269,8 +434,6 @@ const LabelPage = () => {
     }
   };
 
-  // NOTE: comments in English only
-  // NOTE: comments in English only
   const discardDraft = async (mailId) => {
     try {
       const res = await fetch(`/api/mails/${mailId}`, {
@@ -281,20 +444,20 @@ const LabelPage = () => {
 
       // pass the deleted id so LabelPage can update immediately
       navigate("/label/drafts", { replace: true, state: { justDeletedId: mailId, ts: Date.now() } });
+
     } catch (e) {
       console.error(e);
       alert("Failed to discard draft.");
     }
   };
 
-
   useEffect(() => {
     const deletedId = location.state?.justDeletedId;
     if (!deletedId) return;
 
     // optimistic remove from UI
-    setMails(prev => prev.filter(m => m.id !== deletedId));
-    setCurrentMailLabels(prev => {
+    setMails((prev) => prev.filter((m) => m.id !== deletedId));
+    setCurrentMailLabels((prev) => {
       const next = { ...prev };
       delete next[deletedId];
       return next;
@@ -304,48 +467,51 @@ const LabelPage = () => {
     navigate(location.pathname, { replace: true, state: null });
   }, [location.state?.justDeletedId]);
 
-
+  // Move mail so that its only label becomes "trash"
   const moveMailToTrashOnly = async (mailId) => {
     try {
-      const trashLabel = allLabels.find(
-        (l) => (l.name || "").toLowerCase() === "trash"
-      );
-      if (!trashLabel) {
-        alert("Trash label not found");
-        return;
-      }
+      // 1) ensure we have a labelId for "trash" (create if missing)
+      const trashId = await ensureLabelIdByName("trash");
 
+      // 2) fetch current labels ONCE
       const res = await fetch(`/api/labels/mail/${mailId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) throw new Error(`labels fetch failed ${res.status}`);
       const currentLabels = await res.json();
+      const safeCurrent = Array.isArray(currentLabels) ? currentLabels : [];
 
+      // 3) untag all current labels (idempotent if none)
       await Promise.all(
-        (currentLabels || []).map((labelId) =>
+        safeCurrent.map((lblId) =>
           fetch(`/api/labels/untag`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ mailId, labelId }),
+            body: JSON.stringify({ mailId, labelId: lblId }),
           })
         )
       );
 
-      await fetch(`/api/labels/tag`, {
+      // 4) tag only trash
+      const tagRes = await fetch(`/api/labels/tag`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ mailId, labelId: trashLabel.id }),
+        body: JSON.stringify({ mailId, labelId: trashId }),
       });
+      if (!tagRes.ok) throw new Error(`tag trash failed ${tagRes.status}`);
 
-      window.location.reload();
+      // 5) optimistic UI update (remove from current list)
+      setMails((prev) => prev.filter((m) => m.id !== mailId));
+      setCurrentMailLabels((prev) => ({ ...prev, [mailId]: [trashId] }));
     } catch (err) {
       console.error("Error moving mail to trash:", err);
-      alert("Failed to move mail to trash");
+      alert(err.message || "Failed to move mail to trash");
     }
   };
 
@@ -420,15 +586,22 @@ const LabelPage = () => {
                   const sender = mail.sender || mail.otherParty;
                   if (!sender) return "(unknown)";
                   if (typeof sender === "string") return sender;
-                  return sender.email || `${sender.firstName || ""} ${sender.lastName || ""}`.trim();
+                  return (
+                    sender.email ||
+                    `${sender.firstName || ""} ${sender.lastName || ""}`.trim()
+                  );
                 })()}
                 <br />
-                <strong>Subject:</strong> {mail.subject || <em>(no subject)</em>} <br />
+                <strong>Subject:</strong>{" "}
+                {mail.subject || <em>(no subject)</em>} <br />
                 <strong>Date:</strong>{" "}
-                {mail.timestamp ? new Date(mail.timestamp).toLocaleString() : "Invalid Date"}
+                {mail.timestamp
+                  ? new Date(mail.timestamp).toLocaleString()
+                  : "Invalid Date"}
                 <br />
                 <p style={{ color: "#666" }}>
-                  {mail.preview || mail.content?.slice(0, 100) || <em>(no content)</em>}
+                  {mail.preview ||
+                    mail.content?.slice(0, 100) || <em>(no content)</em>}
                 </p>
 
                 {draft ? (
@@ -440,6 +613,7 @@ const LabelPage = () => {
                       onClick={(e) => {
                         e.stopPropagation(); // belt-and-suspenders
                         navigate(`/draft/${mail.id}`, { state: { assumeDraft: true } }); // <-- add state
+
                       }}
                       style={{
                         backgroundColor: "#e8f0fe",
@@ -471,7 +645,6 @@ const LabelPage = () => {
                     >
                       Discard Draft
                     </button>
-
                   </div>
                 ) : (
                   <>
@@ -640,7 +813,10 @@ const LabelPage = () => {
                                 Authorization: `Bearer ${token}`,
                               },
                             });
-                            window.location.reload();
+                            // optimistic UI update
+                            setMails((prev) =>
+                              prev.filter((m) => m.id !== mail.id)
+                            );
                           } catch (err) {
                             console.error("Failed to delete mail:", err);
                             alert("Failed to delete mail.");

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import SendMailComponent from "../components/SendMailComponent";
+import Loading from "../components/Loading";
 
 function MailViewPage() {
   const { id } = useParams();
@@ -35,7 +36,7 @@ function MailViewPage() {
   }, [id]);
 
   if (error) return <p>{error}</p>;
-  if (!mail) return <p>Loading mail...</p>;
+  if (!mail) return <Loading label="Loading mail…" />;
 
   return (
   <div style={{ padding: "1rem" }}>
@@ -196,103 +197,6 @@ function MailViewPage() {
       )}
     </div>
   );
-{/* 
-  <div style={{ whiteSpace: "pre-wrap", marginBottom: "1rem" }}>
-    {mail.content === null || mail.content === undefined
-      ? <em>(no content)</em>
-      : mail.content}
-  </div>
-
-  <div style={{ display: "flex", gap: "1rem" }}>
-      <button onClick={() => setShowReply(true)}>Reply</button>
-      <button onClick={() => setShowReplyAll(true)}>Reply All</button>
-      <button onClick={() => setShowForward(true)}>Forward</button>
-  </div>
-
-  {showReply && (
-      <>
-      <div
-          style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              zIndex: 998
-          }}
-          onClick={() => setShowReply(false)}
-      />
-      <SendMailComponent
-        onClose={() => setShowReply(false)}
-        initialRecipient={mail.sender?.email}
-        initialSubject={
-          mail.subject?.startsWith("Re:") ? mail.subject : `Re: ${mail.subject}`
-        }
-        initialContent={`\n\n--- Original Message ---\n${mail.content}`}
-      />
-      </>
-  )}
-
-  {showReplyAll && (
-  <>
-      <div
-      style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          zIndex: 998
-      }}
-      onClick={() => setShowReplyAll(false)}
-      />
-      <SendMailComponent
-      onClose={() => setShowReplyAll(false)}
-      initialRecipient={
-          [
-              mail.sender?.email,
-              ...mail.recipients
-              .filter(r => r.email && r.email !== localStorage.getItem("email"))
-              .map(r => r.email)
-          ]
-              .filter(email => email && email !== localStorage.getItem("email"))
-              .join(", ")
-      }
-      initialSubject={
-          mail.subject?.startsWith("Re:") ? mail.subject : `Re: ${mail.subject}`
-      }
-      initialContent={`\n\n--- Original Message ---\n${mail.content}`}
-      />
-  </>
-  )}
-
-  {showForward && (
-      <>
-      <div
-          style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              zIndex: 998
-          }}
-          onClick={() => setShowForward(false)}
-      />
-      <SendMailComponent
-        onClose={() => setShowForward(false)}
-        initialRecipient=""
-        initialSubject={
-          mail.subject?.startsWith("Fwd:") ? mail.subject : `Fwd: ${mail.subject}`
-        }
-        initialContent={`\n\n--- Forwarded Message ---\nFrom: ${mail.sender?.email}\nTo: ${mail.recipient?.email}\nDate: ${new Date(mail.timestamp).toLocaleString()}\n\n${mail.content}`}
-      />
-      </>
-  )}
-*/}
 }
 
 export default MailViewPage;

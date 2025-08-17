@@ -1,3 +1,6 @@
+html, body, #root { height: 100%; } /* Added by Meir for scrolling */
+body { overflow: hidden; } /* Added by Meir for scrolling */
+
 .App {
   text-align: center;
 }
@@ -43,7 +46,7 @@
 .app-layout {
   display: flex;
   flex-direction: row;
-  min-height: 100vh;
+  height: 100vh;
 }
 
 .sidebar {
@@ -56,10 +59,18 @@
 
 .main-content {
   flex-grow: 1;
-  padding: 1.5rem;
+  padding: 0; /* Changed by Meir for scrolling */
+  display: flex; /* changed by Meir for scrolling */
+  flex-direction: column; /* Added by Meir for scrolling */
   background-color: #fff;
-  display: block; /* Add in exercises 4 - changed to block for better layout */
-  overflow: auto; /* Add in exercises 4 - allow scrolling */
+  overflow: hidden; /* Changed by Meir for scrolling */
+}
+
+.route-scroll { /* Added by Meir for scrolling */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;         /* scrollable content */
+  padding: 1.5rem;        /* padding from parent*/
 }
 
 /*  Add in exercises 4 - styles for the sidebar links */
