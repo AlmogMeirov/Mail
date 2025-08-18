@@ -32,77 +32,77 @@ const LabelPage = () => {
 
   // ---------- helpers ----------
   const normalize = (text) => (text || "").toString().trim().toLowerCase();
-/*<<<<<<< MAIL-333-Ensure-Real-Backend-Communication
-
-  const getDraftLabelId = (labelsList) => {
-    const drafts = (labelsList || []).find(
-      (l) => (l.name || "").toLowerCase() === "drafts"
-    );
-    return drafts ? drafts.id : null;
-  };
-
-  const hasNameDraft = (labelsOrNames) => {
-    // detect 'drafts' string among names
-    if (!Array.isArray(labelsOrNames)) return false;
-    return labelsOrNames.some(
-      (x) => typeof x === "string" && normalize(x) === "drafts"
-    );
-  };
-
-  const includesId = (arr, id) =>
-    Array.isArray(arr) && id != null ? arr.includes(id) : false;
-
-  const isDraftMailRobust = (mail) => {
-    // 1) explicit boolean from server
-    if (mail?.isDraft === true) return true;
-
-    // 2) labels on the mail object itself (could be ids or names)
-    if (Array.isArray(mail?.labels)) {
-      if (draftLabelId && includesId(mail.labels, draftLabelId)) return true;
-      if (hasNameDraft(mail.labels)) return true;
-    }
-
-    // 3) labels we fetched per mail id (ids only)
-    const idsForMail = currentMailLabels[mail?.id] || [];
-    if (draftLabelId && includesId(idsForMail, draftLabelId)) return true;
-
-    // 4) current page is drafts label (extra safety)
-    if (normalize(labelName) === "drafts" || normalize(labelId) === "drafts")
-      return true;
-
-    return false;
-  };
-
-  const safeOpenMail = (mail) => {
-    // If labels are not ready yet AND server didn't mark isDraft=true,
-    // avoid accidental opening – wait until labelsReady.
-    if (!labelsReady && mail?.isDraft !== true) {
-      // You can show a toast here if you want.
-      return;
-    }
-
-    if (isDraftMailRobust(mail)) {
-      navigate(`/draft/${mail.id}`);
-      return;
-    }
-    navigate(`/mail/${mail.id}`);
-  };
-
-  // ---------- effects ----------
-  useEffect(() => {
-    setSearchQuery("");
-    if (!token) return;
-
-    // compute display name for label
-    if (labelId === "inbox" || labelId === "sent") {
-      setLabelName(labelId);
-    } else {
-      fetchWithAuth(`/labels/${labelId}`, token)
-        .then((data) => setLabelName(data?.name || labelId))
-        .catch(() => setLabelName(labelId));
-    }
-
-=======*/
+  /*<<<<<<< MAIL-333-Ensure-Real-Backend-Communication
+  
+    const getDraftLabelId = (labelsList) => {
+      const drafts = (labelsList || []).find(
+        (l) => (l.name || "").toLowerCase() === "drafts"
+      );
+      return drafts ? drafts.id : null;
+    };
+  
+    const hasNameDraft = (labelsOrNames) => {
+      // detect 'drafts' string among names
+      if (!Array.isArray(labelsOrNames)) return false;
+      return labelsOrNames.some(
+        (x) => typeof x === "string" && normalize(x) === "drafts"
+      );
+    };
+  
+    const includesId = (arr, id) =>
+      Array.isArray(arr) && id != null ? arr.includes(id) : false;
+  
+    const isDraftMailRobust = (mail) => {
+      // 1) explicit boolean from server
+      if (mail?.isDraft === true) return true;
+  
+      // 2) labels on the mail object itself (could be ids or names)
+      if (Array.isArray(mail?.labels)) {
+        if (draftLabelId && includesId(mail.labels, draftLabelId)) return true;
+        if (hasNameDraft(mail.labels)) return true;
+      }
+  
+      // 3) labels we fetched per mail id (ids only)
+      const idsForMail = currentMailLabels[mail?.id] || [];
+      if (draftLabelId && includesId(idsForMail, draftLabelId)) return true;
+  
+      // 4) current page is drafts label (extra safety)
+      if (normalize(labelName) === "drafts" || normalize(labelId) === "drafts")
+        return true;
+  
+      return false;
+    };
+  
+    const safeOpenMail = (mail) => {
+      // If labels are not ready yet AND server didn't mark isDraft=true,
+      // avoid accidental opening – wait until labelsReady.
+      if (!labelsReady && mail?.isDraft !== true) {
+        // You can show a toast here if you want.
+        return;
+      }
+  
+      if (isDraftMailRobust(mail)) {
+        navigate(`/draft/${mail.id}`);
+        return;
+      }
+      navigate(`/mail/${mail.id}`);
+    };
+  
+    // ---------- effects ----------
+    useEffect(() => {
+      setSearchQuery("");
+      if (!token) return;
+  
+      // compute display name for label
+      if (labelId === "inbox" || labelId === "sent") {
+        setLabelName(labelId);
+      } else {
+        fetchWithAuth(`/labels/${labelId}`, token)
+          .then((data) => setLabelName(data?.name || labelId))
+          .catch(() => setLabelName(labelId));
+      }
+  
+  =======*/
 
   const getDraftLabelId = (labelsList) => {
     const drafts = (labelsList || []).find(
@@ -276,7 +276,7 @@ const LabelPage = () => {
           }
 
           validMails = final;
-          
+
         } else if (String(labelId).toLowerCase() === "trash") {
           // system "trash" page -> resolve to numeric id and list mails by that label
           const trashId = await resolveSystemLabelId("trash");
@@ -390,7 +390,7 @@ const LabelPage = () => {
     if (needUpdate) {
       setPendingLabelChanges((prev) => ({ ...prev, ...updates }));
     }
-  }, [openLabelManagement, currentMailLabels]); // do not include pendingLabelChanges
+  }, [openLabelManagement, currentMailLabels, pendingLabelChanges]); // do not include pendingLabelChanges
 
   // ---------- actions ----------
   const handleMoveToLabels = async (mailId) => {
@@ -468,7 +468,7 @@ const LabelPage = () => {
 
     // clear the state so it won't re-apply on back/forward
     navigate(location.pathname, { replace: true, state: null });
-  }, [location.state?.justDeletedId]);
+  }, [location.state?.justDeletedId, location.pathname, navigate]);
 
   // Move mail so that its only label becomes "trash"
   const moveMailToTrashOnly = async (mailId) => {
