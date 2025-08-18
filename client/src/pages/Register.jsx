@@ -137,45 +137,45 @@ const Register = () => {
     return (
         <div className="login-container">
             <div className="login-box">
-                <h2>הרשמה</h2>
-                <p className="login-subtitle">צור חשבון חדש</p>
+                <h2>Registration</h2>
+                <p className="login-subtitle">Create a new account</p>
 
                 {errorMessage && <div className="login-error">{errorMessage}</div>}
 
                 <form onSubmit={handleSubmit}>
                     <div className="input-group">
-                        <label>שם פרטי</label>
-                        <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                        <label>First name*</label>
+                        <input placeholder='First name can contain letters only' type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
                     </div>
 
                     <div className="input-group">
-                        <label>שם משפחה</label>
-                        <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                        <label>Last name*</label>
+                        <input placeholder='Last name can contain letters only' type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                     </div>
 
                     <div className="input-group">
-                        <label>אימייל</label>
-                        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                        <label>Email*</label>
+                        <input placeholder='Email' type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                     </div>
 
                     <div className="input-group">
-                        <label>סיסמה</label>
-                        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                        <label>Password*</label>
+                        <input placeholder='Password at least 6 characters' type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                     </div>
 
                     <div className="input-group">
-                        <label>אימות סיסמה</label>
-                        <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onPaste={(e) => e.preventDefault()} required />
+                        <label>Confirm Password*</label>
+                        <input placeholder='Confirm Password' type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onPaste={(e) => e.preventDefault()} required />
                     </div>
 
                     <div className="input-group">
-                        <label>תאריך לידה</label>
+                        <label>Birth Date</label>
                         <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
                     </div>
 
                     <div className="input-group">
-                        <label>טלפון</label>
-                        <input type="text" value={phone} onChange={(e) => {
+                        <label>Phone</label>
+                        <input placeholder='Phone number' type="text" value={phone} onChange={(e) => {
                             let value = e.target.value.replace(/[^\d]/g, '');
                             if (value.length > 3) {
                                 value = value.slice(0, 3) + '-' + value.slice(3);
@@ -185,27 +185,27 @@ const Register = () => {
                     </div>
 
                     <div className="input-group">
-                        <label>מגדר</label>
+                        <label>Gender</label>
                         <select value={gender} onChange={(e) => setGender(e.target.value)}>
-                            <option value="">בחר מגדר</option>
-                            <option value="male">זכר</option>
-                            <option value="female">נקבה</option>
-                            <option value="other">אחר</option>
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
                         </select>
                     </div>
 
                     <div className="input-group">
-                        <label>תמונת פרופיל</label>
+                        <label>Profile Picture</label>
                         <input type="file" accept="image/*" onChange={handleImageChange} />
                     </div>
 
                     {isLoading && <p className="login-loading">Registering...</p>}
 
-                    <button className="login-button" type="submit" disabled={isLoading}>הרשמה</button>
+                    <button className="login-button" type="submit" disabled={isLoading}>Register</button>
 
                     <p className="register-link">
-                        כבר יש לך חשבון?{' '}
-                        <span onClick={() => navigate('/login')}>התחבר כאן</span>
+                        Already have an account?{' '}
+                        <span onClick={() => navigate('/login')}>Log in here</span>
                     </p>
                 </form>
             </div>

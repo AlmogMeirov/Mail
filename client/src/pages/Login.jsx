@@ -69,8 +69,8 @@ const Login = () => {
     return (
         <div className="login-container">
             <div className="login-box">
-                <h2>כניסה</h2>
-                <p className="login-subtitle">המשך אל Gmail</p>
+                <h2>Login</h2>
+                <p className="login-subtitle">Continue to Gmail</p>
 
                 {errorMessage && (
                     <div className="login-error">
@@ -80,11 +80,11 @@ const Login = () => {
 
                 <form onSubmit={handleSubmit}>
                     <div className="input-group">
-                        <label htmlFor="email">אימייל</label>
+                        <label htmlFor="email">Email</label>
                         <input
                             id="email"
                             type="email"
-                            placeholder="Email"
+                            placeholder="please enter your email address"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
@@ -92,11 +92,11 @@ const Login = () => {
                     </div>
 
                     <div className="input-group">
-                        <label htmlFor="password">סיסמה</label>
+                        <label htmlFor="password">Password</label>
                         <input
                             id="password"
                             type="password"
-                            placeholder="Password"
+                            placeholder="please enter your password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
@@ -108,9 +108,9 @@ const Login = () => {
                     <button type="submit" className="login-button">הבא</button>
 
                     <p className="register-link">
-                        אין לך חשבון?{" "}
+                        Don't have an account?{" "}
                         <span onClick={() => navigate("/register")}>
-                            הירשם כאן
+                            Register here
                         </span>
                     </p>
                 </form>
