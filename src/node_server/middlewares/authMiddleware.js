@@ -1,33 +1,50 @@
-const jwt = require('jsonwebtoken'); 
-const SECRET_KEY = 'my_secret_key'; 
+// middlewares/authMiddleware.js
+// NOTE: comments in English only
 
-// Middleware function to authenticate incoming requests using JWT
-function authenticateToken(req, res, next) {
-  // Get the Authorization header (expected format: "Bearer <token>")
-  const authHeader = req.headers['authorization'];
-  
-  // Extract the token from the header
-  const token = authHeader && authHeader.split(' ')[1];
-  
-  // If no token is provided, reject the request with 401 Unauthorized
-  if (!token) {
-    return res.status(401).send("Access token missing");
-  }
+const jwt = require("jsonwebtoken");
+const User = require("../models/User"); // Mongoose user model
 
-  // Verify the token using the same secret key used to sign it
-  jwt.verify(token, SECRET_KEY, (err, userData) => {
-    // If token is invalid or expired, reject with 403 Forbidden
-    if (err) {
-      return res.status(403).send("Invalid or expired token");
+const SECRET = process.env.JWT_SECRET || "dev_only_replace";
+
+async function authenticateToken(req, res, next) {
+  try {
+    // Accept "Authorization: Bearer <token>"
+    const hdr = req.headers.authorization || "";
+    const token = hdr.startsWith("Bearer ") ? hdr.slice(7) : null;
+
+    if (!token) {
+      return res.status(401).json({ error: "Missing token" });
     }
 
-    // Attach the decoded user data to the request object for use in controllers
-    req.user = userData;
+    // Verify token
+    let payload;
+    try {
+      payload = jwt.verify(token, SECRET);
+    } catch (e) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
 
-    // Continue to the next middleware or route handler
-    next();
-  });
+    // Expect a subject id on the token (either sub or userId)
+    const userId = payload.sub || payload.userId || null;
+    if (!userId) {
+      return res.status(401).json({ error: "Token missing subject" });
+    }
+
+    // Fetch user from MongoDB (ensure the account still exists)
+    const user = await User.findById(userId).select("-passwordHash").lean();
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    // Attach both raw payload and user document (without password)
+    req.auth = payload; // the JWT claims (e.g., sub, email, iat, exp)
+    req.user = user;    // the MongoDB user doc for controllers
+
+    return next();
+  } catch (err) {
+    console.error("[AUTH] middleware error:", err);
+    return res.status(500).json({ error: "Auth middleware failure" });
+  }
 }
 
-// Export the middleware so it can be used in routes
 module.exports = authenticateToken;
