@@ -197,6 +197,9 @@ public class LoginActivity extends AppCompatActivity {
         editor.putBoolean("is_logged_in", true);
 
         editor.apply();
+
+        // ALSO save to TokenManager for BackendClient
+        com.example.gmailapplication.shared.TokenManager.save(this, loginResponse.token);
     }
 
     // --- Check if user is already logged in ---
@@ -229,12 +232,5 @@ public class LoginActivity extends AppCompatActivity {
 
     private void showToast(String msg) {
         android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show();
-    }
-
-    // --- Override back button to clear ViewModel state ---
-    @Override
-    public void onBackPressed() {
-        viewModel.clearLoginState();
-        super.onBackPressed();
     }
 }

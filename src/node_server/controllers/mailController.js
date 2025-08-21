@@ -1,202 +1,192 @@
 const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-const path = require('path');
+const Mail = require('../models/Mail'); // MongoDB Mail model
+const User = require('../models/User'); // User model for validation
 const { extractUrls } = require("../utils/extractUrls");
 const { checkUrlBlacklist } = require("../utils/blacklistClient");
-const inboxMap = require('../utils/inboxMap');
 const { getAllLabels } = require('../models/labels');
-const labelModel = require('../models/labels'); // Add in exercises 4 to support assigning labels to mails
-const userModel = require("../models/userModel");
-const { addUrlToBlacklist } = require("../utils/blacklistClient"); // Added by Meir in exercises 4 to support adding URLs to blacklist
+const labelModel = require('../models/labels');
+const { addUrlToBlacklist } = require("../utils/blacklistClient");
 
-// mailController.js
+// Create mail function with MongoDB
 const createMail = async (req, res) => {
-    let { labels = ["inbox"] } = req.body; // changed by Meir in exercise 4 from "const { labels = ["inbox"] } = req.body;"
-    const { sender, recipient, recipients, subject, content } = req.body;
-    const groupId = uuidv4();
-
-    // ----- build recipients list (back-compat) -----
-    const recipientsList = Array.isArray(recipients)
-        ? recipients
-        : recipient
-            ? [recipient]
-            : [];
-
-    // ----- basic validation -----
-
-    /* Edited by Meir to allow empty subject and content. The old code was:
-    if (recipientsList.length === 0 || !subject || !content) {*/
-    if (recipientsList.length === 0) {
-        return res.status(400).json({ error: "Missing required fields" });
-    }
-    if (!inboxMap.has(sender)) {
-        return res.status(400).json({ error: "Sender does not exist" });
-    }
-    if (sender !== req.user.email) {
-        return res.status(403).json({ error: "Sender email does not match authenticated user" });
-    }
-
-    // make sure every recipient exists
-    for (const r of recipientsList) {
-        if (!inboxMap.has(r)) {
-            return res.status(400).json({ error: `Recipient does not exist: ${r}` });
-        }
-    }
-
-    // ----- blacklist check (once for whole message) -----
-    let finalLabels = labels;
     try {
-        const urls = extractUrls(`${subject} ${content}`);
-        const results = await Promise.all(urls.map(checkUrlBlacklist));
-        if (results.includes(true)) {
-            // add mail to spam for each recipient
-            console.log("Message contains blacklisted URL, marking as spam");
-            const spamLabelMap = new Map(); // key: recipient, value: spam label id
-            for (const r of recipientsList) {
-                let spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
-                if (!spamLabel) {
-                    spamLabel = labelModel.addLabel(r, "Spam");
-                }
-                spamLabelMap.set(r, spamLabel.id);
-            }
-            const sent = [];
-            for (const r of recipientsList) {
-                const mail = {
-                    id: uuidv4(),
-                    sender,
-                    recipient: r,
-                    recipients: recipientsList,
-                    subject,
-                    content,
-                    labels: [spamLabelMap.get(r)],
-                    groupId,
-                    timestamp: new Date().toISOString(),
-                };
-                inboxMap.get(r).push(mail);
-                sent.push(mail);
-                labelModel.addLabelToMail(sender, mail.id, spamLabelMap.get(r));
-                labelModel.addLabelToMail(r, mail.id, spamLabelMap.get(r));
-            }
+        let { labels = ["inbox"] } = req.body;
+        const { sender, recipient, recipients, subject, content } = req.body;
+        const groupId = uuidv4();
 
-            return res.status(201).json({ message: "Mail sent to spam", sent });
-            /*const spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
-            const spamLabelId = spamLabel?.id;
-             // override any other label
-            if (!spamLabelId) {
-                const newLabel = labelModel.addLabelToMail(r, "Spam");
-                labels = [newLabel.id];
-            } else {
-                labels = [spamLabelId];
-            }
-            console.log("Marking message as spam, labels now:", labels);
-            for (const r of recipientsList) {
-                const userLabels = getAllLabels(r).map(l => l.name.toLowerCase());
-                if (!userLabels.includes("spam")) {
-                    labelModel.addLabel(r, "Spam");
-                }
-            } // override any other label*/
-            /*
-            *Edited by Meir for ex4.
-            *Previous line:
-            *return res.status(400).json({ error: "Message contains blacklisted URL" });
-            */
+        // Build recipients list (back-compat)
+        const recipientsList = Array.isArray(recipients)
+            ? recipients
+            : recipient
+                ? [recipient]
+                : [];
+
+        // Basic validation
+        if (recipientsList.length === 0) {
+            return res.status(400).json({ error: "Missing required fields" });
         }
-    } catch (err) {
-        console.error("Error while checking blacklist:", err);
-        return res.status(500).json({ error: "Failed to validate message links" });
-    }
 
-    // ----- create and deliver a copy per recipient -----
-    const sent = [];
-    for (const r of recipientsList) {
-        const mail = {
-            id: uuidv4(),
-            sender,
-            recipient: r,
-            recipients: recipientsList, // Added by Meir to keep track of all recipients
-            subject,
-            content,
-            labels,
-            groupId, // Added by Tomer in exercises 4
-            timestamp: new Date().toISOString(),
+        // Check if sender exists in MongoDB
+        const senderUser = await User.findOne({ email: sender }).lean();
+        if (!senderUser) {
+            return res.status(400).json({ error: "Sender does not exist" });
+        }
+
+        if (sender !== req.user.email) {
+            return res.status(403).json({ error: "Sender email does not match authenticated user" });
+        }
+
+        // Check if all recipients exist
+        for (const r of recipientsList) {
+            const recipientUser = await User.findOne({ email: r }).lean();
+            if (!recipientUser) {
+                return res.status(400).json({ error: `Recipient does not exist: ${r}` });
+            }
+        }
+
+        // Blacklist check
+        let finalLabels = labels;
+        try {
+            const urls = extractUrls(`${subject} ${content}`);
+            const results = await Promise.all(urls.map(checkUrlBlacklist));
+            if (results.includes(true)) {
+                console.log("Message contains blacklisted URL, marking as spam");
+
+                const sent = [];
+                for (const r of recipientsList) {
+                    let spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
+                    if (!spamLabel) {
+                        spamLabel = labelModel.addLabel(r, "Spam");
+                    }
+
+                    const mail = new Mail({
+                        mailId: uuidv4(),
+                        sender,
+                        recipient: r,
+                        recipients: recipientsList,
+                        subject,
+                        content,
+                        labels: [{ userEmail: r, labelIds: [spamLabel.id] }],
+                        groupId,
+                        timestamp: new Date()
+                    });
+
+                    await mail.save();
+                    sent.push(mail);
+
+                    labelModel.addLabelToMail(sender, mail.mailId, spamLabel.id);
+                    labelModel.addLabelToMail(r, mail.mailId, spamLabel.id);
+                }
+
+                return res.status(201).json({ message: "Mail sent to spam", sent });
+            }
+        } catch (err) {
+            console.error("Error while checking blacklist:", err);
+            return res.status(500).json({ error: "Failed to validate message links" });
+        }
+
+        // Create and save mails for each recipient
+        const sent = [];
+        for (const r of recipientsList) {
+            const mail = new Mail({
+                mailId: uuidv4(),
+                sender,
+                recipient: r,
+                recipients: recipientsList,
+                subject,
+                content,
+                labels: [{ userEmail: r, labelIds: labels }],
+                groupId,
+                timestamp: new Date()
+            });
+
+            await mail.save();
+            sent.push(mail);
+
+            // Add labels
+            labels.forEach(labelId => {
+                labelModel.addLabelToMail(sender, mail.mailId, labelId);
+            });
+        }
+
+        return res.status(201).json({ message: "Mail sent successfully", sent });
+
+    } catch (err) {
+        console.error("Error creating mail:", err);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// Get mails function with MongoDB
+const getMails = async (req, res) => {
+    try {
+        if (!req.user || !req.user.email) {
+            return res.status(401).json({ error: "Unauthorized: missing user data" });
+        }
+
+        const userEmail = req.user.email;
+
+        // Get inbox mails
+        const inbox = await Mail.findInboxByUser(userEmail).lean();
+
+        // Get sent mails
+        const sent = await Mail.findSentByUser(userEmail).lean();
+
+        if (inbox.length === 0 && sent.length === 0) {
+            return res.status(200).json({
+                message: "No mails found for this user",
+                inbox: [],
+                sent: [],
+                recent_mails: []
+            });
+        }
+
+        // Sort inbox by timestamp and limit to 50
+        const recent_mails = inbox.slice(0, 50).map(mail => {
+            const isSent = mail.sender === userEmail;
+            const otherEmail = isSent ? mail.recipient : mail.sender;
+
+            return {
+                id: mail.mailId,
+                subject: mail.subject,
+                timestamp: mail.timestamp,
+                direction: isSent ? 'sent' : 'received',
+                otherParty: { email: otherEmail },
+                preview: mail.content?.slice(0, 100) || ""
+            };
+        });
+
+        // Helper function to get user labels from mail
+        const getUserLabels = (mail, userEmail) => {
+            const userLabel = mail.labels?.find(l => l.userEmail === userEmail);
+            return userLabel ? userLabel.labelIds : [];
         };
-        inboxMap.get(r).push(mail);
-        sent.push(mail);
-        // Add in exercises 4, assign labels to the mail
-        labels.forEach(labelId => {
-            labelModel.addLabelToMail(sender, mail.id, labelId);
-        });
-    }
-
-    return res.status(201).json({ message: "Mail sent successfully", sent });
-};
-// This function retrieves the mails for the authenticated user, including both inbox and sent mails.
-const getMails = (req, res) => {
-    try {
-        if (!req.user || !req.user.email) {
-            return res.status(401).json({ error: "Unauthorized: missing user data" });
-        }
-
-        const userEmail = req.user.email;
-
-        if (!inboxMap || inboxMap.size === 0) {
-            return res.status(200).json({ 
-                message: "No mails exist in the system", 
-                inbox: [], 
-                sent: [],
-                recent_mails: []
-            });
-        }
-
-        const inbox = inboxMap.get(userEmail) || [];
-
-        const sent = [];
-        for (const [recipient, mails] of inboxMap.entries()) {
-            mails.forEach(mail => {
-                if (mail.sender === userEmail) {
-                    sent.push(mail);
-                }
-            });
-        }
-
-        if (inbox.length === 0 && sent.length === 0) {
-            return res.status(200).json({ 
-                message: "No mails found for this user", 
-                inbox: [], 
-                sent: [],
-                recent_mails: []
-            });
-        }
-        
-        // Sort by timestamp (descending) and limit to the latest 50 mails
-        const sorted = inbox.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        const recent_mails = sorted.slice(0, 50).map(mail => {
-            const isSent = mail.sender === userEmail;
-            const otherEmail = isSent ? mail.recipient : mail.sender;
-            const otherUser = userModel.findUserByEmail(otherEmail);
-
-            return {
-                id: mail.id,
-                subject: mail.subject,
-                timestamp: mail.timestamp,
-                direction: isSent ? 'sent' : 'received',
-                otherParty: otherUser
-                    ? {
-                        email: otherUser.email,
-                        firstName: otherUser.firstName,
-                        lastName: otherUser.lastName,
-                        profileImage: otherUser.profileImage
-                    }
-                    : { email: otherEmail },
-                preview: mail.content?.slice(0, 100) || ""
-            };
-        });
 
         res.status(200).json({
             message: "Mails fetched successfully",
-            inbox: inbox,
+            inbox: inbox.map(mail => ({
+                id: mail.mailId,
+                sender: mail.sender,
+                recipient: mail.recipient,
+                recipients: mail.recipients,
+                subject: mail.subject,
+                content: mail.content,
+                labels: getUserLabels(mail, userEmail),
+                groupId: mail.groupId,
+                timestamp: mail.timestamp
+            })),
             recent_mails,
-            sent
+            sent: sent.map(mail => ({
+                id: mail.mailId,
+                sender: mail.sender,
+                recipient: mail.recipient,
+                recipients: mail.recipients,
+                subject: mail.subject,
+                content: mail.content,
+                labels: getUserLabels(mail, userEmail),
+                groupId: mail.groupId,
+                timestamp: mail.timestamp
+            }))
         });
 
     } catch (err) {
@@ -204,390 +194,250 @@ const getMails = (req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 };
-/*const getMails = (req, res) => {
+
+// Get mail by ID function with MongoDB
+const getMailById = async (req, res) => {
     try {
-        if (!req.user || !req.user.email) {
-            return res.status(401).json({ error: "Unauthorized: missing user data" });
-        }
-
         const userEmail = req.user.email;
+        const mailId = req.params.id;
 
-        if (!inboxMap || inboxMap.size === 0) {
-            return res.status(200).json({ message: "No mails exist in the system", inbox: [], sent: [] });
+        if (!mailId) {
+            return res.status(400).json({ error: "Missing mail ID" });
         }
 
-        const inbox = inboxMap.get(userEmail) || [];
-
-        const sent = [];
-        for (const [recipient, mails] of inboxMap.entries()) {
-            mails.forEach(mail => {
-                if (mail.sender === userEmail) {
-                    sent.push(mail);
-                }
-            });
+        const mail = await Mail.findOne({ mailId }).lean();
+        if (!mail) {
+            return res.status(404).json({ error: "Mail not found" });
         }
 
-        if (inbox.length === 0 && sent.length === 0) {
-            return res.status(200).json({ message: "No mails found for this user", inbox: [], sent: [] });
+        if (!mail.isAccessibleBy || !mail.isAccessibleBy(userEmail)) {
+            if (mail.sender !== userEmail && mail.recipient !== userEmail &&
+                (!mail.recipients || !mail.recipients.includes(userEmail))) {
+                return res.status(403).json({ error: "You are not authorized to view this mail" });
+            }
         }
-        // Sort by timestamp (descending) and limit to the latest 50 mails
-        const sorted = inbox.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        const recent_mails = sorted.slice(0, 50).map(mail => {
-            const isSent = mail.sender === userEmail;
-            const otherEmail = isSent ? mail.recipient : mail.sender;
-            const otherUser = userModel.findUserByEmail(otherEmail);
 
-            return {
-                id: mail.id,
-                subject: mail.subject,
-                timestamp: mail.timestamp,
-                direction: isSent ? 'sent' : 'received',
-                otherParty: otherUser
-                    ? {
-                        email: otherUser.email,
-                        firstName: otherUser.firstName,
-                        lastName: otherUser.lastName,
-                        profileImage: otherUser.profileImage
-                    }
-                    : { email: otherEmail },
-                preview: mail.content?.slice(0, 100) || ""
-            };
-        });
+        const getUserLabels = (mail, userEmail) => {
+            const userLabel = mail.labels?.find(l => l.userEmail === userEmail);
+            return userLabel ? userLabel.labelIds : [];
+        };
 
-
-        res.status(200).json({
-            message: "Mails fetched successfully",
-            recent_mails,
-            sent
+        return res.status(200).json({
+            id: mail.mailId,
+            sender: { email: mail.sender },
+            recipient: { email: mail.recipient },
+            recipients: mail.recipients || [],
+            subject: mail.subject,
+            content: mail.content,
+            timestamp: mail.timestamp,
+            labels: getUserLabels(mail, userEmail)
         });
 
     } catch (err) {
-        console.error("Failed to fetch mails:", err.message);
-        res.status(500).json({ error: "Internal server error" });
+        console.error("Error getting mail by ID:", err);
+        return res.status(500).json({ error: "Internal server error" });
     }
-};*/
-// This function retrieves a mail by its ID if the user is authorized (as sender or recipient).
-function getMailById(req, res) {
-    const userEmail = req.user.email;
-    const mailId = req.params.id;
+};
 
-    if (!mailId) {
-        return res.status(400).json({ error: "Missing mail ID" });
-    }
+// Update mail function with MongoDB
+const updateMail = async (req, res) => {
+    try {
+        const userEmail = req.user.email;
+        const mailId = req.params.id;
 
-    for (const inbox of inboxMap.values()) {
-        for (const mail of inbox) {
-            if (mail.id === mailId) {
-                if (mail.sender === userEmail || mail.recipient === userEmail) {
-                    const senderUser = userModel.findUserByEmail(mail.sender);
-                    const recipientUser = userModel.findUserByEmail(mail.recipient);
-                    // Build recipient list with user details - added by Meir
-                    const recipientList = Array.isArray(mail.recipients)
-                        ? mail.recipients.map(email => {
-                            const user = userModel.findUserByEmail(email);
-                            return user
-                                ? {
-                                    email: user.email,
-                                    firstName: user.firstName,
-                                    lastName: user.lastName,
-                                    profileImage: user.profileImage
-                                }
-                                : { email };
-                        })
-                        : [];
-                    return res.status(200).json({
-                        id: mail.id,
-                        sender: senderUser
-                            ? {
-                                email: senderUser.email,
-                                firstName: senderUser.firstName,
-                                lastName: senderUser.lastName,
-                                profileImage: senderUser.profileImage
-                            }
-                            : { email: mail.sender },
-                        recipient: recipientUser
-                            ? {
-                                email: recipientUser.email,
-                                firstName: recipientUser.firstName,
-                                lastName: recipientUser.lastName,
-                                profileImage: recipientUser.profileImage
-                            }
-                            : { email: mail.recipient },
-                        recipients: recipientList, // Added by Meir
-                        subject: mail.subject,
-                        content: mail.content,
-                        timestamp: mail.timestamp,
-                        labels: mail.labels?.[userEmail] || []
-                    });
-                } else {
-                    return res.status(403).json({ error: "You are not authorized to view this mail" });
-                }
-            }
+        if (!mailId) {
+            return res.status(400).json({ error: "Missing mail ID" });
         }
-    }
 
-    return res.status(404).json({ error: "Mail not found" });
-}
-
-
-// PATCH /api/mails/:id      
-function updateMail(req, res) {
-    const userEmail = req.user.email;
-    const mailId = req.params.id;
-
-    if (!mailId) {
-        return res.status(400).json({ error: "Missing mail ID" });
-    }
-    // Validate that at least one field is provided for update
-    const { subject, content } = req.body;
-    if (subject === undefined && content === undefined) {
-        return res.status(400).json({ error: "Nothing to update" });
-    }
-
-    for (const inbox of inboxMap.values()) {
-        for (let mail of inbox) {
-            if (mail.id === mailId) {
-
-                if (mail.sender !== userEmail) {
-                    return res.status(403).json({ error: "Only sender may edit subject or content" });
-                }
-
-                if (subject !== undefined) mail.subject = subject;
-                if (content !== undefined) mail.content = content;
-
-                return res.status(200).json({ message: "Mail updated", mail });
-            }
+        const { subject, content } = req.body;
+        if (subject === undefined && content === undefined) {
+            return res.status(400).json({ error: "Nothing to update" });
         }
-    }
-    return res.status(404).json({ error: "Mail not found" });
-}
 
-// This function deletes a mail by its ID if the user is authorized (as sender or recipient).
-function deleteMailById(req, res) {
-    const userEmail = req.user.email; // Extracted from JWT
-    const mailId = req.params.id;
-
-    if (!mailId) {
-        return res.status(400).json({ error: "Missing mail ID" });
-    }
-
-    let mailFound = false;
-
-    // Iterate through inboxMap and remove the mail if it belongs to the user
-    for (const [username, inbox] of inboxMap.entries()) {
-        const index = inbox.findIndex(mail => mail.id === mailId);
-
-        if (index !== -1) {
-            const mail = inbox[index];
-
-            // Allow deletion only if the current user is sender or recipient
-            if (mail.sender === userEmail || mail.recipient === userEmail) {
-                inbox.splice(index, 1);
-                mailFound = true;
-                console.log(`Mail ${mailId} deleted for user '${username}'`);
-            }
+        const mail = await Mail.findOne({ mailId });
+        if (!mail) {
+            return res.status(404).json({ error: "Mail not found" });
         }
-    }
 
-    if (mailFound) {
+        if (mail.sender !== userEmail) {
+            return res.status(403).json({ error: "Only sender may edit subject or content" });
+        }
+
+        if (subject !== undefined) mail.subject = subject;
+        if (content !== undefined) mail.content = content;
+
+        await mail.save();
+
+        return res.status(200).json({ message: "Mail updated", mail });
+
+    } catch (err) {
+        console.error("Error updating mail:", err);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// Delete mail function with MongoDB (soft delete)
+const deleteMailById = async (req, res) => {
+    try {
+        const userEmail = req.user.email;
+        const mailId = req.params.id;
+
+        if (!mailId) {
+            return res.status(400).json({ error: "Missing mail ID" });
+        }
+
+        const mail = await Mail.findOne({ mailId });
+        if (!mail) {
+            return res.status(404).json({ error: "Mail not found" });
+        }
+
+        if (mail.sender !== userEmail && mail.recipient !== userEmail &&
+            (!mail.recipients || !mail.recipients.includes(userEmail))) {
+            return res.status(403).json({ error: "Not authorized to delete this mail" });
+        }
+
+        // Soft delete: add user to deletedBy array
+        if (!mail.deletedBy.includes(userEmail)) {
+            mail.deletedBy.push(userEmail);
+            await mail.save();
+        }
+
         return res.status(200).json({ message: "Mail deleted successfully" });
-    } else {
-        return res.status(404).json({ error: "Mail not found or not authorized to delete" });
+
+    } catch (err) {
+        console.error("Error deleting mail:", err);
+        return res.status(500).json({ error: "Internal server error" });
     }
-}
-/*
+};
 
-// This function searches for mails that match a query string in the user's inbox
-function searchMails(req, res) {
-    const userEmail = req.user.email;
-    const query = req.query.q;
+// Search mails function with MongoDB
+const searchMails = async (req, res) => {
+    try {
+        const userEmail = req.user.email;
+        const query = req.query.q;
 
-    if (!query) {
-        return res.status(400).json({ error: "Missing search query" });
+        if (!query) {
+            return res.status(400).json({ error: "Missing search query" });
+        }
+
+        const q = query.toLowerCase();
+
+        // Search in both inbox and sent mails
+        const mails = await Mail.findByUser(userEmail).lean();
+
+        const results = mails.filter(mail => {
+            const subject = mail.subject?.toLowerCase() || "";
+            const content = mail.content?.toLowerCase() || "";
+            const sender = mail.sender?.toLowerCase() || "";
+            const recipientsJoined = mail.recipients?.map(r => r.toLowerCase()).join(" ") || "";
+
+            return (
+                subject.includes(q) ||
+                content.includes(q) ||
+                sender.includes(q) ||
+                recipientsJoined.includes(q)
+            );
+        });
+
+        if (results.length === 0) {
+            return res.status(404).json({ error: "No matching mails found" });
+        }
+
+        // Remove duplicates by groupId
+        const seenGroups = new Set();
+        const uniqueResults = results.filter(mail => {
+            if (mail.groupId && seenGroups.has(mail.groupId)) return false;
+            seenGroups.add(mail.groupId || mail.mailId);
+            return true;
+        });
+
+        return res.json(uniqueResults.map(mail => ({
+            id: mail.mailId,
+            subject: mail.subject,
+            timestamp: mail.timestamp,
+            direction: mail.sender === userEmail ? "sent" : "received",
+            sender: mail.sender,
+            recipients: mail.recipients || [mail.recipient],
+            content: mail.content,
+        })));
+
+    } catch (err) {
+        console.error("Error searching mails:", err);
+        return res.status(500).json({ error: "Internal server error" });
     }
-    const q = query.toLowerCase();
-    const inbox = inboxMap.get(userEmail) || [];
+};
 
-    const sent = [];
-    for (const mails of inboxMap.values()) {
-        for (const mail of mails) {
-            if (mail.sender === userEmail) {
-                sent.push(mail);
+// Update mail labels function with MongoDB
+const updateMailLabelsForUser = async (req, res) => {
+    try {
+        const userEmail = req.user.email;
+        const mailId = req.params.id;
+        const { labels } = req.body;
+
+        if (!Array.isArray(labels)) {
+            return res.status(400).json({ error: "Labels must be an array" });
+        }
+
+        const mail = await Mail.findOne({ mailId });
+        if (!mail) {
+            return res.status(404).json({ error: "Mail not found" });
+        }
+
+        if (mail.sender !== userEmail && mail.recipient !== userEmail &&
+            (!mail.recipients || !mail.recipients.includes(userEmail))) {
+            return res.status(403).json({ error: "Not authorized for this mail" });
+        }
+
+        const allowed = getAllLabels(userEmail).map(l => l.name.toLowerCase());
+        const invalid = labels.filter(l => !allowed.includes(l.toLowerCase()));
+
+        if (invalid.length > 0) {
+            return res.status(400).json({
+                error: `Invalid labels for user: ${invalid.join(", ")}`
+            });
+        }
+
+        // Update labels for this user
+        let userLabelEntry = mail.labels.find(l => l.userEmail === userEmail);
+        if (!userLabelEntry) {
+            userLabelEntry = { userEmail: userEmail, labelIds: [] };
+            mail.labels.push(userLabelEntry);
+        }
+
+        const previousLabels = userLabelEntry.labelIds || [];
+        userLabelEntry.labelIds = labels;
+        // Check if spam label was added manually
+        const addedSpam = !previousLabels.map(l => l.toLowerCase()).includes("spam") &&
+            labels.map(l => l.toLowerCase()).includes("spam");
+
+        if (addedSpam) {
+            console.log("[SpamLabel] Spam label was added manually");
+            const urls = extractUrls(`${mail.subject} ${mail.content}`);
+            console.log("[SpamLabel] Extracted URLs:", urls);
+            for (const url of urls) {
+                try {
+                    await addUrlToBlacklist(url);
+                    console.log(`Added URL to blacklist: ${url}`);
+                } catch (err) {
+                    console.error(`Failed to add URL to blacklist: ${url}`, err.message);
+                }
             }
         }
+
+        await mail.save();
+
+        const currentUserLabels = mail.labels.find(l => l.userEmail === userEmail);
+        return res.status(200).json({
+            message: "Labels updated",
+            labels: currentUserLabels ? currentUserLabels.labelIds : []
+        });
+
+    } catch (err) {
+        console.error("Error updating mail labels:", err);
+        return res.status(500).json({ error: "Internal server error" });
     }
+};
 
-    const combined = inbox.concat(sent);
-
-    const results = combined.filter(mail => {
-        const subject = mail.subject?.toLowerCase() || "";
-        const content = mail.content?.toLowerCase() || "";
-        const sender = mail.sender?.toLowerCase() || "";
-        const recipient = mail.recipient?.toLowerCase() || "";
-
-        return (
-            subject.includes(q) ||
-            content.includes(q) ||
-            sender.includes(q) ||
-            recipient.includes(q)
-        );
-    });
-
-    if (results.length === 0) {
-        return res.status(404).json({ error: "No matching mails found" });
-    }
-    // Format the results to include only necessary fields branch309 exericice 4
-    return res.json(results.map(mail => ({
-        id: mail.id,
-        subject: mail.subject,
-        timestamp: mail.timestamp,
-        direction: mail.sender === userEmail ? "sent" : "received",
-        sender: mail.sender,
-        recipient: mail.recipient,
-        content: mail.content,
-    })));
-
-}
-*/
-
-function searchMails(req, res) {
-    const userEmail = req.user.email;
-    const query = req.query.q;
-
-    if (!query) {
-        return res.status(400).json({ error: "Missing search query" });
-    }
-
-    const q = query.toLowerCase();
-
-    // inbox של המשתמש
-    const inbox = inboxMap.get(userEmail) || [];
-
-    // מיילים שהמשתמש שלח
-    const sent = [];
-    for (const mails of inboxMap.values()) {
-        for (const mail of mails) {
-            if (mail.sender === userEmail) {
-                sent.push(mail);
-            }
-        }
-    }
-
-    // חיבור בין מיילים נכנסים ויוצאים
-    const combined = inbox.concat(sent);
-
-    // סינון לפי תוכן החיפוש
-    const results = combined.filter(mail => {
-        const subject = mail.subject?.toLowerCase() || "";
-        const content = mail.content?.toLowerCase() || "";
-        const sender = mail.sender?.toLowerCase() || "";
-
-        const recipientsArray = Array.isArray(mail.recipients)
-            ? mail.recipients
-            : [mail.recipient];
-        const recipientsJoined = recipientsArray.map(r => r.toLowerCase()).join(" ");
-
-        return (
-            subject.includes(q) ||
-            content.includes(q) ||
-            sender.includes(q) ||
-            recipientsJoined.includes(q)
-        );
-    });
-
-    if (results.length === 0) {
-        return res.status(404).json({ error: "No matching mails found" });
-    }
-
-    // הסרת כפילויות לפי id (כדי לא להציג את אותו מייל שנשלח לקבוצה כמה פעמים)
-    // סינון תוצאות כפולות לפי groupId
-    const seenGroups = new Set();
-    const uniqueResults = results.filter(mail => {
-        if (mail.groupId && seenGroups.has(mail.groupId)) return false;
-        seenGroups.add(mail.groupId || mail.id); // fallback for older mails
-        return true;
-    });
-
-
-    // בניית הפלט עם recipients כ-array
-    return res.json(uniqueResults.map(mail => ({
-        id: mail.id,
-        subject: mail.subject,
-        timestamp: mail.timestamp,
-        direction: mail.sender === userEmail ? "sent" : "received",
-        sender: mail.sender,
-        recipients: Array.isArray(mail.recipients) ? mail.recipients : [mail.recipient],
-        content: mail.content,
-    })));
-}
-
-
-// This function updates the labels for a specific mail for the authenticated user.
-async function updateMailLabelsForUser(req, res) { // became async by Meir in ex4 to support adding URLs to blacklist
-    console.log("Reached updateMailLabelsForUser with id:", req.params.id);
-    const userEmail = req.user.email;
-    const mailId = req.params.id;
-    const { labels } = req.body;
-
-
-    if (!Array.isArray(labels)) {
-        return res.status(400).json({ error: "Labels must be an array" });
-    }
-
-    for (const inbox of inboxMap.values()) {
-        for (let mail of inbox) {
-            if (mail.id === mailId) {
-
-
-                if (mail.sender !== userEmail && mail.recipient !== userEmail) {
-                    return res.status(403).json({ error: "Not authorized for this mail" });
-                }
-
-
-                const allowed = getAllLabels(userEmail).map(l => l.name.toLowerCase());
-                const invalid = labels.filter(l => !allowed.includes(l.toLowerCase()));
-
-                if (invalid.length > 0) {
-                    return res.status(400).json({
-                        error: `Invalid labels for user: ${invalid.join(", ")}`
-                    });
-                }
-
-
-                if (!mail.labels || typeof mail.labels !== 'object') {
-                    mail.labels = {};
-                }
-
-                mail.labels[userEmail] = labels;
-                //If the mail added to the Spam label, add URLs to the blacklist. Added by Meir in ex4
-                const previousLabels = mail.labels[userEmail] || [];
-                const addedSpam = !previousLabels.map(l => l.toLowerCase()).includes("spam") &&
-                  labels.map(l => l.toLowerCase()).includes("spam");
-                if (addedSpam) {
-                    console.log("[SpamLabel] Spam label was added manually");
-                    const urls = extractUrls(`${mail.subject} ${mail.content}`);
-                    console.log("[SpamLabel] Extracted URLs:", urls);
-                    for (const url of urls) {
-                        try {
-                            await addUrlToBlacklist(url);
-                            console.log(`Added URL to blacklist: ${url}`);
-                        } catch (err) {
-                            console.error(`Failed to add URL to blacklist: ${url}`, err.message);
-                        }
-                    }
-                }
-
-                return res.status(200).json({ message: "Labels updated", labels: mail.labels[userEmail] });
-            }
-        }
-    }
-
-    return res.status(404).json({ error: "Mail not found" });
-}
-
-
-// This module provides functions to manage mails in an in-memory store.
-// It includes creating, retrieving, updating, deleting, and searching mails.
 module.exports = {
     createMail,
     getMails,
@@ -595,6 +445,5 @@ module.exports = {
     updateMail,
     deleteMailById,
     searchMails,
-    updateMailLabelsForUser,
-    inboxMap,
+    updateMailLabelsForUser
 };
