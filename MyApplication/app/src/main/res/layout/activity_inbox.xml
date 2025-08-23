@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
@@ -37,6 +36,17 @@
                 android:textStyle="bold" />
 
             <ImageView
+                android:id="@+id/ivRefresh"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_rotate"
+                android:tint="@android:color/white"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="4dp"
+                android:layout_marginEnd="8dp" />
+
+            <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@android:drawable/ic_menu_search"
@@ -44,6 +54,18 @@
                 android:clickable="true"
                 android:focusable="true"
                 android:padding="4dp" />
+
+            <ImageView
+                android:id="@+id/ivLogout"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@android:drawable/ic_menu_revert"
+                android:clickable="true"
+                android:focusable="true"
+                android:padding="4dp"
+                android:layout_marginStart="8dp"
+                android:contentDescription="התנתק"
+                app:tint="@android:color/white" />
 
         </LinearLayout>
 
@@ -57,19 +79,27 @@
             app:tabSelectedTextColor="@android:color/holo_blue_dark"
             app:tabIndicatorColor="@android:color/holo_blue_dark" />
 
-        <!-- Content -->
+        <!-- Content with SwipeRefreshLayout -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1">
 
-            <!-- Email List -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerViewEmails"
+            <!-- SwipeRefreshLayout עוטף את הRecyclerView -->
+            <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+                android:id="@+id/swipeRefreshLayout"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:clipToPadding="false"
-                android:paddingBottom="80dp" />
+                android:layout_height="match_parent">
+
+                <!-- Email List -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerViewEmails"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingBottom="80dp" />
+
+            </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
             <!-- Empty State -->
             <TextView
@@ -81,6 +111,8 @@
                 android:textSize="18sp"
                 android:textColor="@android:color/darker_gray"
                 android:visibility="gone" />
+
+
 
         </FrameLayout>
 

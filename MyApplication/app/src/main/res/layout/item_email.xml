@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -7,6 +6,15 @@
     android:clickable="true"
     android:focusable="true"
     android:background="?android:attr/selectableItemBackground">
+
+    <!-- Unread indicator (קו כחול משמאל) -->
+    <View
+        android:id="@+id/unreadIndicator"
+        android:layout_width="3dp"
+        android:layout_height="match_parent"
+        android:background="@android:color/holo_blue_bright"
+        android:layout_marginEnd="8dp"
+        android:visibility="gone" />
 
     <!-- Avatar placeholder -->
     <View
@@ -40,6 +48,15 @@
                 android:textColor="@android:color/black"
                 android:singleLine="true"
                 android:ellipsize="end" />
+
+            <!-- Read/Unread status icon -->
+            <ImageView
+                android:id="@+id/ivRead"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginEnd="4dp"
+                android:src="@android:drawable/ic_menu_view"
+                android:visibility="visible" />
 
             <TextView
                 android:id="@+id/tvTime"
@@ -78,14 +95,33 @@
 
     </LinearLayout>
 
-    <!-- Spam indicator -->
-    <View
-        android:id="@+id/spamIndicator"
-        android:layout_width="8dp"
-        android:layout_height="8dp"
-        android:layout_marginStart="8dp"
+    <!-- Right side indicators -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:layout_gravity="center_vertical"
-        android:background="@android:color/holo_red_light"
-        android:visibility="gone" />
+        android:layout_marginStart="8dp">
+
+        <!-- Star indicator -->
+        <ImageView
+            android:id="@+id/ivStar"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@android:drawable/btn_star_big_on"
+            android:layout_gravity="center_horizontal"
+            android:visibility="gone" />
+
+        <!-- Spam indicator -->
+        <View
+            android:id="@+id/spamIndicator"
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:layout_marginTop="4dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@android:drawable/presence_busy"
+            android:visibility="gone" />
+
+    </LinearLayout>
 
 </LinearLayout>

@@ -166,28 +166,34 @@ public class LoginViewModel extends AndroidViewModel {
     }
 
     // --- Fetch user data after successful login ---
+    // החלף את השיטה fetchUserData() הקיימת בקובץ LoginViewModel.java עם הקוד הזה:
+
     private void fetchUserData(LoginResponse loginResponse) {
+        // *** קודם כל שמור את הטוקן ב-TokenManager ***
+        com.example.gmailapplication.shared.TokenManager.save(getApplication(), loginResponse.token);
+
         String authHeader = "Bearer " + loginResponse.token;
 
         userAPI.getCurrentUser(authHeader).enqueue(new Callback<UserDto>() {
             @Override
             public void onResponse(Call<UserDto> call, Response<UserDto> response) {
+                System.out.println("=== RESPONSE DEBUG ===");
+                System.out.println("Response code: " + response.code());
+                System.out.println("Response successful: " + response.isSuccessful());
+
                 if (response.isSuccessful()) {
                     UserDto user = response.body();
-
-                    System.out.println("=== USER DATA DEBUG ===");
-                    System.out.println("User: " + user);
                     if (user != null) {
                         System.out.println("User email: " + user.email);
                         System.out.println("User name: " + user.name);
-                        System.out.println("User firstName: " + user.firstName);
 
-                        // Set the login response and user separately
-                        loginResult.setValue(loginResponse);
+                        // שמור את נתוני המשתמש ואת תגובת ההתחברות
                         currentUser.setValue(user);
-                        successMessage.setValue("התחברות מוצלחת! ברוך הבא " + user.getFullName());
+                        loginResult.setValue(loginResponse);
+
+                        successMessage.setValue("התחברות מוצלחת!");
                     } else {
-                        errorMessage.setValue("שגיאה בקבלת נתוני משתמש");
+                        errorMessage.setValue("שגיאה בקבלת נתוני משתמש - response body is null");
                     }
                 } else {
                     errorMessage.setValue("שגיאה בקבלת נתוני משתמש - קוד " + response.code());

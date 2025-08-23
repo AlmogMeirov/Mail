@@ -1,22 +1,26 @@
+// עדכן את EmailAdapter.java עם DiffUtil לביצועים טובים יותר:
 package com.example.gmailapplication.adapters;
 
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.gmailapplication.R;
 import com.example.gmailapplication.shared.Email;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
 public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHolder> {
 
-    private List<Email> emails;
+    private List<Email> emails = new ArrayList<>();
     private OnEmailClickListener listener;
 
     public interface OnEmailClickListener {
@@ -25,8 +29,22 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
     }
 
     public EmailAdapter(List<Email> emails, OnEmailClickListener listener) {
-        this.emails = emails;
+        this.emails = emails != null ? emails : new ArrayList<>();
         this.listener = listener;
+    }
+
+    // מתודה מעודכנת לעדכון הרשימה עם DiffUtil
+    public void updateEmails(List<Email> newEmails) {
+        if (newEmails == null) {
+            newEmails = new ArrayList<>();
+        }
+
+        EmailDiffCallback diffCallback = new EmailDiffCallback(this.emails, newEmails);
+        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(diffCallback);
+
+        this.emails.clear();
+        this.emails.addAll(newEmails);
+        diffResult.dispatchUpdatesTo(this);
     }
 
     @NonNull
@@ -50,7 +68,8 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
     class EmailViewHolder extends RecyclerView.ViewHolder {
         private TextView tvSender, tvSubject, tvPreview, tvTime;
-        private View spamIndicator;
+        private ImageView ivStar, ivRead;
+        private View spamIndicator, unreadIndicator;
 
         public EmailViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -58,7 +77,10 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
             tvSubject = itemView.findViewById(R.id.tvSubject);
             tvPreview = itemView.findViewById(R.id.tvPreview);
             tvTime = itemView.findViewById(R.id.tvTime);
+            ivStar = itemView.findViewById(R.id.ivStar);
+            ivRead = itemView.findViewById(R.id.ivRead);
             spamIndicator = itemView.findViewById(R.id.spamIndicator);
+            unreadIndicator = itemView.findViewById(R.id.unreadIndicator);
 
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
@@ -128,6 +150,44 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
             } else {
                 spamIndicator.setVisibility(View.GONE);
             }
+
+            // Star indicator
+            if (ivStar != null) {
+                if (email.isStarred) {
+                    ivStar.setVisibility(View.VISIBLE);
+                    ivStar.setImageResource(android.R.drawable.btn_star_big_on);
+                } else {
+                    ivStar.setVisibility(View.GONE);
+                }
+            }
+
+            // Read/Unread indicators
+            if (ivRead != null) {
+                if (email.isRead) {
+                    ivRead.setImageResource(android.R.drawable.ic_menu_view);
+                } else {
+                    ivRead.setImageResource(android.R.drawable.ic_menu_edit);
+                }
+            }
+
+            if (unreadIndicator != null) {
+                unreadIndicator.setVisibility(email.isRead ? View.GONE : View.VISIBLE);
+            }
+
+            // Visual styling based on read status
+            float alpha = email.isRead ? 0.7f : 1.0f;
+            tvSender.setAlpha(alpha);
+            tvSubject.setAlpha(alpha);
+            tvPreview.setAlpha(alpha);
+
+            // Bold text for unread emails
+            if (!email.isRead) {
+                tvSender.setTypeface(null, android.graphics.Typeface.BOLD);
+                tvSubject.setTypeface(null, android.graphics.Typeface.BOLD);
+            } else {
+                tvSender.setTypeface(null, android.graphics.Typeface.NORMAL);
+                tvSubject.setTypeface(null, android.graphics.Typeface.NORMAL);
+            }
         }
 
         private String formatTime(String timestamp) {
@@ -136,9 +196,20 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
                 SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
                 Date date = isoFormat.parse(timestamp);
 
-                // Format for display
-                SimpleDateFormat displayFormat = new SimpleDateFormat("dd/MM HH:mm", Locale.US);
-                return displayFormat.format(date);
+                // Check if it's today
+                SimpleDateFormat dayFormat = new SimpleDateFormat("yyyyMMdd", Locale.US);
+                String today = dayFormat.format(new Date());
+                String emailDay = dayFormat.format(date);
+
+                if (today.equals(emailDay)) {
+                    // Show time for today
+                    SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.US);
+                    return timeFormat.format(date);
+                } else {
+                    // Show date for older emails
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM", Locale.US);
+                    return dateFormat.format(date);
+                }
             } catch (Exception e) {
                 // Fallback: show as-is or just time part
                 if (timestamp != null && timestamp.length() > 10) {
@@ -146,6 +217,54 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
                 }
                 return "לא ידוע";
             }
+        }
+    }
+
+    // DiffCallback for efficient updates
+    private static class EmailDiffCallback extends DiffUtil.Callback {
+        private final List<Email> oldList;
+        private final List<Email> newList;
+
+        EmailDiffCallback(List<Email> oldList, List<Email> newList) {
+            this.oldList = oldList;
+            this.newList = newList;
+        }
+
+        @Override
+        public int getOldListSize() {
+            return oldList.size();
+        }
+
+        @Override
+        public int getNewListSize() {
+            return newList.size();
+        }
+
+        @Override
+        public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
+            Email oldEmail = oldList.get(oldItemPosition);
+            Email newEmail = newList.get(newItemPosition);
+            return oldEmail.id != null && oldEmail.id.equals(newEmail.id);
+        }
+
+        @Override
+        public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
+            Email oldEmail = oldList.get(oldItemPosition);
+            Email newEmail = newList.get(newItemPosition);
+
+            return oldEmail.isRead == newEmail.isRead &&
+                    oldEmail.isStarred == newEmail.isStarred &&
+                    oldEmail.isArchived == newEmail.isArchived &&
+                    oldEmail.isDeleted == newEmail.isDeleted &&
+                    objectsEqual(oldEmail.subject, newEmail.subject) &&
+                    objectsEqual(oldEmail.sender, newEmail.sender) &&
+                    objectsEqual(oldEmail.preview, newEmail.preview) &&
+                    objectsEqual(oldEmail.timestamp, newEmail.timestamp);
+        }
+
+        private boolean objectsEqual(Object obj1, Object obj2) {
+            return (obj1 == null && obj2 == null) ||
+                    (obj1 != null && obj1.equals(obj2));
         }
     }
 }

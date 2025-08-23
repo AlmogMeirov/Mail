@@ -4,13 +4,9 @@ import java.util.List;
 
 public class SendEmailRequest {
     public String sender;
-    public String recipient; // Single recipient (for curl compatibility)
-    public List<String> recipients; // Multiple recipients (for full functionality)
+    public String recipient;
+    public List<String> recipients;
     public String subject;
     public String content;
-    public List<String> labels;
-
-    public SendEmailRequest() {
-        this.labels = java.util.Arrays.asList("inbox");
-    }
+    public List<String> labels; // רשימת תוויות כאובייקטים
 }

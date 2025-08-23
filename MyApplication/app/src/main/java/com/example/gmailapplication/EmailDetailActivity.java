@@ -15,6 +15,7 @@ import androidx.appcompat.widget.Toolbar;
 import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.EmailAPI;
 import com.example.gmailapplication.shared.Email;
+import com.example.gmailapplication.shared.Label;
 import com.example.gmailapplication.shared.UpdateLabelsRequest;
 
 import java.text.SimpleDateFormat;
@@ -114,7 +115,15 @@ public class EmailDetailActivity extends AppCompatActivity {
 
         // Recipients
         if (email.recipients != null && !email.recipients.isEmpty()) {
-            String recipients = String.join(", ", email.recipients);
+            String recipients = "";
+            if (email.recipients != null && !email.recipients.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < email.recipients.size(); i++) {
+                    if (i > 0) sb.append(", ");
+                    sb.append(email.recipients.get(i));
+                }
+                recipients = sb.toString();
+            }
             tvRecipients.setText("אל: " + recipients);
         } else if (email.recipient != null) {
             tvRecipients.setText("אל: " + email.recipient);
@@ -214,7 +223,7 @@ public class EmailDetailActivity extends AppCompatActivity {
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) {
                     // Update local email object
-                    currentEmail.labels = Arrays.asList(newLabel);
+                    currentEmail.labels = Arrays.asList(new Label(newLabel));
 
                     // Update UI
                     displayEmail(currentEmail);
