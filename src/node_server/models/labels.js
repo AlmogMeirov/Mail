@@ -1,118 +1,138 @@
-const { v4: uuidv4 } = require("uuid");
+// models/Label.js - MongoDB Label Model
+const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
-// key: userId (email), value: Map of labels: labelId => { id, name }
-const labels = new Map();
-
-// Ensure the user's label map exists
-function getUserMap(userId) {
-  if (!labels.has(userId)) {
-    labels.set(userId, new Map());
-  }
-  return labels.get(userId);
-}
-// Functions to manage labels for a user
-function getAllLabels(userId) {
-  const userMap = getUserMap(userId);
-  return Array.from(userMap.values());
-}
-// Get a label by its ID for a specific user
-function getLabelById(userId, labelId) {
-  const userMap = getUserMap(userId);
-  return userMap.get(labelId) || null;
-}
-// Create a new label for a user
-function createLabel(userId, name) {
-  if (labelNameExists(userId, name)) {
-    throw new Error(`Label with name "${name}" already exists`);
-  }
-
-  const userMap = getUserMap(userId);
-  const id = uuidv4();
-  const newLabel = { id, name };
-  userMap.set(id, newLabel);
-  return newLabel;
-}
-// Update an existing label for a user
-function updateLabel(userId, labelId, name) {
-  const userMap = getUserMap(userId);
-  if (!userMap.has(labelId)) return null;
-  const updated = { id: labelId, name };
-  userMap.set(labelId, updated);
-  return updated;
-}
-// Delete a label for a user
-function deleteLabel(userId, labelId) {
-  const userMap = getUserMap(userId);
-  return userMap.delete(labelId);
-}
-// Check if a label name already exists for a user
-function labelNameExists(userId, name) {
-  const userMap = getUserMap(userId);
-  name = name.trim().toLowerCase();
-  for (const label of userMap.values()) {
-    if (label.name.trim().toLowerCase() === name) {
-      return true;
+const labelSchema = new mongoose.Schema({
+    // Use custom labelId instead of MongoDB _id for compatibility
+    labelId: {
+        type: String,
+        required: true,
+        unique: true,
+        default: () => uuidv4()
+    },
+    
+    // User who owns this label (email address)
+    userId: {
+        type: String,
+        required: true,
+        match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
+        index: true
+    },
+    
+    // Label name
+    name: {
+        type: String,
+        required: true,
+        trim: true
     }
-  }
-  return false;
-}
+}, {
+    timestamps: true // Adds createdAt and updatedAt
+});
 
-/**Add in exercises 4**/
-// mailId → Set of labelIds per user
-const mailLabels = new Map(); // key: userId, value: Map of mailId => Set of labelIds
+// Compound index to ensure unique label names per user
+labelSchema.index({ userId: 1, name: 1 }, { unique: true });
 
-// Ensure the user's mail label map exists, if it doesn't exist yet, creates it.
-function ensureMailLabelMap(userId) {
-  if (!mailLabels.has(userId)) {
-    mailLabels.set(userId, new Map());
-  }
-  return mailLabels.get(userId);
-}
+// Instance methods
+labelSchema.methods.toJSON = function() {
+    return {
+        id: this.labelId,
+        name: this.name,
+        userId: this.userId,
+        createdAt: this.createdAt,
+        updatedAt: this.updatedAt
+    };
+};
 
-// Assign label to mail
-function addLabelToMail(userId, mailId, labelId) {
-  const userMap = ensureMailLabelMap(userId);
-  if (!userMap.has(mailId)) {
-    userMap.set(mailId, new Set());
-  }
-  userMap.get(mailId).add(labelId);
-}
+// Static methods for compatibility with existing controller
+labelSchema.statics.getAllLabelsForUser = function(userId) {
+    return this.find({ userId }).select('labelId name createdAt updatedAt');
+};
 
-// Remove label from mail
-function removeLabelFromMail(userId, mailId, labelId) {
-  const userMap = ensureMailLabelMap(userId);
-  if (!userMap.has(mailId)) return false;
-  return userMap.get(mailId).delete(labelId);
-}
+labelSchema.statics.getLabelById = function(userId, labelId) {
+    return this.findOne({ userId, labelId }).select('labelId name createdAt updatedAt');
+};
 
-// Get labels for a specific mail
-function getLabelsForMail(userId, mailId) {
-  const userMap = ensureMailLabelMap(userId);
-  return userMap.get(mailId) ? Array.from(userMap.get(mailId)) : [];
-}
- //Get all mailIds for a given label
-function getMailsByLabel(userId, labelId) {
-  const result = [];
-  const userMap = ensureMailLabelMap(userId);
-  for (const [mailId, labelsSet] of userMap.entries()) {
-    if (labelsSet.has(labelId)) {
-      result.push(mailId);
+labelSchema.statics.createLabelForUser = function(userId, name) {
+    const label = new this({
+        userId,
+        name: name.trim(),
+        labelId: uuidv4()
+    });
+    return label.save();
+};
+
+labelSchema.statics.updateLabelForUser = function(userId, labelId, name) {
+    return this.findOneAndUpdate(
+        { userId, labelId },
+        { name: name.trim(), updatedAt: new Date() },
+        { new: true, select: 'labelId name createdAt updatedAt' }
+    );
+};
+
+labelSchema.statics.deleteLabelForUser = function(userId, labelId) {
+    return this.findOneAndDelete({ userId, labelId });
+};
+
+labelSchema.statics.searchLabelsForUser = function(userId, query) {
+    return this.find({
+        userId,
+        name: { $regex: query, $options: 'i' }
+    }).select('labelId name createdAt updatedAt');
+};
+
+// Mail-Label association schema (embedded in Mail model, but keeping for reference)
+const mailLabelSchema = new mongoose.Schema({
+    userId: {
+        type: String,
+        required: true,
+        match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
+        index: true
+    },
+    
+    mailId: {
+        type: String,
+        required: true,
+        index: true
+    },
+    
+    labelId: {
+        type: String,
+        required: true
     }
-  }
-  return result;
-}
+}, {
+    timestamps: true
+});
 
-// Description: This module manages labels for users, allowing operations like creating, updating, deleting, and retrieving labels.
+// Compound index for efficient queries
+mailLabelSchema.index({ userId: 1, mailId: 1 });
+mailLabelSchema.index({ userId: 1, labelId: 1 });
+
+// Static methods for mail-label operations
+mailLabelSchema.statics.addLabelToMail = async function(userId, mailId, labelId) {
+    // Use upsert to avoid duplicates
+    return this.findOneAndUpdate(
+        { userId, mailId, labelId },
+        { userId, mailId, labelId },
+        { upsert: true, new: true }
+    );
+};
+
+mailLabelSchema.statics.removeLabelFromMail = function(userId, mailId, labelId) {
+    return this.findOneAndDelete({ userId, mailId, labelId });
+};
+
+mailLabelSchema.statics.getLabelsForMail = function(userId, mailId) {
+    return this.find({ userId, mailId }).select('labelId');
+};
+
+mailLabelSchema.statics.getMailsByLabel = function(userId, labelId) {
+    return this.find({ userId, labelId }).select('mailId');
+};
+
+const Label = mongoose.model('Label', labelSchema);
+const MailLabel = mongoose.model('MailLabel', mailLabelSchema);
+
 module.exports = {
-  getUserMap,
-  getAllLabels,
-  getLabelById,
-  createLabel,
-  updateLabel,
-  deleteLabel,
-  labelNameExists,
-  addLabelToMail, //Add in exercises 4
-  removeLabelFromMail, //Add in exercises 4
-  getLabelsForMail, //Add in exercises 4
-  getMailsByLabel //Add in exercises 4
+    Label,
+    MailLabel
 };

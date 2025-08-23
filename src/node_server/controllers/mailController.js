@@ -3,9 +3,31 @@ const Mail = require('../models/Mail'); // MongoDB Mail model
 const User = require('../models/User'); // User model for validation
 const { extractUrls } = require("../utils/extractUrls");
 const { checkUrlBlacklist } = require("../utils/blacklistClient");
-const { getAllLabels } = require('../models/labels');
-const labelModel = require('../models/labels');
+// const { getAllLabels } = require('../models/labels'); // הגב זמנית
+// const labelModel = require('../models/labels'); // הגב זמנית
 const { addUrlToBlacklist } = require("../utils/blacklistClient");
+
+// הוסף פונקציות זמניות במקום labelModel:
+const labelModel = {
+    addLabelToMail: (userId, mailId, labelId) => {
+        console.log(`[TEMP] Adding label ${labelId} to mail ${mailId} for user ${userId}`);
+        return Promise.resolve();
+    },
+    addLabel: (userId, labelName) => {
+        console.log(`[TEMP] Creating label ${labelName} for user ${userId}`);
+        return { id: 'temp-' + Date.now(), name: labelName };
+    }
+};
+
+const getAllLabels = (userId) => {
+    // זמני - מחזיר labels בסיסיים
+    return [
+        { id: 'inbox', name: 'inbox' },
+        { id: 'spam', name: 'spam' },
+        { id: 'sent', name: 'sent' },
+        { id: 'drafts', name: 'drafts' }
+    ];
+};
 
 // Create mail function with MongoDB
 const createMail = async (req, res) => {
@@ -74,8 +96,9 @@ const createMail = async (req, res) => {
                     await mail.save();
                     sent.push(mail);
 
-                    labelModel.addLabelToMail(sender, mail.mailId, spamLabel.id);
-                    labelModel.addLabelToMail(r, mail.mailId, spamLabel.id);
+                    // *** תיקון: הוסף await וזמני לא עושה כלום ***
+                    await labelModel.addLabelToMail(sender, mail.mailId, spamLabel.id);
+                    await labelModel.addLabelToMail(r, mail.mailId, spamLabel.id);
                 }
 
                 return res.status(201).json({ message: "Mail sent to spam", sent });
@@ -103,10 +126,10 @@ const createMail = async (req, res) => {
             await mail.save();
             sent.push(mail);
 
-            // Add labels
-            labels.forEach(labelId => {
-                labelModel.addLabelToMail(sender, mail.mailId, labelId);
-            });
+            // *** תיקון: הוסף await להוספת labels ***
+            for (const labelId of labels) {
+                await labelModel.addLabelToMail(sender, mail.mailId, labelId);
+            }
         }
 
         return res.status(201).json({ message: "Mail sent successfully", sent });
@@ -116,7 +139,6 @@ const createMail = async (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
-
 // Get mails function with MongoDB
 const getMails = async (req, res) => {
     try {
