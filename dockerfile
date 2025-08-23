@@ -1,20 +1,19 @@
-# Use an official Node.js image
-FROM node:18
+# Simple Node.js Dockerfile
+FROM node:18-alpine
 
-# Set working directory inside the container
 WORKDIR /app
 
-# Copy only the NodeJS server part
-COPY src/node_server ./src/node_server
-
-# Set working directory to the NodeJS server directory
-WORKDIR /app/src/node_server
+# Copy package files
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Expose the port (optional; for documentation)
+# Copy source code
+COPY . .
+
+# Expose port
 EXPOSE 3000
 
-# Run the server
-CMD ["node", "index.js"]
+# Start the app
+CMD ["node", "app.js"]

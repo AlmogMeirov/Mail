@@ -1,122 +1,287 @@
-const labelModel = require("../models/labels");
+// controllers/labelsController.js - Updated for MongoDB
+const { Label, MailLabel } = require("../models/labels");
 const { extractUrls } = require("../utils/extractUrls");
+const { addUrlToBlacklist } = require("../utils/blacklistClient");
+const Mail = require("../models/Mail");
 
 // Get all labels for the current user
-function getAll(req, res) {
-  const userId = req.user.email;
-  const labels = labelModel.getAllLabels(userId);
-  res.json(labels);
+async function getAll(req, res) {
+  try {
+    const userId = req.user.email;
+    const labels = await Label.getAllLabelsForUser(userId);
+
+    // Convert to format expected by frontend
+    const formattedLabels = labels.map(label => ({
+      id: label.labelId,
+      name: label.name
+    }));
+
+    res.json(formattedLabels);
+  } catch (err) {
+    console.error("Error fetching labels:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 // Get a label by ID for the current user
-function getById(req, res) {
-  const userId = req.user.email;
-  const label = labelModel.getLabelById(userId, req.params.id);
-  if (!label) return res.status(404).json({ error: "Label not found" });
-  res.json(label);
+async function getById(req, res) {
+  try {
+    const userId = req.user.email;
+    const label = await Label.getLabelById(userId, req.params.id);
+
+    if (!label) {
+      return res.status(404).json({ error: "Label not found" });
+    }
+
+    res.json({
+      id: label.labelId,
+      name: label.name
+    });
+  } catch (err) {
+    console.error("Error fetching label:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 // Create a new label for the current user
-function create(req, res) {
-  const userId = req.user.email;
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ error: "Name is required" });
-  const label = labelModel.createLabel(userId, name);
-  res.status(201).json(label);
+async function create(req, res) {
+  try {
+    const userId = req.user.email;
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Name is required" });
+    }
+
+    // Check if label with this name already exists for user
+    const existingLabel = await Label.findOne({
+      userId,
+      name: name.trim()
+    });
+
+    if (existingLabel) {
+      return res.status(409).json({ error: "Label with this name already exists" });
+    }
+
+    const label = await Label.createLabelForUser(userId, name);
+
+    res.status(201).json({
+      id: label.labelId,
+      name: label.name
+    });
+  } catch (err) {
+    console.error("Error creating label:", err);
+    if (err.code === 11000) { // Duplicate key error
+      return res.status(409).json({ error: "Label with this name already exists" });
+    }
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 // Update a label by ID for the current user
-function update(req, res) {
-  const userId = req.user.email;
-  const { name } = req.body;
-  const updated = labelModel.updateLabel(userId, req.params.id, name);
-  if (!updated) return res.status(404).json({ error: "Label not found" });
-  res.status(204).end();
+async function update(req, res) {
+  try {
+    const userId = req.user.email;
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Name is required" });
+    }
+
+    const updated = await Label.updateLabelForUser(userId, req.params.id, name);
+
+    if (!updated) {
+      return res.status(404).json({ error: "Label not found" });
+    }
+
+    res.status(200).json({
+      id: updated.labelId,
+      name: updated.name
+    });
+  } catch (err) {
+    console.error("Error updating label:", err);
+    if (err.code === 11000) { // Duplicate key error
+      return res.status(409).json({ error: "Label with this name already exists" });
+    }
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 // Delete a label by ID for the current user
-function remove(req, res) {
-  const userId = req.user.email;
-  const deleted = labelModel.deleteLabel(userId, req.params.id);
-  if (!deleted) return res.status(404).json({ error: "Label not found" });
-  res.status(204).end();
+async function remove(req, res) {
+  try {
+    const userId = req.user.email;
+    const labelId = req.params.id;
+
+    const deleted = await Label.deleteLabelForUser(userId, labelId);
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Label not found" });
+    }
+
+    // Also remove all mail-label associations for this label
+    await MailLabel.deleteMany({ userId, labelId });
+
+    res.status(204).end();
+  } catch (err) {
+    console.error("Error deleting label:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 // Search labels by substring in name
-function search(req, res) {
-  const userId = req.user.email;
-  const query = req.params.query?.toLowerCase() || "";
-  const labels = labelModel.getAllLabels(userId);
-  const filtered = labels.filter(label => label.name.toLowerCase().includes(query));
-  res.json(filtered);
+async function search(req, res) {
+  try {
+    const userId = req.user.email;
+    const query = req.params.query?.toLowerCase() || "";
+
+    const labels = await Label.searchLabelsForUser(userId, query);
+
+    const formattedLabels = labels.map(label => ({
+      id: label.labelId,
+      name: label.name
+    }));
+
+    res.json(formattedLabels);
+  } catch (err) {
+    console.error("Error searching labels:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
-/**Add in exercises 4**/
-
 // Add a label to a mail
-async function tagMail(req, res) { // Meir made it async
-  const userId = req.user.email;
-  const { mailId, labelId } = req.body;
-  console.log(">> Entered tagMail! mailId =", mailId, "labelId =", labelId);
+async function tagMail(req, res) {
+  try {
+    const userId = req.user.email;
+    const { mailId, labelId } = req.body;
 
-  if (!mailId || !labelId) {
-    return res.status(400).json({ error: "mailId and labelId are required" });
-  }
+    console.log(">> Entered tagMail! mailId =", mailId, "labelId =", labelId);
 
-  labelModel.addLabelToMail(userId, mailId, labelId);
+    if (!mailId || !labelId) {
+      return res.status(400).json({ error: "mailId and labelId are required" });
+    }
 
-  //If user tagged this mail with "Spam", add all its URLs to the blacklist
-  const labels = labelModel.getAllLabels(userId); // Get all labels for the user
-  const label = labels.find(l => l.id === labelId); // Find the label by ID (since you can't find by name)
-  if (label && label.name.toLowerCase() === "spam") { // Added by Meir
-    const inboxMap = require('../utils/inboxMap');
-    const inbox = inboxMap.get(userId) || [];
-    const mail = inbox.find(m => m.id === mailId);
-    if (mail) {
+    // Verify label exists and belongs to user
+    const label = await Label.getLabelById(userId, labelId);
+    if (!label) {
+      return res.status(404).json({ error: "Label not found" });
+    }
+
+    // Verify mail exists and user has access to it
+    const mail = await Mail.findOne({ mailId });
+    if (!mail) {
+      return res.status(404).json({ error: "Mail not found" });
+    }
+
+    if (!mail.isAccessibleBy(userId)) {
+      return res.status(403).json({ error: "Not authorized for this mail" });
+    }
+
+    // Add label to mail in MailLabel collection
+    await MailLabel.findOneAndUpdate(
+      { userId, mailId, labelId },
+      { userId, mailId, labelId },
+      { upsert: true, new: true }
+    );
+
+    // Also update Mail document labels array for this user
+    await Mail.findOneAndUpdate(
+      { mailId, 'labels.userEmail': userId },
+      { $addToSet: { 'labels.$.labelIds': labelId } }
+    );
+
+    // If no labels entry exists for this user, create one
+    const mailDoc = await Mail.findOne({ mailId, 'labels.userEmail': userId });
+    if (!mailDoc) {
+      await Mail.findOneAndUpdate(
+        { mailId },
+        { $push: { labels: { userEmail: userId, labelIds: [labelId] } } }
+      );
+    }
+
+    // If user tagged this mail with "Spam", add all its URLs to the blacklist
+    if (label.name.toLowerCase() === "spam") {
+      console.log("[SPAM] Mail tagged as spam, extracting URLs for blacklist");
       const urls = extractUrls(`${mail.subject} ${mail.content}`);
+      console.log("[SPAM] Extracted URLs:", urls);
+
       for (const url of urls) {
         try {
-          await require("../utils/blacklistClient").addUrlToBlacklist(url);
+          await addUrlToBlacklist(url);
+          console.log(`[SPAM] Added URL to blacklist: ${url}`);
         } catch (err) {
           console.error("Failed to add URL to blacklist:", url, err.message);
         }
       }
     }
-  }
 
-  res.status(200).json({ success: true });
+    res.status(200).json({ success: true });
+  } catch (err) {
+    console.error("Error tagging mail:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 // Remove a label from a mail
-function untagMail(req, res) {
-  const userId = req.user.email;
-  const { mailId, labelId } = req.body;
+async function untagMail(req, res) {
+  try {
+    const userId = req.user.email;
+    const { mailId, labelId } = req.body;
 
-  if (!mailId || !labelId) {
-    return res.status(400).json({ error: "mailId and labelId are required" });
+    if (!mailId || !labelId) {
+      return res.status(400).json({ error: "mailId and labelId are required" });
+    }
+
+    // Remove from MailLabel collection
+    const removed = await MailLabel.findOneAndDelete({ userId, mailId, labelId });
+
+    if (!removed) {
+      return res.status(404).json({ error: "Label not found for mail" });
+    }
+
+    // Also remove from Mail document labels array
+    await Mail.findOneAndUpdate(
+      { mailId, 'labels.userEmail': userId },
+      { $pull: { 'labels.$.labelIds': labelId } }
+    );
+
+    res.status(200).json({ success: true });
+  } catch (err) {
+    console.error("Error untagging mail:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
-
-  const removed = labelModel.removeLabelFromMail(userId, mailId, labelId);
-  if (!removed) return res.status(404).json({ error: "Label not found for mail" });
-  res.status(200).json({ success: true });
 }
 
 // Get all mails associated with a label
-function getMailsByLabel(req, res) {
-  const userId = req.user.email;
-  const { labelId } = req.params;
+async function getMailsByLabel(req, res) {
+  try {
+    const userId = req.user.email;
+    const { labelId } = req.params;
 
-  const mails = labelModel.getMailsByLabel(userId, labelId);
-  res.json(mails);
+    const mailLabels = await MailLabel.getMailsByLabel(userId, labelId);
+    const mailIds = mailLabels.map(ml => ml.mailId);
 
+    res.json(mailIds);
+  } catch (err) {
+    console.error("Error fetching mails by label:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
-// Get all labels for a specific mail
-function getLabelsForMail(req, res) {
-  const userId = req.user.email;
-  const { mailId } = req.params;
 
-  const labels = labelModel.getLabelsForMail(userId, mailId);
-  res.json(labels);
+// Get all labels for a specific mail
+async function getLabelsForMail(req, res) {
+  try {
+    const userId = req.user.email;
+    const { mailId } = req.params;
+
+    const mailLabels = await MailLabel.getLabelsForMail(userId, mailId);
+    const labelIds = mailLabels.map(ml => ml.labelId);
+
+    res.json(labelIds);
+  } catch (err) {
+    console.error("Error fetching labels for mail:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 module.exports = {
@@ -126,8 +291,8 @@ module.exports = {
   update,
   remove,
   search,
-  tagMail, //Add in exercises 4
-  untagMail, //Add in exercises 4
-  getMailsByLabel, //Add in exercises 4
-  getLabelsForMail //Add in exercises 4
+  tagMail,
+  untagMail,
+  getMailsByLabel,
+  getLabelsForMail
 };
