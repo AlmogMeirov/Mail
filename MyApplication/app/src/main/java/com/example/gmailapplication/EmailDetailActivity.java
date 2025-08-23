@@ -1,9 +1,11 @@
 package com.example.gmailapplication;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -42,6 +44,10 @@ public class EmailDetailActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_email_detail);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_LOCALE);
+        }
 
         initViews();
         setupToolbar();
@@ -86,6 +92,8 @@ public class EmailDetailActivity extends AppCompatActivity {
         }
     }
 
+// החלף את הפונקציה loadEmail() ב-EmailDetailActivity.java:
+
     private void loadEmail() {
         emailAPI.getEmailById(emailId).enqueue(new Callback<Email>() {
             @Override
@@ -94,17 +102,37 @@ public class EmailDetailActivity extends AppCompatActivity {
                     currentEmail = response.body();
                     displayEmail(currentEmail);
                 } else {
-                    Toast.makeText(EmailDetailActivity.this, "שגיאה בטעינת המייל", Toast.LENGTH_SHORT).show();
-                    finish();
+                    // *** תיקון: אם ה-API נכשל, השתמש ב-fallback data מה-Intent ***
+                    Toast.makeText(EmailDetailActivity.this, "טוען מידע מקומי...", Toast.LENGTH_SHORT).show();
+                    loadEmailFromIntent();
                 }
             }
 
             @Override
             public void onFailure(Call<Email> call, Throwable t) {
-                Toast.makeText(EmailDetailActivity.this, "שגיאת חיבור: " + t.getMessage(), Toast.LENGTH_SHORT).show();
-                finish();
+                // *** תיקון: במקום לסגור, נסה fallback data ***
+                Toast.makeText(EmailDetailActivity.this, "טוען מידע מקומי...", Toast.LENGTH_SHORT).show();
+                loadEmailFromIntent();
             }
         });
+    }
+
+    // *** פונקציה חדשה: טעינה מ-Intent כשה-API נכשל ***
+    private void loadEmailFromIntent() {
+        // יצירת Email object מהנתונים ב-Intent
+        currentEmail = new Email();
+        currentEmail.id = emailId;
+        currentEmail.subject = getIntent().getStringExtra("subject");
+        currentEmail.sender = getIntent().getStringExtra("sender");
+        currentEmail.content = getIntent().getStringExtra("content");
+        currentEmail.timestamp = getIntent().getStringExtra("timestamp");
+
+        if (currentEmail.subject != null || currentEmail.sender != null) {
+            displayEmail(currentEmail);
+        } else {
+            Toast.makeText(this, "שגיאה: לא ניתן לטעון את המייל", Toast.LENGTH_SHORT).show();
+            finish();
+        }
     }
 
     private void displayEmail(Email email) {

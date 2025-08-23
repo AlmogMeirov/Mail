@@ -1,36 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:padding="16dp"
+    android:background="@android:color/white"
     android:clickable="true"
     android:focusable="true"
-    android:background="?android:attr/selectableItemBackground">
+    android:foreground="?android:attr/selectableItemBackground"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp">
 
-    <!-- Unread indicator (קו כחול משמאל) -->
-    <View
-        android:id="@+id/unreadIndicator"
-        android:layout_width="3dp"
-        android:layout_height="match_parent"
-        android:background="@android:color/holo_blue_bright"
-        android:layout_marginEnd="8dp"
-        android:visibility="gone" />
-
-    <!-- Avatar placeholder -->
-    <View
+    <!-- Sender Avatar -->
+    <androidx.cardview.widget.CardView
         android:layout_width="40dp"
         android:layout_height="40dp"
-        android:layout_marginEnd="12dp"
-        android:background="@android:drawable/sym_def_app_icon" />
+        android:layout_marginEnd="16dp"
+        android:layout_gravity="top"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="#1a73e8">
 
-    <!-- Content -->
+        <TextView
+            android:id="@+id/tvSenderAvatar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="א"
+            android:textSize="16sp"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+    </androidx.cardview.widget.CardView>
+
+    <!-- Email Content -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:orientation="vertical">
 
-        <!-- Sender and Time -->
+        <!-- First Row: Sender, Subject, Time -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -42,84 +54,102 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="sender@example.com"
+                android:text="שולח"
                 android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/black"
-                android:singleLine="true"
+                android:textColor="#202124"
+                android:textStyle="normal"
+                android:maxLines="1"
                 android:ellipsize="end" />
-
-            <!-- Read/Unread status icon -->
-            <ImageView
-                android:id="@+id/ivRead"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_marginEnd="4dp"
-                android:src="@android:drawable/ic_menu_view"
-                android:visibility="visible" />
 
             <TextView
                 android:id="@+id/tvTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="10:30"
+                android:text="14:30"
                 android:textSize="12sp"
-                android:textColor="@android:color/darker_gray" />
+                android:textColor="#5f6368"
+                android:layout_marginStart="8dp" />
 
         </LinearLayout>
 
-        <!-- Subject -->
+        <!-- Subject Line -->
         <TextView
             android:id="@+id/tvSubject"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
             android:text="נושא המייל"
             android:textSize="14sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/black"
-            android:layout_marginTop="2dp"
-            android:singleLine="true"
+            android:textColor="#202124"
+            android:textStyle="normal"
+            android:maxLines="1"
             android:ellipsize="end" />
 
-        <!-- Preview -->
+        <!-- Preview Text -->
         <TextView
             android:id="@+id/tvPreview"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="תוכן המייל..."
-            android:textSize="13sp"
-            android:textColor="@android:color/darker_gray"
             android:layout_marginTop="2dp"
-            android:maxLines="2"
+            android:text="תצוגה מקדימה של תוכן המייל..."
+            android:textSize="13sp"
+            android:textColor="#5f6368"
+            android:maxLines="1"
             android:ellipsize="end" />
+
+        <!-- Labels Row -->
+        <LinearLayout
+            android:id="@+id/labelsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <!-- Dynamic labels will be added here -->
+
+        </LinearLayout>
 
     </LinearLayout>
 
-    <!-- Right side indicators -->
+    <!-- Right Side Actions -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_gravity="center_vertical"
+        android:gravity="center"
         android:layout_marginStart="8dp">
 
-        <!-- Star indicator -->
+        <!-- Star -->
         <ImageView
             android:id="@+id/ivStar"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@android:drawable/btn_star_big_on"
-            android:layout_gravity="center_horizontal"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_star_border"
+            android:tint="#5f6368"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="4dp"
             android:visibility="gone" />
 
-        <!-- Spam indicator -->
+        <!-- Important/Priority Indicator -->
+        <ImageView
+            android:id="@+id/ivImportant"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_label_important"
+            android:tint="#fbbc04"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+
+        <!-- Unread Indicator -->
         <View
-            android:id="@+id/spamIndicator"
+            android:id="@+id/unreadIndicator"
             android:layout_width="8dp"
             android:layout_height="8dp"
+            android:background="@drawable/circle_blue"
             android:layout_marginTop="4dp"
-            android:layout_gravity="center_horizontal"
-            android:background="@android:drawable/presence_busy"
             android:visibility="gone" />
 
     </LinearLayout>

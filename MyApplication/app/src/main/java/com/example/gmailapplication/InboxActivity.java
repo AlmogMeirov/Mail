@@ -1,11 +1,14 @@
 package com.example.gmailapplication;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -13,12 +16,18 @@ import android.widget.Toast;
 import android.content.Intent;
 import android.view.Menu;
 import android.view.MenuItem;
+import androidx.appcompat.widget.Toolbar;
+import com.google.android.material.navigation.NavigationView;
+
+
 import com.example.gmailapplication.repository.UserRepository;
 
 
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -31,6 +40,7 @@ import com.example.gmailapplication.repository.UserRepository;
 import com.example.gmailapplication.shared.*;
 import com.example.gmailapplication.utils.EmailRefreshManager;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.tabs.TabLayout;
 
 import java.util.ArrayList;
@@ -65,10 +75,21 @@ public class InboxActivity extends AppCompatActivity {
     // Store the refresh listener to remove it later
     private EmailRefreshManager.RefreshListener refreshListener;
 
+    private DrawerLayout drawer_layout;
+    private NavigationView nav_view;
+    private Toolbar toolbar;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_inbox);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_LOCALE);
+        }
+
+
 
         initViews();
         setupAPI();
@@ -81,6 +102,51 @@ public class InboxActivity extends AppCompatActivity {
         setupTabs();
         setupFab();
         observeEmails();
+        setupDrawer();
+        if (refreshManager != null) {
+            refreshManager.refreshNow(); // רענון מיידי!
+        }
+    }
+
+    // הוסף את זה ל-onCreate
+    private void setupDrawer() {
+        // הגדר את הToolbar
+        setSupportActionBar(toolbar);
+
+        ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
+                this, drawer_layout, toolbar,
+                R.string.navigation_drawer_open,
+                R.string.navigation_drawer_close);
+        drawer_layout.addDrawerListener(toggle);
+        toggle.syncState();
+
+        // הוסף listener לNavigation View
+        nav_view.setNavigationItemSelectedListener(menuItem -> {
+            handleNavigationClick(menuItem.getItemId());
+            drawer_layout.closeDrawers();
+            return true;
+        });
+    }
+
+    private void handleNavigationClick(int itemId) {
+        if (itemId == R.id.nav_inbox) {
+            currentFilter = "inbox";
+            observeInboxEmails();
+        } else if (itemId == R.id.nav_sent) {
+            currentFilter = "sent";
+            observeSentEmails();
+        } else if (itemId == R.id.nav_drafts) {
+            currentFilter = "drafts";
+            observeDrafts();
+        } else if (itemId == R.id.nav_starred) {
+            currentFilter = "starred";
+            observeStarredEmails();
+        } else if (itemId == R.id.nav_manage_labels) {
+            openLabelsActivity();
+        } else if (itemId == R.id.nav_create_label) {
+            // פתח דיאלוג יצירת תווית
+            // TODO: implement create label dialog
+        }
     }
 
     private void setupUserRepository() {
@@ -101,25 +167,29 @@ public class InboxActivity extends AppCompatActivity {
         getMenuInflater().inflate(R.menu.inbox_menu, menu);
         return true;
     }
+    // *** הוסף את הפונקציה הזאת ***
+    private void openLabelsActivity() {
+        Intent intent = new Intent(this, LabelsActivity.class);
+        startActivity(intent);
+    }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int itemId = item.getItemId();
 
         if (itemId == R.id.action_refresh) {
-            // רענון ידני
             refreshManager.refreshNow();
             return true;
         } else if (itemId == R.id.action_search) {
-            // פתח חיפוש
             openSearchActivity();
             return true;
         } else if (itemId == R.id.action_settings) {
-            // פתח הגדרות רענון
             showRefreshSettings();
             return true;
+        } else if (itemId == R.id.action_labels) { // *** הוסף את זה ***
+            openLabelsActivity();
+            return true;
         } else if (itemId == R.id.action_logout) {
-            // התנתקות
             showLogoutConfirmation();
             return true;
         }
@@ -188,11 +258,109 @@ public class InboxActivity extends AppCompatActivity {
         overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
     }
 
+    // החלף את הפונקציה openSearchActivity() ב-InboxActivity.java:
+
     private void openSearchActivity() {
-        // TODO: יישום חיפוש
-        Toast.makeText(this, "חיפוש - בקרוב!", Toast.LENGTH_SHORT).show();
+        // יצירת dialog עם שדה חיפוש
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("חיפוש מיילים");
+
+        // יצירת EditText לחיפוש
+        final EditText searchInput = new EditText(this);
+        searchInput.setHint("הקלד מילות חיפוש...");
+        searchInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        builder.setView(searchInput);
+
+        builder.setPositiveButton("חפש", (dialog, which) -> {
+            String searchQuery = searchInput.getText().toString().trim();
+            if (!searchQuery.isEmpty()) {
+                performSearch(searchQuery);
+            }
+        });
+
+        builder.setNegativeButton("ביטול", (dialog, which) -> dialog.cancel());
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // פתח מקלדת אוטומטית
+        searchInput.requestFocus();
+        android.view.inputmethod.InputMethodManager imm =
+                (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.showSoftInput(searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT);
     }
 
+    // פונקציה חדשה לביצוע חיפוש
+    // פונקציה חדשה לביצוע חיפוש
+    private void performSearch(String query) {
+        Toast.makeText(this, "מחפש: " + query, Toast.LENGTH_SHORT).show();
+
+        // בדוק אם יש auth token
+        if (authToken == null || authToken.isEmpty()) {
+            Toast.makeText(this, "שגיאה: לא מחובר למערכת", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // חיפוש ב-API עם authentication
+        emailAPI.searchEmails("Bearer " + authToken, query).enqueue(new Callback<List<Email>>() {
+            @Override
+            public void onResponse(Call<List<Email>> call, Response<List<Email>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<Email> searchResults = response.body();
+                    updateEmailList(searchResults);
+                    Toast.makeText(InboxActivity.this,
+                            "נמצאו " + searchResults.size() + " תוצאות", Toast.LENGTH_SHORT).show();
+                } else {
+                    // הוסף לוג מפורט
+                    android.util.Log.e("Search", "Response code: " + response.code());
+                    if (response.errorBody() != null) {
+                        try {
+                            android.util.Log.e("Search", "Error: " + response.errorBody().string());
+                        } catch (Exception e) {
+                            android.util.Log.e("Search", "Error reading error body", e);
+                        }
+                    }
+
+                    // נסה גם בלי authentication כ-fallback
+                    if (response.code() == 401) {
+                        searchWithoutAuth(query);
+                    } else {
+                        Toast.makeText(InboxActivity.this, "לא נמצאו תוצאות", Toast.LENGTH_SHORT).show();
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Email>> call, Throwable t) {
+                android.util.Log.e("Search", "Search failed", t);
+
+                // נסה חיפוש בלי authentication כ-fallback
+                searchWithoutAuth(query);
+            }
+        });
+    }
+
+    // פונקציה עזר לחיפוש בלי authentication
+    private void searchWithoutAuth(String query) {
+        emailAPI.searchEmails(query).enqueue(new Callback<List<Email>>() {
+            @Override
+            public void onResponse(Call<List<Email>> call, Response<List<Email>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    List<Email> searchResults = response.body();
+                    updateEmailList(searchResults);
+                    Toast.makeText(InboxActivity.this,
+                            "נמצאו " + searchResults.size() + " תוצאות", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(InboxActivity.this, "לא נמצאו תוצאות", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Email>> call, Throwable t) {
+                Toast.makeText(InboxActivity.this, "שגיאה בחיפוש: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
     private void showRefreshSettings() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("הגדרות רענון אוטומטי");
@@ -254,6 +422,9 @@ public class InboxActivity extends AppCompatActivity {
         tabLayout = findViewById(R.id.tabLayout);
         fabCompose = findViewById(R.id.fabCompose);
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
+        drawer_layout = findViewById(R.id.drawer_layout);
+        nav_view = findViewById(R.id.nav_view);
+        toolbar = findViewById(R.id.toolbar);
     }
 
     private void setupAPI() {
@@ -334,6 +505,15 @@ public class InboxActivity extends AppCompatActivity {
         if (ivRefresh != null) {
             ivRefresh.setOnClickListener(v -> {
                 refreshManager.refreshNow();
+            });
+        }
+
+        // *** הוסף את השורה הזאת! ***
+        // הוספת לחיצה לכפתור החיפוש בheader
+        ImageView ivSearch = findViewById(R.id.ivSearch); // או המזהה הנכון
+        if (ivSearch != null) {
+            ivSearch.setOnClickListener(v -> {
+                openSearchActivity();
             });
         }
     }
@@ -466,13 +646,18 @@ public class InboxActivity extends AppCompatActivity {
     private void openEmailDetail(Email email) {
         if (email == null) return;
 
-        // TODO: פתח EmailDetailActivity
-        // Intent intent = new Intent(this, EmailDetailActivity.class);
-        // intent.putExtra("email_id", email.id);
-        // startActivity(intent);
+        // *** תיקון: הסרת ה-TODO והוספת הקוד האמיתי ***
+        Intent intent = new Intent(this, EmailDetailActivity.class);
+        intent.putExtra("email_id", email.id);
+        intent.putExtra("auth_token", authToken);
 
-        // בינתיים - הצג toast
-        Toast.makeText(this, "פתיחת מייל: " + email.subject, Toast.LENGTH_SHORT).show();
+        // הוספת נתונים נוספים כ-fallback
+        intent.putExtra("subject", email.subject != null ? email.subject : "");
+        intent.putExtra("sender", email.sender != null ? email.sender : "");
+        intent.putExtra("content", email.content != null ? email.content : "");
+        intent.putExtra("timestamp", email.timestamp != null ? email.timestamp : "");
+
+        startActivity(intent);
     }
 
     private void replyToEmail(Email email) {

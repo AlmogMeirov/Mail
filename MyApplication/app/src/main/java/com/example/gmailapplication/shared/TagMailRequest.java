@@ -4,6 +4,8 @@ public class TagMailRequest {
     public String mailId;
     public String labelId;
 
+    public TagMailRequest() {}
+
     public TagMailRequest(String mailId, String labelId) {
         this.mailId = mailId;
         this.labelId = labelId;
