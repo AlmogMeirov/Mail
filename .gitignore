@@ -2,7 +2,6 @@
 # Node.js
 # ========================
 src/node_server/node_modules/
-src/node_server/.env
 server/node_modules
 server/.env
 npm-debug.log
