@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
@@ -12,12 +13,15 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String TAG = "MainActivity";
     private TextView tvAppName, tvLoading;
     private Handler handler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(TAG, "MainActivity started");
+
         setContentView(R.layout.activity_main);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
@@ -32,38 +36,63 @@ public class MainActivity extends AppCompatActivity {
         tvAppName = findViewById(R.id.tvAppName);
         tvLoading = findViewById(R.id.tvLoading);
 
-        // Set app name and loading text
-        tvAppName.setText("Gmail Application");
-        tvLoading.setText("טוען...");
+        // בדיקה אם הviews נמצאו
+        if (tvAppName != null) {
+            tvAppName.setText("Gmail Application");
+        } else {
+            Log.w(TAG, "tvAppName not found in layout");
+        }
+
+        if (tvLoading != null) {
+            tvLoading.setText("טוען...");
+        } else {
+            Log.w(TAG, "tvLoading not found in layout");
+        }
     }
 
     private void showSplashScreen() {
+        Log.d(TAG, "Starting splash screen");
         // Show splash for 2 seconds, then check authentication
         handler.postDelayed(() -> {
+            Log.d(TAG, "Splash screen finished, checking authentication");
             checkAuthenticationAndNavigate();
         }, 2000);
     }
 
     private void checkAuthenticationAndNavigate() {
-        if (LoginActivity.isUserLoggedIn(this)) {
-            // User is already logged in, go to inbox
-            SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
-            String userId = prefs.getString("user_id", "");
-            String userName = prefs.getString("user_name", "");
-            String userEmail = prefs.getString("user_email", "");
-            String authToken = prefs.getString("auth_token", "");
+        try {
+            boolean isLoggedIn = LoginActivity.isUserLoggedIn(this);
+            Log.d(TAG, "User logged in: " + isLoggedIn);
 
-            Intent intent = new Intent(MainActivity.this, InboxActivity.class);
-            intent.putExtra("user_id", userId);
-            intent.putExtra("user_name", userName);
-            intent.putExtra("user_email", userEmail);
-            intent.putExtra("auth_token", authToken);
-            intent.putExtra("auto_login", true);
+            if (isLoggedIn) {
+                // User is already logged in, go to inbox
+                SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+                String userId = prefs.getString("user_id", "");
+                String userName = prefs.getString("user_name", "");
+                String userEmail = prefs.getString("user_email", "");
+                String authToken = prefs.getString("auth_token", "");
 
-            startActivity(intent);
-            finish();
-        } else {
-            // User not logged in, go to login
+                Log.d(TAG, "Navigating to InboxActivity for user: " + userEmail);
+
+                Intent intent = new Intent(MainActivity.this, InboxActivity.class);
+                intent.putExtra("user_id", userId);
+                intent.putExtra("user_name", userName);
+                intent.putExtra("user_email", userEmail);
+                intent.putExtra("auth_token", authToken);
+                intent.putExtra("auto_login", true);
+
+                startActivity(intent);
+                finish();
+            } else {
+                // User not logged in, go to login
+                Log.d(TAG, "Navigating to LoginActivity");
+                Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+                startActivity(intent);
+                finish();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error in checkAuthenticationAndNavigate", e);
+            // Fallback - מעבר ל-LoginActivity במקרה של שגיאה
             Intent intent = new Intent(MainActivity.this, LoginActivity.class);
             startActivity(intent);
             finish();
@@ -72,59 +101,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        Log.d(TAG, "MainActivity destroyed");
         super.onDestroy();
         if (handler != null) {
             handler.removeCallbacksAndMessages(null);
         }
     }
 }
-
-// activity_main.xml layout suggestion:
-/*
-<?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@android:color/white"
-    android:gravity="center">
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center">
-
-        <ImageView
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:src="@drawable/ic_email"
-            android:layout_marginBottom="24dp" />
-
-        <TextView
-            android:id="@+id/tvAppName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Gmail Application"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="16dp" />
-
-        <TextView
-            android:id="@+id/tvLoading"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="טוען..."
-            android:textSize="16sp"
-            android:textColor="@android:color/darker_gray" />
-
-        <ProgressBar
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            style="?android:attr/progressBarStyle" />
-
-    </LinearLayout>
-
-</RelativeLayout>
-*/

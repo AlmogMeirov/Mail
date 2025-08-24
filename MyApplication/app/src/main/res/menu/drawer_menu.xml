@@ -5,17 +5,17 @@
 
         <item
             android:id="@+id/nav_inbox"
-            android:icon="@drawable/ic_inbox"
+            android:icon="@drawable/inbox"
             android:title="דואר נכנס" />
 
         <item
             android:id="@+id/nav_starred"
-            android:icon="@drawable/ic_star"
+            android:icon="@drawable/star"
             android:title="מסומן בכוכב" />
 
         <item
             android:id="@+id/nav_snoozed"
-            android:icon="@drawable/ic_snooze"
+            android:icon="@drawable/snooze"
             android:title="נדחה" />
 
         <item
@@ -25,12 +25,12 @@
 
         <item
             android:id="@+id/nav_sent"
-            android:icon="@drawable/ic_send"
+            android:icon="@drawable/send"
             android:title="נשלח" />
 
         <item
             android:id="@+id/nav_drafts"
-            android:icon="@drawable/ic_drafts"
+            android:icon="@drawable/drafts"
             android:title="טיוטות" />
 
         <item
@@ -40,12 +40,12 @@
 
         <item
             android:id="@+id/nav_spam"
-            android:icon="@drawable/ic_report"
+            android:icon="@drawable/report"
             android:title="ספאם" />
 
         <item
             android:id="@+id/nav_trash"
-            android:icon="@drawable/ic_delete"
+            android:icon="@drawable/delete"
             android:title="פח אשפה" />
 
     </group>
@@ -54,11 +54,11 @@
         <menu>
             <item
                 android:id="@+id/nav_manage_labels"
-                android:icon="@drawable/ic_label"
+                android:icon="@drawable/label"
                 android:title="נהל תוויות" />
             <item
                 android:id="@+id/nav_create_label"
-                android:icon="@drawable/ic_add"
+                android:icon="@drawable/add"
                 android:title="צור תווית חדשה" />
         </menu>
     </item>
@@ -67,11 +67,11 @@
         <menu>
             <item
                 android:id="@+id/nav_settings"
-                android:icon="@drawable/ic_settings"
+                android:icon="@drawable/settings"
                 android:title="הגדרות" />
             <item
                 android:id="@+id/nav_help"
-                android:icon="@drawable/ic_help"
+                android:icon="@drawable/help"
                 android:title="עזרה ומשוב" />
         </menu>
     </item>

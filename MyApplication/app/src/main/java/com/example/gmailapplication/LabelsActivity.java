@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -28,7 +27,7 @@ public class LabelsActivity extends AppCompatActivity implements CreateLabelDial
 
     private RecyclerView recyclerViewLabels;
     private LabelsAdapter labelsAdapter;
-    private TextView tvEmpty;
+    private View emptyState;  // שונה מ-TextView ל-View
     private SwipeRefreshLayout swipeRefreshLayout;
     private FloatingActionButton fabAddLabel;
     private Toolbar toolbar;
@@ -46,13 +45,14 @@ public class LabelsActivity extends AppCompatActivity implements CreateLabelDial
         setupRecyclerView();
         setupSwipeRefresh();
         setupFab();
+        setupSearchAndSettings();
         observeLabels();
     }
 
     private void initViews() {
         toolbar = findViewById(R.id.toolbar);
         recyclerViewLabels = findViewById(R.id.recyclerViewLabels);
-        tvEmpty = findViewById(R.id.tvEmpty);
+        emptyState = findViewById(R.id.emptyState);  // שונה מ-tvEmpty
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
         fabAddLabel = findViewById(R.id.fabAddLabel);
     }
@@ -74,13 +74,11 @@ public class LabelsActivity extends AppCompatActivity implements CreateLabelDial
         labelsAdapter = new LabelsAdapter(new ArrayList<>(), new LabelsAdapter.OnLabelClickListener() {
             @Override
             public void onLabelClick(LabelEntity label) {
-                // פתח מסך מיילים עם התווית הזו
                 openEmailsWithLabel(label);
             }
 
             @Override
             public void onLabelLongClick(LabelEntity label) {
-                // הצג תפריט פעולות (עריכה, מחיקה)
                 showLabelActionsMenu(label);
             }
 
@@ -114,8 +112,30 @@ public class LabelsActivity extends AppCompatActivity implements CreateLabelDial
         fabAddLabel.setOnClickListener(v -> showCreateLabelDialog());
     }
 
+    // הוספת setup לכפתורי החיפוש וההגדרות
+    private void setupSearchAndSettings() {
+        findViewById(R.id.ivSearch).setOnClickListener(v -> {
+            // פונקציונליות חיפוש תוויות
+            showSearchLabelsDialog();
+        });
+
+        findViewById(R.id.ivSettings).setOnClickListener(v -> {
+            // הגדרות תוויות
+            showLabelSettings();
+        });
+    }
+
+    private void showSearchLabelsDialog() {
+        // TODO: מימוש חיפוש תוויות
+        Toast.makeText(this, "חיפוש תוויות ימומש בקרוב", Toast.LENGTH_SHORT).show();
+    }
+
+    private void showLabelSettings() {
+        // TODO: מימוש הגדרות תוויות
+        Toast.makeText(this, "הגדרות תוויות יממושו בקרוב", Toast.LENGTH_SHORT).show();
+    }
+
     private void observeLabels() {
-        // צפייה בכל התוויות
         labelRepository.getAllLabels().observe(this, labels -> {
             if (labels != null) {
                 labelsAdapter.updateLabels(labels);
@@ -123,12 +143,10 @@ public class LabelsActivity extends AppCompatActivity implements CreateLabelDial
             }
         });
 
-        // צפייה בסטטוס טעינה
         labelRepository.isLoading().observe(this, isLoading -> {
             swipeRefreshLayout.setRefreshing(isLoading != null ? isLoading : false);
         });
 
-        // צפייה בשגיאות
         labelRepository.getLastError().observe(this, error -> {
             if (error != null && !error.isEmpty()) {
                 Toast.makeText(this, "שגיאה: " + error, Toast.LENGTH_SHORT).show();
@@ -138,11 +156,11 @@ public class LabelsActivity extends AppCompatActivity implements CreateLabelDial
 
     private void updateEmptyState(boolean isEmpty) {
         if (isEmpty) {
-            tvEmpty.setVisibility(View.VISIBLE);
-            recyclerViewLabels.setVisibility(View.GONE);
+            if (emptyState != null) emptyState.setVisibility(View.VISIBLE);
+            if (recyclerViewLabels != null) recyclerViewLabels.setVisibility(View.GONE);
         } else {
-            tvEmpty.setVisibility(View.GONE);
-            recyclerViewLabels.setVisibility(View.VISIBLE);
+            if (emptyState != null) emptyState.setVisibility(View.GONE);
+            if (recyclerViewLabels != null) recyclerViewLabels.setVisibility(View.VISIBLE);
         }
     }
 
@@ -195,7 +213,6 @@ public class LabelsActivity extends AppCompatActivity implements CreateLabelDial
 
     private void showLabelActionsMenu(LabelEntity label) {
         if (label.isSystemLabel) {
-            // תוויות מערכת - רק צפייה במיילים
             openEmailsWithLabel(label);
             return;
         }
@@ -206,13 +223,13 @@ public class LabelsActivity extends AppCompatActivity implements CreateLabelDial
         String[] actions = {"הצג מיילים", "ערוך תווית", "מחק תווית"};
         builder.setItems(actions, (dialog, which) -> {
             switch (which) {
-                case 0: // הצג מיילים
+                case 0:
                     openEmailsWithLabel(label);
                     break;
-                case 1: // ערוך
+                case 1:
                     editLabel(label);
                     break;
-                case 2: // מחק
+                case 2:
                     deleteLabel(label);
                     break;
             }

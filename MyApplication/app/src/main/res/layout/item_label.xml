@@ -3,18 +3,19 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardCornerRadius="8dp"
-    app:cardElevation="4dp"
+    android:layout_margin="@dimen/card_margin"
+    app:cardCornerRadius="@dimen/card_corner_radius"
+    app:cardElevation="@dimen/card_elevation"
     android:clickable="true"
     android:focusable="true"
-    android:foreground="?android:attr/selectableItemBackground">
+    android:foreground="?android:attr/selectableItemBackground"
+    app:cardBackgroundColor="@color/card_background">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="16dp"
+        android:padding="@dimen/padding_medium"
         android:gravity="center_vertical">
 
         <!-- Color Indicator -->
@@ -22,17 +23,18 @@
             android:id="@+id/colorIndicator"
             android:layout_width="4dp"
             android:layout_height="32dp"
-            android:layout_marginEnd="12dp"
-            android:background="@android:color/holo_blue_bright" />
+            android:layout_marginEnd="@dimen/margin_small"
+            android:background="@color/label_blue" />
 
         <!-- Label Icon -->
         <ImageView
             android:id="@+id/ivLabelIcon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginEnd="12dp"
-            android:src="@android:drawable/ic_menu_manage"
-            android:tint="@android:color/darker_gray" />
+            android:layout_width="@dimen/icon_size_medium"
+            android:layout_height="@dimen/icon_size_medium"
+            android:layout_marginEnd="@dimen/margin_small"
+            android:src="@drawable/label"
+            android:tint="@color/text_secondary_light"
+            android:contentDescription="@string/labels" />
 
         <!-- Label Info -->
         <LinearLayout
@@ -46,32 +48,33 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="שם התווית"
-                android:textSize="16sp"
+                android:textSize="@dimen/text_size_large"
                 android:textStyle="bold"
-                android:textColor="@android:color/black" />
+                android:textColor="@color/text_primary_light" />
 
             <TextView
                 android:id="@+id/tvLabelType"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="תווית אישית"
-                android:textSize="12sp"
-                android:textColor="@android:color/darker_gray" />
+                android:text="@string/personal_label"
+                android:textSize="@dimen/text_size_small"
+                android:textColor="@color/text_secondary_light" />
 
         </LinearLayout>
 
         <!-- Options Button -->
         <ImageView
             android:id="@+id/ivOptions"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@android:drawable/ic_menu_more"
+            android:layout_width="@dimen/icon_size_medium"
+            android:layout_height="@dimen/icon_size_medium"
+            android:src="@drawable/more_vert"
             android:padding="4dp"
             android:clickable="true"
             android:focusable="true"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="אפשרויות" />
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="@color/text_secondary_light"
+            android:contentDescription="@string/more_options" />
 
     </LinearLayout>
 

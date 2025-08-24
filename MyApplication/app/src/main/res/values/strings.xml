@@ -1,5 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">My Application</string>
+    <!-- App Info -->
+    <string name="app_name">Gmail</string>
+    <string name="app_version">גרסה 1.0.0</string>
+
+    <!-- Navigation -->
     <string name="navigation_drawer_open">פתח תפריט ניווט</string>
     <string name="navigation_drawer_close">סגור תפריט ניווט</string>
-</resources>
+    <string name="back">חזור</string>
+    <string name="menu">תפריט</string>
+    <string name="more_options">אפשרויות נוספות</string>
+    <string name="settings">הגדרות</string>
+    <string name="help">עזרה</string>
+    <string name="search">חפש</string>
+
+    <!-- Folders -->
+    <string name="inbox">תיבת דואר נכנס</string>
+    <string name="sent">נשלחו</string>
+    <string name="drafts">טיוטות</string>
+    <string name="trash">פח אשפה</string>
+    <string name="starred">מסומנים בכוכב</string>
+    <string name="all_mail">כל הדואר</string>
+    <string name="spam">דואר זבל</string>
+    <string name="archive">ארכיון</string>
+
+    <!-- Authentication -->
+    <string name="login">התחברות</string>
+    <string name="register">הירשם</string>
+    <string name="logout">התנתק</string>
+    <string name="email">כתובת מייל</string>
+    <string name="password">סיסמה</string>
+    <string name="confirm_password">אישור סיסמה</string>
+    <string name="first_name">שם פרטי</string>
+    <string name="last_name">שם משפחה</string>
+    <string name="phone">מספר טלפון</string>
+    <string name="gender">מין</string>
+    <string name="birth_date">תאריך לידה</string>
+    <string name="forgot_password">שכחת סיסמה?</string>
+    <string name="create_account">צור חשבון</string>
+    <string name="have_account">יש לך חשבון? התחבר כאן</string>
+    <string name="no_account">אין לך חשבון? הירשם כאן</string>
+    <string name="loading">טוען...</string>
+
+    <!-- Main Inbox -->
+    <string name="compose">חבר</string>
+    <string name="search_mail">חיפוש בדואר</string>
+    <string name="refresh">רענן</string>
+    <string name="primary">עיקרי</string>
+    <string name="social">חברתי</string>
+    <string name="promotions">מבצעים</string>
+    <string name="updates">עדכונים</string>
+    <string name="forums">פורומים</string>
+
+    <!-- Email Actions -->
+    <string name="reply">השב</string>
+    <string name="reply_all">השב לכולם</string>
+    <string name="forward">העבר</string>
+    <string name="delete">מחק</string>
+    <string name="mark_read">סמן כנקרא</string>
+    <string name="mark_unread">סמן כלא נקרא</string>
+    <string name="star">כוכב</string>
+    <string name="unstar">הסר כוכב</string>
+    <string name="important">חשוב</string>
+    <string name="not_important">לא חשוב</string>
+    <string name="not_spam">לא דואר זבל</string>
+    <string name="send">שלח</string>
+    <string name="save_draft">שמור כטיוטה</string>
+
+    <!-- General Actions -->
+    <string name="cancel">ביטול</string>
+    <string name="ok">אישור</string>
+    <string name="yes">כן</string>
+    <string name="no">לא</string>
+
+    <!-- Compose Email -->
+    <string name="to">אל</string>
+    <string name="cc">עותק</string>
+    <string name="bcc">עותק מוסתר</string>
+    <string name="subject">נושא</string>
+    <string name="compose_email">כתיבת מייל</string>
+    <string name="write_message">כתוב את ההודעה כאן...</string>
+    <string name="attach_file">קובץ מצורף</string>
+    <string name="send_email">שלח מייל</string>
+    <string name="discard">בטל</string>
+
+    <!-- Labels -->
+    <string name="labels">תוויות</string>
+    <string name="create_label">צור תווית</string>
+    <string name="edit_label">ערוך תווית</string>
+    <string name="delete_label">מחק תווית</string>
+    <string name="label_name">שם התווית</string>
+    <string name="label_color">צבע התווית</string>
+    <string name="choose_color">בחר צבע</string>
+    <string name="selected_color">צבע נבחר</string>
+    <string name="personal_label">תווית אישית</string>
+    <string name="system_label">תווית מערכת</string><!-- Content Descriptions -->
+
+    <!-- Empty State -->
+    <string name="no_emails">No emails</string>
+    <string name="no_emails_description">When you receive emails, they\'ll appear here</string>
+
+
+    <string name="desc_menu">Menu</string>
+    <string name="desc_profile">Profile</string>
+    <string name="desc_compose">Compose email</string>
+
+    <string name="choose_avatar">בחר אווטאר</string>
+
+
+
+    </resources>

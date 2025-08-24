@@ -1,18 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:padding="@dimen/padding_large">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="@dimen/margin_large">
+
+        <ImageView
+            android:layout_width="@dimen/icon_size_medium"
+            android:layout_height="@dimen/icon_size_medium"
+            android:src="@drawable/label"
+            android:tint="@color/button_primary"
+            android:layout_marginEnd="@dimen/margin_small"
+            android:contentDescription="@string/create_label" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/create_label"
+            android:textSize="@dimen/text_size_title"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary_light" />
+
+    </LinearLayout>
 
     <!-- Label Name Input -->
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="שם התווית"
+        android:hint="@string/label_name"
+        android:layout_marginBottom="@dimen/margin_medium"
+        app:startIconDrawable="@drawable/edit"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
-        <EditText
+        <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etLabelName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -28,33 +57,107 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:layout_marginBottom="12dp"
-        android:text="בחר צבע לתווית:"
-        android:textSize="16sp"
+        android:layout_marginBottom="@dimen/margin_small"
+        android:text="@string/choose_color"
+        android:textSize="@dimen/text_size_large"
         android:textStyle="bold"
-        android:textColor="@android:color/black" />
+        android:textColor="@color/text_primary_light" />
 
     <!-- Selected Color Display -->
     <TextView
         android:id="@+id/tvSelectedColor"
         android:layout_width="60dp"
         android:layout_height="30dp"
-        android:layout_marginBottom="12dp"
+        android:layout_marginBottom="@dimen/margin_small"
         android:gravity="center"
-        android:text="צבע נבחר"
+        android:text="@string/selected_color"
         android:textSize="10sp"
-        android:textColor="@android:color/white"
-        android:background="@android:color/holo_blue_bright" />
+        android:textColor="@color/white"
+        android:background="@color/label_blue" />
 
     <!-- Color Grid -->
     <GridLayout
         android:id="@+id/colorGrid"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="@dimen/margin_large"
         android:columnCount="4"
-        android:orientation="horizontal" />
+        android:orientation="horizontal">
+
+        <!-- Color Options -->
+        <View
+            android:id="@+id/colorBlue"
+            android:layout_width="@dimen/color_picker_item_size"
+            android:layout_height="@dimen/color_picker_item_size"
+            android:layout_margin="4dp"
+            android:background="@color/label_blue"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorRed"
+            android:layout_width="@dimen/color_picker_item_size"
+            android:layout_height="@dimen/color_picker_item_size"
+            android:layout_margin="4dp"
+            android:background="@color/label_red"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorGreen"
+            android:layout_width="@dimen/color_picker_item_size"
+            android:layout_height="@dimen/color_picker_item_size"
+            android:layout_margin="4dp"
+            android:background="@color/label_green"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorYellow"
+            android:layout_width="@dimen/color_picker_item_size"
+            android:layout_height="@dimen/color_picker_item_size"
+            android:layout_margin="4dp"
+            android:background="@color/label_yellow"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorOrange"
+            android:layout_width="@dimen/color_picker_item_size"
+            android:layout_height="@dimen/color_picker_item_size"
+            android:layout_margin="4dp"
+            android:background="@color/label_orange"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorPurple"
+            android:layout_width="@dimen/color_picker_item_size"
+            android:layout_height="@dimen/color_picker_item_size"
+            android:layout_margin="4dp"
+            android:background="@color/label_purple"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorPink"
+            android:layout_width="@dimen/color_picker_item_size"
+            android:layout_height="@dimen/color_picker_item_size"
+            android:layout_margin="4dp"
+            android:background="@color/label_pink"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <View
+            android:id="@+id/colorTeal"
+            android:layout_width="@dimen/color_picker_item_size"
+            android:layout_height="@dimen/color_picker_item_size"
+            android:layout_margin="4dp"
+            android:background="@color/label_teal"
+            android:clickable="true"
+            android:focusable="true" />
+
+    </GridLayout>
 
     <!-- Buttons -->
     <LinearLayout
@@ -67,18 +170,18 @@
             android:id="@+id/btnCancel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:text="ביטול"
-            android:textColor="@android:color/darker_gray"
+            android:layout_marginEnd="@dimen/margin_small"
+            android:text="@string/cancel"
+            android:textColor="@color/text_secondary_light"
             style="@style/Widget.MaterialComponents.Button.TextButton" />
 
         <Button
             android:id="@+id/btnCreate"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="צור תווית"
-            android:backgroundTint="@android:color/holo_blue_dark"
-            android:textColor="@android:color/white" />
+            android:text="@string/create_label"
+            android:backgroundTint="@color/button_primary"
+            android:textColor="@color/button_text_primary" />
 
     </LinearLayout>
 

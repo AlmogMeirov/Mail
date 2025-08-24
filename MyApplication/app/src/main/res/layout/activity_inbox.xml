@@ -4,7 +4,7 @@
     android:id="@+id/drawer_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="@color/background_light">
 
     <!-- Main Content -->
     <androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -19,9 +19,10 @@
             <!-- Gmail-style Toolbar -->
             <androidx.appcompat.widget.Toolbar
                 android:id="@+id/toolbar"
+                style="@style/ToolbarStyle"
                 android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                android:background="@android:color/white"
+                android:layout_height="@dimen/toolbar_height"
+                android:background="@color/white"
                 android:elevation="4dp"
                 app:contentInsetStart="0dp">
 
@@ -30,33 +31,25 @@
                     android:layout_height="match_parent"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp">
+                    android:paddingStart="@dimen/padding_medium"
+                    android:paddingEnd="@dimen/padding_medium">
 
                     <!-- Hamburger Menu -->
                     <ImageView
                         android:id="@+id/ivMenu"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@drawable/ic_menu"
-                        android:tint="#5f6368"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:padding="8dp"
-                        android:contentDescription="תפריט" />
+                        style="@style/IconButtonStyle"
+                        android:src="@drawable/menu"
+                        android:tint="@color/text_secondary_light"
+                        android:contentDescription="@string/desc_menu" />
 
                     <!-- Search Bar Container -->
                     <androidx.cardview.widget.CardView
                         android:id="@+id/searchContainer"
+                        style="@style/SearchBarStyle"
                         android:layout_width="0dp"
-                        android:layout_height="40dp"
                         android:layout_weight="1"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="16dp"
-                        app:cardCornerRadius="20dp"
-                        app:cardElevation="1dp"
-                        app:cardBackgroundColor="#f1f3f4"
+                        android:layout_marginStart="@dimen/margin_medium"
+                        android:layout_marginEnd="@dimen/margin_medium"
                         android:clickable="true"
                         android:focusable="true"
                         android:foreground="?attr/selectableItemBackground">
@@ -66,23 +59,23 @@
                             android:layout_height="match_parent"
                             android:orientation="horizontal"
                             android:gravity="center_vertical"
-                            android:paddingStart="16dp"
-                            android:paddingEnd="16dp">
+                            android:paddingStart="@dimen/padding_medium"
+                            android:paddingEnd="@dimen/padding_medium">
 
                             <ImageView
-                                android:layout_width="20dp"
-                                android:layout_height="20dp"
-                                android:src="@android:drawable/ic_menu_search"
-                                android:tint="#5f6368"
-                                android:layout_marginEnd="12dp" />
+                                android:layout_width="@dimen/icon_size_medium"
+                                android:layout_height="@dimen/icon_size_medium"
+                                android:src="@drawable/search"
+                                android:tint="@color/text_secondary_light"
+                                android:layout_marginEnd="@dimen/margin_small" />
 
                             <TextView
+                                style="@style/TextStyle.Body"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="חיפוש בדואר"
-                                android:textSize="16sp"
-                                android:textColor="#5f6368"
+                                android:text="@string/search_mail"
+                                android:textColor="@color/text_secondary_light"
                                 android:singleLine="true" />
 
                         </LinearLayout>
@@ -92,24 +85,22 @@
                     <!-- Profile Icon -->
                     <androidx.cardview.widget.CardView
                         android:id="@+id/profileIcon"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
+                        android:layout_width="@dimen/avatar_size_small"
+                        android:layout_height="@dimen/avatar_size_small"
                         app:cardCornerRadius="16dp"
                         app:cardElevation="0dp"
-                        app:cardBackgroundColor="#ea4335"
+                        app:cardBackgroundColor="@color/avatar_red"
                         android:clickable="true"
                         android:focusable="true"
                         android:foreground="?attr/selectableItemBackgroundBorderless">
 
-                        <TextView
-                            android:id="@+id/tvProfileInitial"
+                        <ImageView
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
-                            android:text="א"
-                            android:textSize="14sp"
-                            android:textColor="@android:color/white"
-                            android:textStyle="bold"
-                            android:gravity="center" />
+                            android:src="@drawable/person"
+                            android:tint="@color/white"
+                            android:padding="6dp"
+                            android:contentDescription="@string/desc_profile" />
 
                     </androidx.cardview.widget.CardView>
 
@@ -120,9 +111,9 @@
             <!-- Gmail-style Tab Layout -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
+                android:layout_height="@dimen/tab_height"
                 android:orientation="horizontal"
-                android:background="@android:color/white"
+                android:background="@color/white"
                 android:elevation="2dp"
                 android:gravity="center_vertical">
 
@@ -139,18 +130,18 @@
                     android:background="?attr/selectableItemBackground">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_inbox"
-                        android:tint="#ea4335"
-                        android:layout_marginEnd="8dp" />
+                        android:layout_width="@dimen/icon_size_medium"
+                        android:layout_height="@dimen/icon_size_medium"
+                        android:src="@drawable/inbox"
+                        android:tint="@color/tab_selected_text"
+                        android:layout_marginEnd="@dimen/margin_small" />
 
                     <TextView
+                        style="@style/TextStyle.Body"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="עיקרי"
-                        android:textSize="14sp"
-                        android:textColor="#ea4335"
+                        android:text="@string/primary"
+                        android:textColor="@color/tab_selected_text"
                         android:textStyle="bold" />
 
                 </LinearLayout>
@@ -168,18 +159,18 @@
                     android:background="?attr/selectableItemBackground">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_people"
-                        android:tint="#5f6368"
-                        android:layout_marginEnd="8dp" />
+                        android:layout_width="@dimen/icon_size_medium"
+                        android:layout_height="@dimen/icon_size_medium"
+                        android:src="@drawable/emoji_people"
+                        android:tint="@color/tab_unselected_text"
+                        android:layout_marginEnd="@dimen/margin_small" />
 
                     <TextView
+                        style="@style/TextStyle.Body"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="חברתי"
-                        android:textSize="14sp"
-                        android:textColor="#5f6368" />
+                        android:text="@string/social"
+                        android:textColor="@color/tab_unselected_text" />
 
                 </LinearLayout>
 
@@ -196,18 +187,18 @@
                     android:background="?attr/selectableItemBackground">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
-                        android:src="@drawable/ic_local_offer"
-                        android:tint="#5f6368"
-                        android:layout_marginEnd="8dp" />
+                        android:layout_width="@dimen/icon_size_medium"
+                        android:layout_height="@dimen/icon_size_medium"
+                        android:src="@drawable/label"
+                        android:tint="@color/tab_unselected_text"
+                        android:layout_marginEnd="@dimen/margin_small" />
 
                     <TextView
+                        style="@style/TextStyle.Body"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="מבצעים"
-                        android:textSize="14sp"
-                        android:textColor="#5f6368" />
+                        android:text="@string/promotions"
+                        android:textColor="@color/tab_unselected_text" />
 
                 </LinearLayout>
 
@@ -231,40 +222,37 @@
                         android:layout_height="match_parent"
                         android:clipToPadding="false"
                         android:paddingBottom="80dp"
-                        android:background="#f8f9fa" />
+                        android:background="@color/background_light" />
 
                     <!-- Empty State -->
                     <LinearLayout
                         android:id="@+id/emptyState"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:orientation="vertical"
-                        android:gravity="center"
+                        style="@style/EmptyStateStyle"
                         android:visibility="gone">
 
                         <ImageView
                             android:layout_width="120dp"
                             android:layout_height="120dp"
-                            android:src="@drawable/ic_inbox_empty"
-                            android:tint="#5f6368"
+                            android:src="@drawable/inbox"
+                            android:tint="@color/text_secondary_light"
                             android:alpha="0.6" />
 
                         <TextView
+                            style="@style/TextStyle.Title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="24dp"
-                            android:text="אין הודעות בתיבת הדואר"
-                            android:textSize="16sp"
-                            android:textColor="#5f6368"
+                            android:layout_marginTop="@dimen/margin_large"
+                            android:text="@string/no_emails"
+                            android:textColor="@color/text_secondary_light"
                             android:gravity="center" />
 
                         <TextView
+                            style="@style/TextStyle.Body"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="כשתקבל הודעות חדשות, הן יופיעו כאן"
-                            android:textSize="14sp"
-                            android:textColor="#80868b"
+                            android:layout_marginTop="@dimen/margin_small"
+                            android:text="@string/no_emails_description"
+                            android:textColor="@color/text_hint_light"
                             android:gravity="center" />
 
                     </LinearLayout>
@@ -278,21 +266,23 @@
         <!-- Gmail-style FAB -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabCompose"
+            style="@style/FabStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
-            android:layout_margin="16dp"
-            android:src="@drawable/ic_edit"
-            app:backgroundTint="@android:color/white"
-            app:tint="#ea4335"
+            android:src="@drawable/edit"
+            app:backgroundTint="@color/white"
+            app:tint="@color/gmail_red"
             app:elevation="6dp"
-            app:borderWidth="0dp" />
+            app:borderWidth="0dp"
+            android:contentDescription="@string/desc_compose" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <!-- Navigation Drawer -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/nav_view"
+        style="@style/NavigationViewStyle"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_gravity="start"

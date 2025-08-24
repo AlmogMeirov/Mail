@@ -9,6 +9,7 @@ import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -26,7 +27,8 @@ public class LoginActivity extends AppCompatActivity {
     private TextInputLayout tilEmail, tilPassword;
     private TextInputEditText etEmail, etPassword;
     private Button btnLogin;
-    private TextView tvResult, tvRegisterLink, tvForgotPassword;
+    private TextView tvResult;
+    private LinearLayout llRegister, llForgotPassword;  // שינוי לLinearLayout
 
     private LoginViewModel viewModel;
 
@@ -60,8 +62,8 @@ public class LoginActivity extends AppCompatActivity {
 
         btnLogin = findViewById(R.id.btnLogin);
         tvResult = findViewById(R.id.tvResult);
-        tvRegisterLink = findViewById(R.id.tvRegisterLink);
-        tvForgotPassword = findViewById(R.id.tvForgotPassword);
+        llRegister = findViewById(R.id.llRegister);  // שינוי לLinearLayout
+        llForgotPassword = findViewById(R.id.llForgotPassword);  // הוספה
     }
 
     // --- Wire text fields to ViewModel ---
@@ -90,16 +92,17 @@ public class LoginActivity extends AppCompatActivity {
 
     // --- Wire links ---
     private void wireLinks() {
-        // Register link
-        tvRegisterLink.setText("אין לך חשבון? הירשם כאן");
-        tvRegisterLink.setOnClickListener(v -> {
+        // Register link - עכשיו זה LinearLayout
+        llRegister.setOnClickListener(v -> {
             Intent intent = new Intent(LoginActivity.this, RegisterActivity.class);
             startActivity(intent);
         });
 
         // Forgot password link
-        tvForgotPassword.setText("שכחת סיסמה?");
-        tvForgotPassword.setOnClickListener(v -> viewModel.requestPasswordReset());
+        llForgotPassword.setOnClickListener(v -> {
+            // TODO: implement forgot password functionality
+            showToast("פונקציונליות שחזור סיסמה תמומש בקרוב");
+        });
     }
 
     // --- Handle intent data from registration ---
@@ -124,6 +127,7 @@ public class LoginActivity extends AppCompatActivity {
             btnLogin.setEnabled(!isLoading);
             if (isLoading) {
                 tvResult.setText("מתחבר...");
+                tvResult.setVisibility(View.VISIBLE);
             }
         });
 
@@ -139,6 +143,7 @@ public class LoginActivity extends AppCompatActivity {
             if (!TextUtils.isEmpty(error)) {
                 tvResult.setText(error);
                 tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+                tvResult.setVisibility(View.VISIBLE);
             }
         });
 
@@ -146,6 +151,7 @@ public class LoginActivity extends AppCompatActivity {
             if (!TextUtils.isEmpty(success)) {
                 tvResult.setText(success);
                 tvResult.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
+                tvResult.setVisibility(View.VISIBLE);
             }
         });
 
@@ -210,12 +216,27 @@ public class LoginActivity extends AppCompatActivity {
 
     // --- Check if user is already logged in ---
     public static boolean isUserLoggedIn(android.content.Context context) {
-        android.content.SharedPreferences prefs = context.getSharedPreferences("user_prefs", MODE_PRIVATE);
-        boolean isLoggedIn = prefs.getBoolean("is_logged_in", false);
-        long expiresAt = prefs.getLong("token_expires_at", 0);
+        try {
+            android.content.SharedPreferences prefs = context.getSharedPreferences("user_prefs", MODE_PRIVATE);
+            boolean isLoggedIn = prefs.getBoolean("is_logged_in", false);
+            long expiresAt = prefs.getLong("token_expires_at", 0);
 
-        // Check if token is still valid
-        return isLoggedIn && System.currentTimeMillis() < expiresAt;
+            // Debug logs
+            android.util.Log.d("LoginActivity", "is_logged_in: " + isLoggedIn);
+            android.util.Log.d("LoginActivity", "token_expires_at: " + expiresAt);
+            android.util.Log.d("LoginActivity", "current_time: " + System.currentTimeMillis());
+
+            // Check if token is still valid
+            boolean tokenValid = System.currentTimeMillis() < expiresAt;
+            boolean result = isLoggedIn && tokenValid;
+
+            android.util.Log.d("LoginActivity", "Final result: " + result);
+            return result;
+
+        } catch (Exception e) {
+            android.util.Log.e("LoginActivity", "Error checking login status", e);
+            return false;
+        }
     }
 
     // --- Clear login data (for logout) ---
