@@ -32,17 +32,11 @@ body { overflow: hidden; } /* Added by Meir for scrolling */
 }
 
 @keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
-/* Add in exercises 4 - styles for the app layout*/
+/* Layout styles */
 .app-layout {
   display: flex;
   flex-direction: row;
@@ -59,21 +53,21 @@ body { overflow: hidden; } /* Added by Meir for scrolling */
 
 .main-content {
   flex-grow: 1;
-  padding: 0; /* Changed by Meir for scrolling */
-  display: flex; /* changed by Meir for scrolling */
-  flex-direction: column; /* Added by Meir for scrolling */
+  padding: 0; /* scroll adjustment */
+  display: flex; /* scroll adjustment */
+  flex-direction: column; /* scroll adjustment */
   background-color: #fff;
-  overflow: hidden; /* Changed by Meir for scrolling */
+  overflow: hidden; /* scroll adjustment */
 }
 
-.route-scroll { /* Added by Meir for scrolling */
+.route-scroll { /* scrollable content */
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;         /* scrollable content */
-  padding: 1.5rem;        /* padding from parent*/
+  overflow: auto;
+  padding: 1.5rem;
 }
 
-/*  Add in exercises 4 - styles for the sidebar links */
+/* Sidebar link styles */
 .sidebar a {
   display: block;
   padding: 10px 12px;
@@ -90,7 +84,7 @@ body { overflow: hidden; } /* Added by Meir for scrolling */
   color: #174ea6;
 }
 
-/*  Add in exercises 4 - styles for the mail list */
+/* Mail list */
 .mail-list {
   list-style: none;
   padding: 0;
@@ -113,7 +107,7 @@ body { overflow: hidden; } /* Added by Meir for scrolling */
   margin-bottom: 4px;
 }
 
-/*  Add in exercises 4 - styles for the mail view */
+/* Mail view */
 .mail-view {
   padding: 1rem;
 }
@@ -194,5 +188,74 @@ body { overflow: hidden; } /* Added by Meir for scrolling */
 
 .move-button:hover { 
   background-color: #d2e3fc;
+}
 
+/* =========================
+   Dark Mode (scoped only)
+   ========================= */
+:root[data-theme="dark"] .main-content {
+  background: var(--bg, #0f1115);
+}
+
+:root[data-theme="dark"] .route-scroll {
+  color: var(--text, #e7e7ea);
+}
+
+:root[data-theme="dark"] .mail-item {
+  background: var(--surface, #1a1d22);
+  border-bottom-color: var(--border, #2a2f36);
+  color: var(--text, #e7e7ea);
+}
+
+:root[data-theme="dark"] .mail-item:hover {
+  background: var(--hover, #242a31);
+}
+
+:root[data-theme="dark"] .mail-meta,
+:root[data-theme="dark"] .mail-preview {
+  color: var(--muted, #9aa0a6);
+}
+
+/* MailViewPage card in dark mode */
+:root[data-theme="dark"] .card {
+  background: var(--surface, #1a1d22);
+  border: 1px solid var(--border, #2a2f36);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+/* Labels chip in dark mode */
+:root[data-theme="dark"] .label-chip {
+  display: inline-block;
+  background: var(--hover, #242a31);
+  color: var(--text, #e7e7ea);
+  border: 1px solid var(--border, #2a2f36);
+  padding: 2px 10px;
+  border-radius: 14px;
+  margin-right: 6px;
+}
+
+/* Light defaults for list items - FIXED: הסרת הרקע הלבן שגרם לבעיה */
+.mail-item.is-draft { background: #fff7e6; }
+
+/* ---- Dark mode overrides ---- */
+:root[data-theme="dark"] .mail-item {
+  background: var(--surface, #1a1d22);
+  border-bottom-color: var(--border, #2a2f36);
+  color: var(--text, #e7e7ea);
+}
+
+:root[data-theme="dark"] .mail-item:hover {
+  background: var(--hover, #242a31);
+}
+
+:root[data-theme="dark"] .mail-item.is-draft {
+  /* same dark surface, with a subtle draft marker */
+  background: var(--surface, #1a1d22);
+  border-left: 3px solid #f4c27a;
+}
+
+:root[data-theme="dark"] .mail-meta,
+:root[data-theme="dark"] .mail-preview {
+  color: var(--muted, #9aa0a6);
 }

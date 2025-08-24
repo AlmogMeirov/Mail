@@ -1,8 +1,14 @@
+/* src/pages/Sidebar.css */
+
+/* Dark Mode note:
+   Replaced hard-coded colors with CSS variables (defined in App.css) so the sidebar
+   adapts automatically when [data-theme="dark"] is set. Layout unchanged. */
+
 .sidebar {
   width: 220px;
-  background-color: #f1f3f4;
+  background-color: var(--sidebar-bg); /* Dark Mode: token */
   padding: 20px;
-  border-right: 1px solid #ccc;
+  border-right: 1px solid var(--border); /* Dark Mode: token */
   height: 100vh;  /* added by Meir - Independent scrolling */
   overflow: auto; /* added by Meir - Independent scrolling */
 }
@@ -10,6 +16,7 @@
 .sidebar h2 {
   font-size: 1.4rem;
   margin-bottom: 1rem;
+  color: var(--text); /* Dark Mode: token */
 }
 
 .sidebar ul {
@@ -24,7 +31,7 @@
 
 .sidebar a {
   text-decoration: none;
-  color: #202124;
+  color: var(--text); /* Dark Mode: token */
   font-weight: 500;
   display: block;
   padding: 6px 8px;
@@ -32,19 +39,19 @@
 }
 
 .sidebar a:hover {
-  background-color: #e8f0fe;
+  background-color: var(--hover); /* Dark Mode: token */
 }
 
 .sidebar a.active {
   font-weight: bold;
-  color: #1a73e8;
-  background-color: #d2e3fc;
+  color: var(--accent);            /* Dark Mode: token */
+  background-color: var(--accent-weak); /* Dark Mode: token */
 }
 
 .new-label-form {
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid #ccc;
+  border-top: 1px solid var(--border); /* Dark Mode: token */
 }
 
 .new-label-form input {
@@ -52,14 +59,16 @@
   padding: 6px 10px;
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
-  border: 1px solid #bbb;
+  border: 1px solid var(--input-border); /* Dark Mode: token */
   border-radius: 4px;
+  background: var(--input-bg);           /* Dark Mode: token */
+  color: var(--text);                    /* Dark Mode: token */
 }
 
 .new-label-form button {
   width: 100%;
-  background-color: #1a73e8;
-  color: white;
+  background-color: var(--accent); /* Dark Mode: token */
+  color: var(--on-accent);         /* Dark Mode: token */
   border: none;
   padding: 6px 10px;
   font-size: 0.9rem;
@@ -68,13 +77,13 @@
 }
 
 .new-label-form button:hover {
-  background-color: #1669c1;
+  filter: brightness(1.05); /* Dark Mode: consistent hover without hard-coded color */
 }
 
 .new-mail button {
   width: 100%;
-  background-color: #1a73e8;
-  color: white;
+  background-color: var(--accent); /* Dark Mode: token */
+  color: var(--on-accent);         /* Dark Mode: token */
   border: none;
   padding: 6px 10px;
   font-size: 1rem;
@@ -84,7 +93,7 @@
 }
 
 .new-mail button:hover {
-  background-color: #1669c1;
+  filter: brightness(1.05); /* Dark Mode: consistent hover without hard-coded color */
 }
 
 .new-mail button::before {
@@ -99,7 +108,6 @@
   position: relative;
   top: 0.05em;
 }
-
 
 .label-row {
   display: flex;
@@ -129,12 +137,12 @@
   top: 100%;
   right: 0;
   margin-top: 4px;
-  background: #fff;
-  border: 1px solid #ddd;
+  background: var(--surface);     /* Dark Mode: token */
+  border: 1px solid var(--border);/* Dark Mode: token */
   border-radius: 8px;
   min-width: 150px;
   z-index: 1000;
-  box-shadow: 0 8px 20px rgba(0,0,0,.08);
+  box-shadow: var(--shadow);      /* Dark Mode: token */
   opacity: 0;
   transform: scaleY(.96);
   transform-origin: top right;
@@ -156,11 +164,11 @@
   padding: 8px 12px;
   cursor: pointer;
   font-size: .9rem;
-  color: #202124;
+  color: var(--text); /* Dark Mode: token */
 }
 
 .label-menu button:hover {
-  background: #f5f7fb;
+  background: var(--hover); /* Dark Mode: token */
 }
 
 .label-row > a {
@@ -168,6 +176,7 @@
   margin-inline-end: .25rem;
 }
 
+/* Keep duplicated block for layout tweaks (only colors replaced above) */
 .new-label-form {
   display: grid;
   gap: .5rem;
@@ -177,7 +186,7 @@
 .new-label-form input {
   width: 100%;
   height: 36px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--input-border); /* Dark Mode: token */
   border-radius: 8px;
   padding: 0 .6rem;
 }
@@ -186,9 +195,8 @@
   height: 38px;
   border: 0;
   border-radius: 8px;
-  background: #1a73e8;
-  color: #fff;
+  background: var(--accent); /* Dark Mode: token */
+  color: var(--on-accent);   /* Dark Mode: token */
   font-weight: 600;
   cursor: pointer;
 }
-

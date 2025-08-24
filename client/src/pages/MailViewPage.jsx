@@ -39,79 +39,77 @@ function MailViewPage() {
   if (!mail) return <Loading label="Loading mail…" />;
 
   return (
-  <div style={{ padding: "1rem" }}>
-    <h1>
-        {mail.subject === null || mail.subject === undefined
-            ? <em>(no subject)</em>
-            : mail.subject}
-    </h1>
+    <div style={{ padding: "1rem" }}>
+      {/* Wrap the message in a “card” so background becomes gray in dark mode */}
+      <div className="card mail-view"> {/* Added for Dark Mode: card container */}
+        <h1 style={{ marginTop: 0 }}>
+          {mail.subject === null || mail.subject === undefined ? (
+            <em>(no subject)</em>
+          ) : (
+            mail.subject
+          )}
+        </h1>
 
-    <div style={{ display: "flex", alignItems: "center", marginBottom: "1rem" }}>
-      <img
-        src={
-            mail.sender?.profileImage?.startsWith("data:image")
-            ? mail.sender.profileImage 
-            : mail.sender?.profileImage || "/user-svgrepo-com.svg"
-        }
-        alt="Sender avatar"
-        style={{
-            width: 50,
-            height: 50,
-            borderRadius: "50%",
-            marginRight: "1rem"
-        }}
-    />
-      <div>
-         <strong>From:</strong>{" "}
-          {mail.sender?.firstName} {mail.sender?.lastName} ({mail.sender?.email})<br />
-
-          <strong>To:</strong>{" "}
-          <span>
-            {Array.isArray(mail.recipients)
-            ? mail.recipients
-                .map(r => `${r.firstName || ""} ${r.lastName || ""} (${r.email})`)
-                .join(", ")
-            : `${mail.recipient?.firstName || ""} ${mail.recipient?.lastName || ""} (${mail.recipient?.email})`}<br />
-          </span>
-          
-          <strong>Date:</strong> {new Date(mail.timestamp).toLocaleString()}
-        </div>
-      </div>
-
-
-      {/* Add in exercises 4 - Display labels associated with this mail */}
-      {labels.length > 0 && (
-        <div style={{ marginBottom: "1rem" }}>
-          <strong>Labels:</strong>{" "}
-          {labels.map((label) => (
-            <span
-              key={label.id}
-              style={{
-                backgroundColor: "#e0e0e0",
-                padding: "2px 6px",
-                borderRadius: "4px",
-                marginRight: "5px",
-                fontSize: "0.85rem",
-              }}
-            >
-              {label.name}
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "1rem" }}>
+          <img
+            src={
+              mail.sender?.profileImage?.startsWith("data:image")
+                ? mail.sender.profileImage
+                : mail.sender?.profileImage || "/user-svgrepo-com.svg"
+            }
+            alt="Sender avatar"
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: "50%",
+              marginRight: "1rem",
+              border: "1px solid var(--border)" /* Added for Dark Mode: token border */,
+            }}
+          />
+          <div>
+            <strong>From:</strong>{" "}
+            {mail.sender?.firstName} {mail.sender?.lastName} ({mail.sender?.email})<br />
+            <strong>To:</strong>{" "}
+            <span>
+              {Array.isArray(mail.recipients)
+                ? mail.recipients
+                    .map((r) => `${r.firstName || ""} ${r.lastName || ""} (${r.email})`)
+                    .join(", ")
+                : `${mail.recipient?.firstName || ""} ${mail.recipient?.lastName || ""} (${mail.recipient?.email})`}
+              <br />
             </span>
-          ))}
+            <strong>Date:</strong> {new Date(mail.timestamp).toLocaleString()}
+          </div>
         </div>
-      )}
 
-      <div style={{ whiteSpace: "pre-wrap", marginBottom: "1rem" }}>
-        {mail.content === null || mail.content === undefined
-          ? <em>(no content)</em>
-          : mail.content}
+        {/* Labels */}
+        {labels.length > 0 && (
+          <div style={{ marginBottom: "1rem" }}>
+            <strong>Labels:</strong>{" "}
+            {labels.map((label) => (
+              <span key={label.id} className="label-chip"> {/* Added for Dark Mode: tokenized chip */}
+                {label.name}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div style={{ whiteSpace: "pre-wrap", marginBottom: "1rem" }}>
+          {mail.content === null || mail.content === undefined ? (
+            <em>(no content)</em>
+          ) : (
+            mail.content
+          )}
+        </div>
+
+        <div style={{ display: "flex", gap: "1rem" }}>
+          <button onClick={() => setShowReply(true)}>Reply</button>
+          <button onClick={() => setShowReplyAll(true)}>Reply All</button>
+          <button onClick={() => setShowForward(true)}>Forward</button>
+        </div>
       </div>
 
-      <div style={{ display: "flex", gap: "1rem" }}>
-        <button onClick={() => setShowReply(true)}>Reply</button>
-        <button onClick={() => setShowReplyAll(true)}>Reply All</button>
-        <button onClick={() => setShowForward(true)}>Forward</button>
-      </div>
-
+      {/* Reply modal */}
       {showReply && (
         <>
           <div
@@ -122,7 +120,7 @@ function MailViewPage() {
               width: "100vw",
               height: "100vh",
               backgroundColor: "rgba(0, 0, 0, 0.5)",
-              zIndex: 998
+              zIndex: 998,
             }}
             onClick={() => setShowReply(false)}
           />
@@ -137,6 +135,7 @@ function MailViewPage() {
         </>
       )}
 
+      {/* Reply-all modal */}
       {showReplyAll && (
         <>
           <div
@@ -147,22 +146,20 @@ function MailViewPage() {
               width: "100vw",
               height: "100vh",
               backgroundColor: "rgba(0, 0, 0, 0.5)",
-              zIndex: 998
+              zIndex: 998,
             }}
             onClick={() => setShowReplyAll(false)}
           />
           <SendMailComponent
             onClose={() => setShowReplyAll(false)}
-            initialRecipient={
-              [
-                mail.sender?.email,
-                ...mail.recipients
-                  .filter(r => r.email && r.email !== localStorage.getItem("email"))
-                  .map(r => r.email)
-              ]
-                .filter(email => email && email !== localStorage.getItem("email"))
-                .join(", ")
-            }
+            initialRecipient={[
+              mail.sender?.email,
+              ...mail.recipients
+                .filter((r) => r.email && r.email !== localStorage.getItem("email"))
+                .map((r) => r.email),
+            ]
+              .filter((email) => email && email !== localStorage.getItem("email"))
+              .join(", ")}
             initialSubject={
               mail.subject?.startsWith("Re:") ? mail.subject : `Re: ${mail.subject}`
             }
@@ -171,6 +168,7 @@ function MailViewPage() {
         </>
       )}
 
+      {/* Forward modal */}
       {showForward && (
         <>
           <div
@@ -181,7 +179,7 @@ function MailViewPage() {
               width: "100vw",
               height: "100vh",
               backgroundColor: "rgba(0, 0, 0, 0.5)",
-              zIndex: 998
+              zIndex: 998,
             }}
             onClick={() => setShowForward(false)}
           />
@@ -191,7 +189,9 @@ function MailViewPage() {
             initialSubject={
               mail.subject?.startsWith("Fwd:") ? mail.subject : `Fwd: ${mail.subject}`
             }
-            initialContent={`\n\n--- Forwarded Message ---\nFrom: ${mail.sender?.email}\nTo: ${mail.recipient?.email}\nDate: ${new Date(mail.timestamp).toLocaleString()}\n\n${mail.content}`}
+            initialContent={`\n\n--- Forwarded Message ---\nFrom: ${mail.sender?.email}\nTo: ${mail.recipient?.email}\nDate: ${new Date(
+              mail.timestamp
+            ).toLocaleString()}\n\n${mail.content}`}
           />
         </>
       )}

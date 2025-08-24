@@ -12,6 +12,16 @@ export default function Topbar() {
 
     const [user, setUser] = useState(null);
 
+    // --- Dark Mode state start ---
+    const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "light"); // Added for Dark Mode: keep current theme in state
+    useEffect(() => {
+        // Added for Dark Mode: reflect theme to <html data-theme> and persist
+        document.documentElement.setAttribute("data-theme", theme);
+        localStorage.setItem("theme", theme);
+    }, [theme]); // Added for Dark Mode
+    const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light")); // Added for Dark Mode: toggle handler
+    // --- Dark Mode state end ---
+
     const token = localStorage.getItem("token");
 
     useEffect(() => {
@@ -38,7 +48,6 @@ export default function Topbar() {
 
     const handleKeyDown = (e) => {
         if (e.key === "Enter" && query.trim()) {
-        //setSearchQuery(query.trim().toLowerCase());
         const q = query.trim().toLowerCase();
         setSearchQuery(q);
         navigate(`/search?q=${encodeURIComponent(q)}`);
@@ -59,6 +68,16 @@ export default function Topbar() {
         </div>
 
         <div className="topbar-right">
+            {/* Added for Dark Mode: theme toggle button in top bar */}
+            <button
+              className="theme-toggle" // Added for Dark Mode: styled in Topbar.css using CSS variables
+              onClick={toggleTheme}     // Added for Dark Mode
+              title={theme === "light" ? "Enable dark theme" : "Disable dark theme"} // Added for Dark Mode
+              aria-label="Toggle theme" // Added for Dark Mode
+            >
+              {theme === "light" ? "🌙" : "☀️" /* Added for Dark Mode: simple Gmail-like icon */ }
+            </button>
+
             <span className="user-name">
             {user?.firstName} {user?.lastName}
             </span>

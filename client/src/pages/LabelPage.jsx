@@ -32,77 +32,6 @@ const LabelPage = () => {
 
   // ---------- helpers ----------
   const normalize = (text) => (text || "").toString().trim().toLowerCase();
-  /*<<<<<<< MAIL-333-Ensure-Real-Backend-Communication
-  
-    const getDraftLabelId = (labelsList) => {
-      const drafts = (labelsList || []).find(
-        (l) => (l.name || "").toLowerCase() === "drafts"
-      );
-      return drafts ? drafts.id : null;
-    };
-  
-    const hasNameDraft = (labelsOrNames) => {
-      // detect 'drafts' string among names
-      if (!Array.isArray(labelsOrNames)) return false;
-      return labelsOrNames.some(
-        (x) => typeof x === "string" && normalize(x) === "drafts"
-      );
-    };
-  
-    const includesId = (arr, id) =>
-      Array.isArray(arr) && id != null ? arr.includes(id) : false;
-  
-    const isDraftMailRobust = (mail) => {
-      // 1) explicit boolean from server
-      if (mail?.isDraft === true) return true;
-  
-      // 2) labels on the mail object itself (could be ids or names)
-      if (Array.isArray(mail?.labels)) {
-        if (draftLabelId && includesId(mail.labels, draftLabelId)) return true;
-        if (hasNameDraft(mail.labels)) return true;
-      }
-  
-      // 3) labels we fetched per mail id (ids only)
-      const idsForMail = currentMailLabels[mail?.id] || [];
-      if (draftLabelId && includesId(idsForMail, draftLabelId)) return true;
-  
-      // 4) current page is drafts label (extra safety)
-      if (normalize(labelName) === "drafts" || normalize(labelId) === "drafts")
-        return true;
-  
-      return false;
-    };
-  
-    const safeOpenMail = (mail) => {
-      // If labels are not ready yet AND server didn't mark isDraft=true,
-      // avoid accidental opening – wait until labelsReady.
-      if (!labelsReady && mail?.isDraft !== true) {
-        // You can show a toast here if you want.
-        return;
-      }
-  
-      if (isDraftMailRobust(mail)) {
-        navigate(`/draft/${mail.id}`);
-        return;
-      }
-      navigate(`/mail/${mail.id}`);
-    };
-  
-    // ---------- effects ----------
-    useEffect(() => {
-      setSearchQuery("");
-      if (!token) return;
-  
-      // compute display name for label
-      if (labelId === "inbox" || labelId === "sent") {
-        setLabelName(labelId);
-      } else {
-        fetchWithAuth(`/labels/${labelId}`, token)
-          .then((data) => setLabelName(data?.name || labelId))
-          .catch(() => setLabelName(labelId));
-      }
-  
-  =======*/
 
   const getDraftLabelId = (labelsList) => {
     const drafts = (labelsList || []).find(
@@ -575,6 +504,7 @@ const LabelPage = () => {
             return (
               <li
                 key={mail.id}
+                className={`mail-item ${draft ? 'is-draft' : ''}`}
                 // do not attach onClick for drafts to avoid accidental navigation
                 onClick={draft ? undefined : () => safeOpenMail(mail)}
                 style={{
@@ -583,7 +513,7 @@ const LabelPage = () => {
                   padding: "1rem",
                   marginBottom: "1rem",
                   borderRadius: "8px",
-                  backgroundColor: draft ? "#fff7e6" : "#f9f9f9",
+                  // הסרתי את backgroundColor כדי שה-CSS יקבע את הצבע
                 }}
               >
                 <strong>From:</strong>{" "}

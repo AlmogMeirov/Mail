@@ -1,7 +1,11 @@
 import { useState } from "react";
 
-export default function SendMailComponent({ onClose, initialRecipient = "", initialSubject = "", initialContent = "" }) {
-
+export default function SendMailComponent({
+  onClose,
+  initialRecipient = "",
+  initialSubject = "",
+  initialContent = "",
+}) {
   const [recipient, setRecipient] = useState(initialRecipient);
   const [subject, setSubject] = useState(initialSubject);
   const [content, setContent] = useState(initialContent);
@@ -26,8 +30,8 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
           recipients: recipientsArray,
           subject,
           content,
-          isDraft: true,       
-          labels: ["drafts"],   
+          isDraft: true,
+          labels: ["drafts"],
         }),
       });
 
@@ -46,7 +50,7 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
 
   const handleSend = async () => {
     const token = localStorage.getItem("token");
-    const sender = localStorage.getItem("email"); // Assuming email is stored in localStorage
+    const sender = localStorage.getItem("email");
 
     if (!recipient) {
       alert("Recipient is required.");
@@ -55,10 +59,10 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
 
     const recipientsArray = recipient
       .split(",")
-      .map(email => email.trim())
-      .filter(email => email.length > 0);
+      .map((email) => email.trim())
+      .filter((email) => email.length > 0);
 
-    const isValidEmail = email => /\S+@\S+\.\S+/.test(email);
+    const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email);
 
     if (!recipientsArray.every(isValidEmail)) {
       alert("One or more recipient emails are invalid.");
@@ -68,10 +72,12 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
     if (!subject || !content) {
       const confirmSend = window.confirm(
         "Your email is missing a " +
-        (!subject && !content ? "subject and content" :
-          !subject ? "subject" :
-            "content") +
-        ". Do you want to send it anyway?"
+          (!subject && !content
+            ? "subject and content"
+            : !subject
+            ? "subject"
+            : "content") +
+          ". Do you want to send it anyway?"
       );
       if (!confirmSend) return;
     }
@@ -80,14 +86,14 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         recipients: recipientsArray,
         subject,
         content,
-        sender
-      })
+        sender,
+      }),
     });
 
     if (res.ok) {
@@ -100,20 +106,50 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
   };
 
   return (
-    <div style={{
-      position: "fixed", top: "20%", left: "50%", transform: "translateX(-50%)",
-      backgroundColor: "white", padding: "1rem", border: "1px solid gray", zIndex: 1000
-    }}>
-      <h3>Send Mail</h3>
-      <input placeholder="To" value={recipient} onChange={e => setRecipient(e.target.value)} /><br />
-      <input placeholder="Subject" value={subject} onChange={e => setSubject(e.target.value)} /><br />
-      <textarea placeholder="Message" value={content} onChange={e => setContent(e.target.value)} /><br />
-      <button onClick={handleSend}>Send</button>
-      <button onClick={onClose}>Cancel</button>
-      <button type="button" onClick={handleSaveDraft}>שמור כטיוטה</button>
+    <div
+      className="card" /* Added for Dark Mode: use card background (gray in dark) */
+      style={{
+        position: "fixed",
+        top: "20%",
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 1000,
+        /* Removed hard-coded white/gray and replaced by tokens via .card */
+        maxWidth: 520,
+        width: "90%",
+      }}
+    >
+      <h3 style={{ marginTop: 0, color: "var(--text)" /* Added for Dark Mode */ }}>
+        Send Mail
+      </h3>
 
-    </div >
+      <input
+        placeholder="To"
+        value={recipient}
+        onChange={(e) => setRecipient(e.target.value)}
+        style={{ width: "100%", marginBottom: 8 }}
+      />
+      <input
+        placeholder="Subject"
+        value={subject}
+        onChange={(e) => setSubject(e.target.value)}
+        style={{ width: "100%", marginBottom: 8 }}
+      />
+      <textarea
+        placeholder="Message"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        rows={6}
+        style={{ width: "100%", marginBottom: 10, resize: "vertical" }}
+      />
+
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-start" }}>
+        <button onClick={handleSend}>Send</button>
+        <button onClick={onClose}>Cancel</button>
+        <button type="button" onClick={handleSaveDraft}>
+          שמור כטיוטה
+        </button>
+      </div>
+    </div>
   );
-
 }
-
