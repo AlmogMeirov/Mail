@@ -1,0 +1,66 @@
+<resources>
+    <!-- Standard Margins and Paddings -->
+    <dimen name="margin_small">8dp</dimen>
+    <dimen name="margin_medium">16dp</dimen>
+    <dimen name="margin_large">24dp</dimen>
+    <dimen name="margin_xlarge">32dp</dimen>
+
+    <dimen name="padding_small">8dp</dimen>
+    <dimen name="padding_medium">16dp</dimen>
+    <dimen name="padding_large">24dp</dimen>
+    <dimen name="padding_xlarge">32dp</dimen>
+
+    <!-- Text Sizes -->
+    <dimen name="text_size_small">12sp</dimen>
+    <dimen name="text_size_medium">14sp</dimen>
+    <dimen name="text_size_large">16sp</dimen>
+    <dimen name="text_size_xlarge">18sp</dimen>
+    <dimen name="text_size_title">20sp</dimen>
+    <dimen name="text_size_headline">24sp</dimen>
+    <dimen name="text_size_display">28sp</dimen>
+
+    <!-- Component Sizes -->
+    <dimen name="button_height">48dp</dimen>
+    <dimen name="button_height_large">56dp</dimen>
+    <dimen name="toolbar_height">56dp</dimen>
+    <dimen name="fab_size">56dp</dimen>
+    <dimen name="fab_margin">16dp</dimen>
+
+    <!-- Email List Item -->
+    <dimen name="email_item_height">80dp</dimen>
+    <dimen name="avatar_size_small">32dp</dimen>
+    <dimen name="avatar_size_medium">40dp</dimen>
+    <dimen name="avatar_size_large">48dp</dimen>
+
+    <!-- Icons -->
+    <dimen name="icon_size_small">16dp</dimen>
+    <dimen name="icon_size_medium">24dp</dimen>
+    <dimen name="icon_size_large">32dp</dimen>
+    <dimen name="icon_size_xlarge">48dp</dimen>
+
+    <!-- Cards and Elevation -->
+    <dimen name="card_corner_radius">8dp</dimen>
+    <dimen name="card_elevation">4dp</dimen>
+    <dimen name="card_margin">8dp</dimen>
+
+    <!-- Search Bar -->
+    <dimen name="search_bar_height">40dp</dimen>
+    <dimen name="search_bar_corner_radius">20dp</dimen>
+
+    <!-- Navigation Drawer -->
+    <dimen name="nav_header_height">176dp</dimen>
+    <dimen name="nav_item_height">48dp</dimen>
+
+    <!-- Tab Layout -->
+    <dimen name="tab_height">48dp</dimen>
+    <dimen name="tab_indicator_height">2dp</dimen>
+
+    <!-- Label Color Picker -->
+    <dimen name="color_picker_item_size">40dp</dimen>
+    <dimen name="color_picker_selected_size">48dp</dimen>
+
+    <!-- Input Fields -->
+    <dimen name="input_field_min_height">48dp</dimen>
+    <dimen name="input_field_margin">8dp</dimen>
+
+</resources>
