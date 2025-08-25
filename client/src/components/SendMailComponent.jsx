@@ -76,7 +76,7 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
       if (!confirmSend) return;
     }
 
-    const res = await fetch("http://localhost:3000/api/mails", {
+    const res = await fetch("/api/mails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
