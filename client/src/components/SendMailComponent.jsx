@@ -86,7 +86,8 @@ export default function SendMailComponent({ onClose, initialRecipient = "", init
         recipients: recipientsArray,
         subject,
         content,
-        sender
+        sender,
+        isDraft: false
       })
     });
 

@@ -12,7 +12,7 @@ const { addUrlToBlacklist } = require("../utils/blacklistClient"); // Added by M
 // mailController.js
 const createMail = async (req, res) => {
     let { labels = ["inbox"] } = req.body; // changed by Meir in exercise 4 from "const { labels = ["inbox"] } = req.body;"
-    const { sender, recipient, recipients, subject, content } = req.body;
+    const { sender, recipient, recipients, subject, content, isDraft } = req.body; // Added isDraft by Meir in exercise 4 to support saving drafts
     const groupId = uuidv4();
 
     // ----- build recipients list (back-compat) -----
@@ -42,8 +42,37 @@ const createMail = async (req, res) => {
             return res.status(400).json({ error: `Recipient does not exist: ${r}` });
         }
     }
+    /**************************************************************
+    Added by Meir in exercise 4 to allow drafts with no recipients
+    ***************************************************************/
+     // ----- Handle drafts BEFORE blacklist check -----
+    if (isDraft) {
+        // For drafts, just save to sender's inbox with draft labels
+        const mail = {
+            id: uuidv4(),
+            sender,
+            recipient: recipientsList[0] || "", // Keep first recipient for compatibility
+            recipients: recipientsList,
+            subject,
+            content,
+            labels,
+            groupId,
+            timestamp: new Date().toISOString(),
+            isDraft: true // Explicitly mark as draft
+        };
+        
+        // Add draft to sender's inbox only
+        inboxMap.get(sender).push(mail);
+        
+        // Assign labels to the mail
+        labels.forEach(labelId => {
+            labelModel.addLabelToMail(sender, mail.id, labelId);
+        });
 
-    // ----- blacklist check (once for whole message) -----
+        return res.status(201).json({ message: "Draft saved successfully", draft: mail });
+    }
+
+    // ----- blacklist check (once for whole message and only for actual sending, not drafts) -----
     let finalLabels = labels;
     try {
         const urls = extractUrls(`${subject} ${content}`);
