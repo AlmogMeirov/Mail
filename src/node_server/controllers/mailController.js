@@ -82,12 +82,33 @@ const createMail = async (req, res) => {
             console.log("Message contains blacklisted URL, marking as spam");
             const spamLabelMap = new Map(); // key: recipient, value: spam label id
             for (const r of recipientsList) {
-                let spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
-                if (!spamLabel) {
-                    spamLabel = labelModel.addLabel(r, "Spam");
+            let spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
+            if (!spamLabel) { // Edited by Meir to create the Spam label if it doesn't exist
+                try {
+                    spamLabel = labelModel.createLabel(r, "Spam"); 
+                } catch (err) {
+                    // If creation failed because label already exists, find it again
+                    if (err.message && err.message.includes("already exists")) {
+                        spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
+                        if (!spamLabel) {
+                            // If still not found, something is wrong - log and skip this recipient
+                            console.error(`Critical error: Spam label creation failed and label not found for user ${r}`);
+                            continue;
+                        }
+                    } else {
+                        // Different error, re-throw
+                        throw err;
+                    }
                 }
-                spamLabelMap.set(r, spamLabel.id);
             }
+            spamLabelMap.set(r, spamLabel.id);
+        }
+        
+        // Only proceed if we have spam labels for all recipients
+        if (spamLabelMap.size !== recipientsList.length) {
+            console.error("Failed to create spam labels for all recipients, aborting spam processing");
+            return res.status(500).json({ error: "Failed to process spam labeling" });
+        }
             const sent = [];
             for (const r of recipientsList) {
                 const mail = {
