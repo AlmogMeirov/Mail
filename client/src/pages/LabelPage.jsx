@@ -148,50 +148,118 @@ const LabelPage = () => {
     const wanted = String(name || "").trim().toLowerCase();
     if (!wanted) throw new Error("Invalid label name");
 
-    // 1) try to find in the loaded list
+    // 1) First, try to refresh the full list of labels
+    try {
+      const labelsRes = await fetch("/api/labels", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (labelsRes.ok) {
+        const freshLabels = await labelsRes.json();
+        setAllLabels(freshLabels);
+
+        // Check if the label already exists in the fresh list
+        const found = freshLabels.find(
+          (l) => (l.name || "").toLowerCase() === wanted
+        );
+        if (found) return found.id;
+      }
+    } catch (refreshErr) {
+      console.warn("Failed to refresh labels:", refreshErr);
+      // If refresh failed, fall back to local list
+    }
+
+    // 2) Check local list as backup
     const exists = (allLabels || []).find(
       (l) => (l.name || "").toLowerCase() === wanted
     );
     if (exists) return exists.id;
 
-    // 2) try to create once (backend must allow creating labels)
-    const res = await fetch("/api/labels", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name: wanted }),
-    });
+    // 3) Only now try to create the label
+    try {
+      const res = await fetch("/api/labels", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: wanted }),
+      });
 
-    if (!res.ok) {
-      // read error body (json or text) for real diagnostics
-      let msg = `Failed to create label '${wanted}' (${res.status})`;
+      if (res.ok) {
+        const created = await res.json();
+        setAllLabels((prev) => [...prev, created]);
+        return created.id;
+      }
+
+      // If creation failed, check if it's because "already exists"
+      let errorMsg = `Failed to create label '${wanted}' (${res.status})`;
       try {
-        const ct = res.headers.get("content-type") || "";
-        if (ct.includes("application/json")) {
-          const j = await res.json();
-          if (j?.error) msg = j.error;
-        } else {
-          const t = await res.text();
-          if (t) msg = t;
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const errorData = await res.json();
+          if (errorData?.error) {
+            errorMsg = errorData.error;
+            // If label already exists, refresh again and try to find it
+            if (errorData.error.includes("already exists")) {
+              try {
+                const retryRes = await fetch("/api/labels", {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                if (retryRes.ok) {
+                  const retryLabels = await retryRes.json();
+                  setAllLabels(retryLabels);
+                  const foundAfterRetry = retryLabels.find(
+                    (l) => (l.name || "").toLowerCase() === wanted
+                  );
+                  if (foundAfterRetry) return foundAfterRetry.id;
+                }
+              } catch (retryErr) {
+                console.warn("Retry after 'already exists' failed:", retryErr);
+              }
+            }
+          }
         }
-      } catch { }
-      throw new Error(msg);
-    }
+      } catch (parseErr) {
+        console.warn("Failed to parse error response:", parseErr);
+      }
 
-    const created = await res.json();
-    setAllLabels((prev) => [...prev, created]); // keep client cache in sync
-    return created.id;
+      throw new Error(errorMsg);
+      
+    } catch (createErr) {
+      console.error("Error in ensureLabelIdByName:", createErr);
+      throw createErr;
+    }
   };
 
   // Resolve a system label name ('trash'/'spam'/'drafts') to a real numeric labelId
   const resolveSystemLabelId = async (nameLower) => {
     const nm = String(nameLower || "").toLowerCase();
+
+    // Always refresh before system labels
+    try {
+      const labelsRes = await fetch("/api/labels", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (labelsRes.ok) {
+        const freshLabels = await labelsRes.json();
+        setAllLabels(freshLabels);
+        
+        const found = freshLabels.find(
+          (l) => (l.name || "").toLowerCase() === nm
+        );
+        if (found) return found.id;
+      }
+    } catch (refreshErr) {
+      console.warn("Failed to refresh labels in resolveSystemLabelId:", refreshErr);
+    }
+
+    // Backup - check local list
     const found = (allLabels || []).find(
       (l) => (l.name || "").toLowerCase() === nm
     );
     if (found) return found.id;
+    
+    // Only now try to create the label
     return await ensureLabelIdByName(nm);
   };
 
