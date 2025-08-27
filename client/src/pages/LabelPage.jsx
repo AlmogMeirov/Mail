@@ -1,4 +1,4 @@
-// LabelPage.jsx - Enhanced with Starred functionality
+// LabelPage.jsx - Simple mail selection with checkmarks only
 
 import { FaTrash, FaArchive, FaTag, FaStar, FaRegStar } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
@@ -18,12 +18,12 @@ const LabelPage = () => {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
 
-  // Read status tracking - with proper refresh mechanism
+  // Read status tracking
   const [readMails, setReadMails] = useState(new Set());
 
   // Label detection helpers
   const [draftLabelId, setDraftLabelId] = useState(null);
-  const [starredLabelId, setStarredLabelId] = useState(null); // Add starred label ID
+  const [starredLabelId, setStarredLabelId] = useState(null);
   const [labelsReady, setLabelsReady] = useState(false);
 
   // Mail management state
@@ -31,23 +31,22 @@ const LabelPage = () => {
   const [openLabelManagement, setOpenLabelManagement] = useState({});
   const [pendingLabelChanges, setPendingLabelChanges] = useState({});
   
-  // Gmail-style selection state
+  // SIMPLE: Just selected mails - no complex state
   const [selectedMails, setSelectedMails] = useState(new Set());
-  const [selectAll, setSelectAll] = useState(false);
+  const [isBulkOperationInProgress, setIsBulkOperationInProgress] = useState(false);
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  // Enhanced localStorage management with event listeners
+  // Load read mails from localStorage
   useEffect(() => {
-    // Load read mails from localStorage
     const loadReadMails = () => {
       const stored = localStorage.getItem('readMails');
       if (stored) {
         try {
           const readArray = JSON.parse(stored);
           setReadMails(new Set(readArray));
-          console.log('Loaded/Updated read mails:', readArray);
+          console.log('Loaded read mails:', readArray);
         } catch (e) {
           console.error('Error loading read mails:', e);
           setReadMails(new Set());
@@ -55,61 +54,34 @@ const LabelPage = () => {
       }
     };
 
-    // Initial load
     loadReadMails();
 
-    // Listen for storage changes (works across tabs)
     const handleStorageChange = (e) => {
       if (e.key === 'readMails') {
-        console.log('Storage changed, refreshing read mails');
         loadReadMails();
       }
     };
 
-    // Listen for focus events (when user returns to this tab)
-    const handleFocus = () => {
-      console.log('Page focused, refreshing read mails');
-      loadReadMails();
-    };
-
-    // Custom event for same-page updates
     const handleReadMailUpdate = () => {
-      console.log('Custom read mail event, refreshing');
       loadReadMails();
-    };
-
-    // Listen for page visibility changes
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('Page visible, refreshing read mails');
-        loadReadMails();
-      }
     };
 
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('focus', handleFocus);
     window.addEventListener('readMailsUpdated', handleReadMailUpdate);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('focus', handleFocus);
       window.removeEventListener('readMailsUpdated', handleReadMailUpdate);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
-  // Mark mail as read with event dispatch
+  // Mark mail as read
   const markAsRead = (mailId) => {
     setReadMails(prev => {
       const newSet = new Set([...prev, mailId]);
       const newArray = Array.from(newSet);
       localStorage.setItem('readMails', JSON.stringify(newArray));
-      
-      // Dispatch custom event to notify other components
       window.dispatchEvent(new CustomEvent('readMailsUpdated'));
-      console.log(`Marked mail ${mailId} as read`);
-      
       return newSet;
     });
   };
@@ -124,7 +96,6 @@ const LabelPage = () => {
     return drafts ? drafts.id : null;
   };
 
-  // Get starred label ID from labels list
   const getStarredLabelId = (labelsList) => {
     const starred = (labelsList || []).find(
       (l) => (l.name || "").toLowerCase() === "starred"
@@ -171,6 +142,12 @@ const LabelPage = () => {
     );
     if (exists) return exists.id;
 
+    // Only create system labels automatically, not custom ones
+    const systemLabels = ['inbox', 'sent', 'trash', 'spam', 'drafts', 'starred'];
+    if (!systemLabels.includes(wanted)) {
+      throw new Error(`Label '${wanted}' does not exist`);
+    }
+
     const res = await fetch("/api/labels", {
       method: "POST",
       headers: {
@@ -206,16 +183,27 @@ const LabelPage = () => {
       (l) => (l.name || "").toLowerCase() === nm
     );
     if (found) return found.id;
-    return await ensureLabelIdByName(nm);
+    
+    // Only resolve system labels, don't create random ones
+    const systemLabels = ['inbox', 'sent', 'trash', 'spam', 'drafts', 'starred'];
+    if (systemLabels.includes(nm)) {
+      return await ensureLabelIdByName(nm);
+    }
+    
+    // If it's a custom label ID (UUID format), just return it
+    if (nameLower && nameLower.includes('-')) {
+      return nameLower;
+    }
+    
+    throw new Error(`Label '${nameLower}' not found`);
   };
 
-  // Enhanced safeOpenMail - mark as read when opening
+  // Open mail and mark as read
   const safeOpenMail = (mail) => {
     if (!labelsReady && mail?.isDraft !== true) {
       return;
     }
     
-    // Mark as read when opening
     markAsRead(mail.id);
     
     if (isDraftMailRobust(mail)) {
@@ -225,9 +213,10 @@ const LabelPage = () => {
     navigate(`/mail/${mail.id}`);
   };
 
-  // Toggle starred status for a mail
+  // Toggle starred status
   const toggleStarred = async (mailId, event) => {
-    event.stopPropagation(); // Prevent opening the mail
+    event.preventDefault();
+    event.stopPropagation();
     
     if (!starredLabelId || !mailId) {
       console.warn('Cannot toggle starred: missing starredLabelId or mailId');
@@ -239,8 +228,7 @@ const LabelPage = () => {
       const isCurrentlyStarred = currentLabels.includes(starredLabelId);
 
       if (isCurrentlyStarred) {
-        // Remove from starred
-        await fetch("/api/labels/untag", {
+        const response = await fetch("/api/labels/untag", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -249,14 +237,14 @@ const LabelPage = () => {
           body: JSON.stringify({ mailId, labelId: starredLabelId }),
         });
 
-        // Update local state
-        setCurrentMailLabels(prev => ({
-          ...prev,
-          [mailId]: currentLabels.filter(id => id !== starredLabelId)
-        }));
+        if (response.ok) {
+          setCurrentMailLabels(prev => ({
+            ...prev,
+            [mailId]: currentLabels.filter(id => id !== starredLabelId)
+          }));
+        }
       } else {
-        // Add to starred
-        await fetch("/api/labels/tag", {
+        const response = await fetch("/api/labels/tag", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -265,40 +253,151 @@ const LabelPage = () => {
           body: JSON.stringify({ mailId, labelId: starredLabelId }),
         });
 
-        // Update local state
-        setCurrentMailLabels(prev => ({
-          ...prev,
-          [mailId]: [...currentLabels, starredLabelId]
-        }));
+        if (response.ok) {
+          setCurrentMailLabels(prev => ({
+            ...prev,
+            [mailId]: [...currentLabels, starredLabelId]
+          }));
+        }
       }
-
-      console.log(`Toggled starred status for mail ${mailId}`);
     } catch (error) {
       console.error('Error toggling starred status:', error);
-      alert('Failed to update starred status');
     }
   };
 
-  // Gmail-style selection functions
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedMails(new Set());
-    } else {
-      setSelectedMails(new Set(filteredMails.map(mail => mail.id)));
-    }
-    setSelectAll(!selectAll);
-  };
-
-  const handleSelectMail = (mailId, event) => {
+  // SIMPLE SELECTION FUNCTIONS
+  const toggleMailSelection = (mailId, event) => {
+    event.preventDefault();
     event.stopPropagation();
-    const newSelected = new Set(selectedMails);
-    if (newSelected.has(mailId)) {
-      newSelected.delete(mailId);
+    
+    setSelectedMails(prev => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(mailId)) {
+        newSelected.delete(mailId);
+      } else {
+        newSelected.add(mailId);
+      }
+      return newSelected;
+    });
+  };
+
+  const toggleSelectAll = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const visibleMailIds = filteredMails.map(mail => mail.id);
+    const allVisibleSelected = visibleMailIds.every(id => selectedMails.has(id));
+    
+    if (allVisibleSelected) {
+      // Deselect all visible
+      setSelectedMails(prev => {
+        const newSelected = new Set(prev);
+        visibleMailIds.forEach(id => newSelected.delete(id));
+        return newSelected;
+      });
     } else {
-      newSelected.add(mailId);
+      // Select all visible
+      setSelectedMails(prev => {
+        const newSelected = new Set(prev);
+        visibleMailIds.forEach(id => newSelected.add(id));
+        return newSelected;
+      });
     }
-    setSelectedMails(newSelected);
-    setSelectAll(newSelected.size === filteredMails.length);
+  };
+
+  const areAllVisibleSelected = () => {
+    if (filteredMails.length === 0) return false;
+    return filteredMails.every(mail => selectedMails.has(mail.id));
+  };
+
+  // Bulk move to trash
+  const moveSelectedMailsToTrash = async () => {
+    if (selectedMails.size === 0) return;
+
+    setIsBulkOperationInProgress(true);
+
+    try {
+      const trashId = await ensureLabelIdByName("trash");
+      const selectedMailIds = Array.from(selectedMails);
+
+      const results = await Promise.allSettled(
+        selectedMailIds.map(async (mailId) => {
+          try {
+            const res = await fetch(`/api/labels/mail/${mailId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            
+            const currentLabels = res.ok ? await res.json() : [];
+            const safeCurrent = Array.isArray(currentLabels) ? currentLabels : [];
+
+            await Promise.all(
+              safeCurrent.map((lblId) =>
+                fetch(`/api/labels/untag`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ mailId, labelId: lblId }),
+                })
+              )
+            );
+
+            const tagRes = await fetch(`/api/labels/tag`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ mailId, labelId: trashId }),
+            });
+
+            if (!tagRes.ok) {
+              throw new Error(`Failed to tag mail ${mailId} with trash`);
+            }
+
+            return { mailId, success: true };
+          } catch (error) {
+            console.error(`Error moving mail ${mailId} to trash:`, error);
+            return { mailId, success: false, error: error.message };
+          }
+        })
+      );
+
+      const successful = results.filter(r => r.status === 'fulfilled' && r.value.success);
+      const successfulMailIds = successful.map(r => r.value.mailId);
+      
+      setMails(prev => prev.filter(m => !successfulMailIds.includes(m.id)));
+      
+      setCurrentMailLabels(prev => {
+        const updated = { ...prev };
+        successfulMailIds.forEach(mailId => {
+          updated[mailId] = [trashId];
+        });
+        return updated;
+      });
+
+      setSelectedMails(new Set());
+
+    } catch (error) {
+      console.error("Error in bulk trash operation:", error);
+    } finally {
+      setIsBulkOperationInProgress(false);
+    }
+  };
+
+  // Handle mail item click
+  const handleMailItemClick = (mail, event) => {
+    if (
+      event.target.closest('.gmail-mail-star') ||
+      event.target.closest('.gmail-mail-actions') ||
+      event.target.closest('.gmail-mail-checkbox') ||
+      event.target.closest('.gmail-label-management-popup')
+    ) {
+      return;
+    }
+    
+    safeOpenMail(mail);
   };
 
   // Format date like Gmail
@@ -319,7 +418,7 @@ const LabelPage = () => {
     }
   };
 
-  // Get mail labels for display (excluding starred from visual chips)
+  // Get mail labels for display
   const getMailLabels = (mail) => {
     const labelIds = currentMailLabels[mail?.id] || [];
     return labelIds.map(id => {
@@ -327,11 +426,11 @@ const LabelPage = () => {
       return label || { id, name: `Label ${id}` };
     }).filter(label => 
       label.name.toLowerCase() !== 'inbox' && 
-      label.name.toLowerCase() !== 'starred' // Don't show starred as a chip
+      label.name.toLowerCase() !== 'starred'
     );
   };
 
-  // Update pending label changes when management opens
+  // Update pending label changes
   useEffect(() => {
     const updates = {};
     let needUpdate = false;
@@ -449,7 +548,7 @@ const LabelPage = () => {
     }
   };
 
-  // Handle deleted drafts from navigation state
+  // Handle deleted drafts
   useEffect(() => {
     const deletedId = location.state?.justDeletedId;
     if (!deletedId) return;
@@ -466,7 +565,14 @@ const LabelPage = () => {
 
   // Main data loading effect
   useEffect(() => {
+    setMails([]);
+    setCurrentMailLabels({});
+    setSelectedMails(new Set());
+    setOpenLabelManagement({});
+    setPendingLabelChanges({});
+    setError("");
     setSearchQuery("");
+    
     if (!token) return;
 
     const sysNames = new Set(["inbox", "sent", "trash", "spam", "drafts", "starred"]);
@@ -488,15 +594,7 @@ const LabelPage = () => {
           });
           const data = await response.json();
 
-          const list =
-            labelId === "inbox"
-              ? Array.isArray(data?.inbox)
-                ? data.inbox
-                : []
-              : Array.isArray(data?.sent)
-                ? data.sent
-                : [];
-
+          const list = labelId === "inbox" ? (data?.inbox || []) : (data?.sent || []);
           const prelim = list.filter(
             (m) => m?.isDraft !== true && !hasNameDraft(m?.labels || [])
           );
@@ -527,76 +625,126 @@ const LabelPage = () => {
               final.push(mail);
             }
           }
-
           validMails = final;
 
         } else if (String(labelId).toLowerCase() === "starred") {
           // Handle starred label specially
-          const starredId = await resolveSystemLabelId("starred");
-          const ids = await fetchWithAuth(`/labels/by-label/${starredId}`, token);
-          if (Array.isArray(ids) && ids.length > 0) {
-            const full = await Promise.all(
-              ids.map(async (id) => {
-                try {
-                  return await fetchWithAuth(`/mails/${id}`, token);
-                } catch {
-                  return null;
-                }
-              })
-            );
-            validMails = full.filter(Boolean);
-          } else {
+          try {
+            const starredId = await resolveSystemLabelId("starred");
+            const ids = await fetchWithAuth(`/labels/by-label/${starredId}`, token);
+            if (Array.isArray(ids) && ids.length > 0) {
+              const full = await Promise.all(
+                ids.map(async (id) => {
+                  try {
+                    return await fetchWithAuth(`/mails/${id}`, token);
+                  } catch (err) {
+                    console.warn(`Failed to fetch mail ${id}:`, err);
+                    return null;
+                  }
+                })
+              );
+              validMails = full.filter(Boolean);
+            } else {
+              validMails = [];
+            }
+          } catch (err) {
+            console.error("Error fetching starred mails:", err);
             validMails = [];
           }
+
         } else if (String(labelId).toLowerCase() === "trash") {
-          const trashId = await resolveSystemLabelId("trash");
-          const ids = await fetchWithAuth(`/labels/by-label/${trashId}`, token);
-          if (Array.isArray(ids) && ids.length > 0) {
-            const full = await Promise.all(
-              ids.map(async (id) => {
-                try {
-                  return await fetchWithAuth(`/mails/${id}`, token);
-                } catch {
-                  return null;
-                }
-              })
-            );
-            validMails = full.filter(Boolean);
-          } else {
+          try {
+            const trashId = await resolveSystemLabelId("trash");
+            const ids = await fetchWithAuth(`/labels/by-label/${trashId}`, token);
+            if (Array.isArray(ids) && ids.length > 0) {
+              const full = await Promise.all(
+                ids.map(async (id) => {
+                  try {
+                    return await fetchWithAuth(`/mails/${id}`, token);
+                  } catch (err) {
+                    console.warn(`Failed to fetch mail ${id}:`, err);
+                    return null;
+                  }
+                })
+              );
+              validMails = full.filter(Boolean);
+            } else {
+              validMails = [];
+            }
+          } catch (err) {
+            console.error("Error fetching trash mails:", err);
             validMails = [];
           }
+
         } else if (String(labelId).toLowerCase() === "spam") {
-          const spamId = await resolveSystemLabelId("spam");
-          const ids = await fetchWithAuth(`/labels/by-label/${spamId}`, token);
-          if (Array.isArray(ids) && ids.length > 0) {
-            const full = await Promise.all(
-              ids.map(async (id) => {
-                try {
-                  return await fetchWithAuth(`/mails/${id}`, token);
-                } catch {
-                  return null;
-                }
-              })
-            );
-            validMails = full.filter(Boolean);
-          } else {
+          try {
+            const spamId = await resolveSystemLabelId("spam");
+            const ids = await fetchWithAuth(`/labels/by-label/${spamId}`, token);
+            if (Array.isArray(ids) && ids.length > 0) {
+              const full = await Promise.all(
+                ids.map(async (id) => {
+                  try {
+                    return await fetchWithAuth(`/mails/${id}`, token);
+                  } catch (err) {
+                    console.warn(`Failed to fetch mail ${id}:`, err);
+                    return null;
+                  }
+                })
+              );
+              validMails = full.filter(Boolean);
+            } else {
+              validMails = [];
+            }
+          } catch (err) {
+            console.error("Error fetching spam mails:", err);
             validMails = [];
           }
+
+        } else if (String(labelId).toLowerCase() === "drafts") {
+          try {
+            const draftsId = await resolveSystemLabelId("drafts");
+            const ids = await fetchWithAuth(`/labels/by-label/${draftsId}`, token);
+            if (Array.isArray(ids) && ids.length > 0) {
+              const full = await Promise.all(
+                ids.map(async (id) => {
+                  try {
+                    return await fetchWithAuth(`/mails/${id}`, token);
+                  } catch (err) {
+                    console.warn(`Failed to fetch mail ${id}:`, err);
+                    return null;
+                  }
+                })
+              );
+              validMails = full.filter(Boolean);
+            } else {
+              validMails = [];
+            }
+          } catch (err) {
+            console.error("Error fetching drafts mails:", err);
+            validMails = [];
+          }
+
         } else {
-          const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
-          if (Array.isArray(ids) && ids.length > 0) {
-            const full = await Promise.all(
-              ids.map(async (id) => {
-                try {
-                  return await fetchWithAuth(`/mails/${id}`, token);
-                } catch (err) {
-                  console.warn(`Failed to fetch mail ${id}:`, err);
-                  return null;
-                }
-              })
-            );
-            validMails = full.filter(Boolean);
-          } else {
+          // Handle custom user labels
+          try {
+            const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
+            if (Array.isArray(ids) && ids.length > 0) {
+              const full = await Promise.all(
+                ids.map(async (id) => {
+                  try {
+                    return await fetchWithAuth(`/mails/${id}`, token);
+                  } catch (err) {
+                    console.warn(`Failed to fetch mail ${id}:`, err);
+                    return null;
+                  }
+                })
+              );
+              validMails = full.filter(Boolean);
+            } else {
+              validMails = [];
+            }
+          } catch (err) {
+            console.error("Error fetching label mails:", err);
             validMails = [];
           }
         }
@@ -609,14 +757,9 @@ const LabelPage = () => {
             const res = await fetch(`/api/labels/mail/${mail.id}`, {
               headers: { Authorization: `Bearer ${token}` },
             });
-            if (!res.ok) {
-              mailLabelsMap[mail.id] = [];
-              continue;
-            }
-            const labels = await res.json();
+            const labels = res.ok ? await res.json() : [];
             mailLabelsMap[mail.id] = Array.isArray(labels) ? labels : [];
           } catch (err) {
-            console.warn(`Failed to fetch labels for mail ${mail.id}:`, err);
             mailLabelsMap[mail.id] = [];
           }
         }
@@ -628,6 +771,7 @@ const LabelPage = () => {
     };
     
     setLoading(true);
+    setError("");
     fetchMails().finally(() => setLoading(false));
 
     fetchWithAuth("/labels", token)
@@ -635,13 +779,11 @@ const LabelPage = () => {
         setAllLabels(list);
         setDraftLabelId(getDraftLabelId(list));
         
-        // Ensure starred label exists and get its ID
         const existingStarred = getStarredLabelId(list);
         if (existingStarred) {
           setStarredLabelId(existingStarred);
           setLabelsReady(true);
         } else {
-          // Create starred label if it doesn't exist
           ensureLabelIdByName("starred")
             .then((id) => {
               setStarredLabelId(id);
@@ -662,21 +804,12 @@ const LabelPage = () => {
   // Filter mails based on search query
   const filteredMails = mails.filter((mail) => {
     const search = normalize(searchQuery);
+    if (search === "") return true;
 
-    const sender =
-      typeof mail.sender === "string"
-        ? normalize(mail.sender)
-        : normalize(mail.sender?.email || "");
-
-    const recipient =
-      typeof mail.recipient === "string"
-        ? normalize(mail.recipient)
-        : normalize(mail.recipient?.email || "");
-
+    const sender = typeof mail.sender === "string" ? normalize(mail.sender) : normalize(mail.sender?.email || "");
+    const recipient = typeof mail.recipient === "string" ? normalize(mail.recipient) : normalize(mail.recipient?.email || "");
     const subject = normalize(mail.subject);
     const content = normalize(mail.content);
-
-    if (search === "") return true;
 
     return (
       subject.includes(search) ||
@@ -686,18 +819,6 @@ const LabelPage = () => {
     );
   });
 
-  // Debug logging
-  console.log('Read mails debug:', {
-    readMailsCount: readMails.size,
-    totalMails: filteredMails.length,
-    sampleReadStatus: filteredMails.slice(0, 3).map(m => ({
-      id: m.id,
-      subject: m.subject?.slice(0, 20),
-      isRead: readMails.has(m.id)
-    }))
-  });
-
-  // Render the component
   return (
     <div className="gmail-main-area">
       {loading ? (
@@ -706,16 +827,56 @@ const LabelPage = () => {
         <p style={{ color: "red", padding: "1rem" }}>{error}</p>
       ) : (
         <>
-          {/* Gmail-style toolbar */}
+          {/* Toolbar with simple checkmark selection */}
           <div className="gmail-toolbar">
             <div className="gmail-toolbar-left">
               <div className="gmail-checkbox-all">
-                <input
-                  type="checkbox"
-                  checked={selectAll}
-                  onChange={handleSelectAll}
-                />
+                <div 
+                  onClick={toggleSelectAll}
+                  title={areAllVisibleSelected() ? "Deselect all" : "Select all"}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    border: '2px solid #dadce0',
+                    borderRadius: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    backgroundColor: areAllVisibleSelected() ? '#1a73e8' : 'transparent',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {areAllVisibleSelected() ? '✓' : ''}
+                </div>
               </div>
+              
+              {selectedMails.size > 0 && (labelName || "").toLowerCase() !== "trash" && (
+                <button 
+                  onClick={moveSelectedMailsToTrash}
+                  disabled={isBulkOperationInProgress}
+                  style={{
+                    marginLeft: '12px',
+                    padding: '8px 12px',
+                    background: isBulkOperationInProgress ? '#ccc' : '#d93025',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: isBulkOperationInProgress ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <FaTrash />
+                  {isBulkOperationInProgress ? 'Moving...' : `Move to Trash (${selectedMails.size})`}
+                </button>
+              )}
+              
               <button className="gmail-refresh-btn" onClick={() => window.location.reload()}>
                 ↻
               </button>
@@ -727,6 +888,7 @@ const LabelPage = () => {
                     ? `1-${Math.min(50, filteredMails.length)} of ${filteredMails.length}`
                     : "No mails"
                   }
+                  {selectedMails.size > 0 && ` (${selectedMails.size} selected)`}
                 </span>
                 <button disabled>‹</button>
                 <button disabled>›</button>
@@ -734,7 +896,7 @@ const LabelPage = () => {
             </div>
           </div>
 
-          {/* Mail list container */}
+          {/* Mail list */}
           <div className="gmail-mail-list-container">
             {filteredMails.length === 0 ? (
               <div className="gmail-no-mails">
@@ -749,6 +911,7 @@ const LabelPage = () => {
                   const isRead = readMails.has(mail.id);
                   const isStarred = isMailStarred(mail);
                   const mailLabels = getMailLabels(mail);
+                  
                   const senderInfo = (() => {
                     const sender = mail.sender || mail.otherParty;
                     if (!sender) return "(unknown)";
@@ -759,38 +922,64 @@ const LabelPage = () => {
                   return (
                     <div
                       key={mail.id}
-                      className={`gmail-mail-item ${draft ? 'is-draft' : ''} ${isSelected ? 'selected' : ''} ${isRead ? 'read' : 'unread'}`}
+                      className={`gmail-mail-item ${draft ? 'is-draft' : ''} ${isSelected ? 'selected' : ''} ${isRead ? 'read' : 'unread'} ${isStarred ? 'starred' : ''}`}
                       style={{
-                        backgroundColor: isRead ? '#f2f6fc !important' : '#ffffff !important',
-                        fontWeight: isRead ? 'normal !important' : 'bold !important'
+                        backgroundColor: isSelected 
+                          ? 'var(--accent-weak, #fce8e6)' 
+                          : isRead 
+                            ? 'var(--surface, #f2f6fc)' 
+                            : '#ffffff',
+                        fontWeight: isRead ? 'normal' : 'bold',
+                        borderLeft: isSelected ? '3px solid var(--accent, #1a73e8)' : 'none'
                       }}
                     >
                       <div 
                         className="gmail-mail-item-content"
-                        onClick={() => safeOpenMail(mail)}
+                        onClick={(e) => handleMailItemClick(mail, e)}
+                        style={{ cursor: 'pointer' }}
                       >
-                        {/* Checkbox */}
+                        {/* Simple checkmark */}
                         <div className="gmail-mail-checkbox">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => handleSelectMail(mail.id, e)}
-                          />
+                          <div 
+                            onClick={(e) => toggleMailSelection(mail.id, e)}
+                            title={isSelected ? `Deselect mail from ${senderInfo}` : `Select mail from ${senderInfo}`}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              border: '2px solid #dadce0',
+                              borderRadius: '2px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              backgroundColor: isSelected ? '#1a73e8' : 'transparent',
+                              color: 'white',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            {isSelected ? '✓' : ''}
+                          </div>
                         </div>
 
-                        {/* Star - Enhanced with toggle functionality */}
+                        {/* Star */}
                         <div 
                           className="gmail-mail-star"
                           onClick={(e) => toggleStarred(mail.id, e)}
-                          style={{ color: isStarred ? '#fbbc04' : '#5f6368' }}
+                          style={{ 
+                            color: isStarred ? '#fbbc04' : '#5f6368',
+                            cursor: 'pointer',
+                            userSelect: 'none'
+                          }}
                         >
                           {isStarred ? <FaStar /> : <FaRegStar />}
                         </div>
 
                         {/* Sender */}
                         <div className="gmail-mail-sender" style={{
-                          fontWeight: isRead ? 'normal !important' : 'bold !important',
-                          color: isRead ? '#5f6368 !important' : '#202124 !important'
+                          fontWeight: isRead ? 'normal' : 'bold',
+                          color: isRead ? '#5f6368' : '#202124'
                         }}>
                           {senderInfo}
                           {draft && <span style={{ color: 'var(--muted)', fontSize: '12px' }}> Draft</span>}
@@ -799,8 +988,8 @@ const LabelPage = () => {
                         {/* Subject and preview */}
                         <div className="gmail-mail-subject-content">
                           <span className="gmail-mail-subject" style={{
-                            fontWeight: isRead ? 'normal !important' : 'bold !important',
-                            color: isRead ? '#5f6368 !important' : '#202124 !important'
+                            fontWeight: isRead ? 'normal' : 'bold',
+                            color: isRead ? '#5f6368' : '#202124'
                           }}>
                             {mail.subject || "(no subject)"}
                           </span>
@@ -823,8 +1012,8 @@ const LabelPage = () => {
 
                         {/* Date */}
                         <div className="gmail-mail-date" style={{
-                          fontWeight: isRead ? 'normal !important' : 'bold !important',
-                          color: isRead ? '#5f6368 !important' : '#202124 !important'
+                          fontWeight: isRead ? 'normal' : 'bold',
+                          color: isRead ? '#5f6368' : '#202124'
                         }}>
                           {formatDate(mail.timestamp)}
                         </div>
@@ -852,7 +1041,7 @@ const LabelPage = () => {
                                 {allLabels
                                   .filter((label) => 
                                     (label.name || "").toLowerCase() !== "trash" &&
-                                    (label.name || "").toLowerCase() !== "starred" // Exclude starred from manual management
+                                    (label.name || "").toLowerCase() !== "starred"
                                   )
                                   .map((label) => {
                                     const isPendingSelection = (
@@ -883,9 +1072,7 @@ const LabelPage = () => {
                                         >
                                           <input
                                             type="checkbox"
-                                            onChange={(e) => {
-                                              e.stopPropagation();
-                                            }}
+                                            onChange={() => {}}
                                             checked={isPendingSelection}
                                             readOnly
                                           />
