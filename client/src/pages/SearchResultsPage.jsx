@@ -1,5 +1,5 @@
 // client/src/pages/SearchResultsPage.jsx
-// NOTE: comments in English only
+// Enhanced search results page with pagination support
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -77,12 +77,15 @@ const SearchResultsPage = () => {
   const query = new URLSearchParams(location.search).get("q") || "";
   const [mails, setMails] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  //const [error, setError] = useState("");
 
   const [draftsId, setDraftsId] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const mailsPerPage = 50;
 
   // Caches to avoid duplicate network calls per mailId
   const draftLabelCacheRef = useRef(new Map()); // mailId -> boolean
@@ -263,6 +266,9 @@ const SearchResultsPage = () => {
         );
 
         if (!dead) setResults(safe);
+        
+        // Reset to page 1 when new search is performed
+        setCurrentPage(1);
       } catch (e) {
         console.error("[Search] error:", e);
         if (!dead) {
@@ -287,17 +293,68 @@ const SearchResultsPage = () => {
     }
   };
 
+  // Calculate pagination for search results
+  const totalPages = Math.ceil(results.length / mailsPerPage);
+  const startIndex = (currentPage - 1) * mailsPerPage;
+  const endIndex = startIndex + mailsPerPage;
+  const paginatedResults = results.slice(startIndex, endIndex);
+
+  // Pagination functions
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      goToPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      goToPage(currentPage + 1);
+    }
+  };
 
   return (
     <div style={{ padding: "1rem" }}>
-      <h1>Search Results for: "{query}"</h1>
+      <div className="search-header">
+        <h1>Search Results for: "{query}"</h1>
+        {results.length > 0 && (
+          <div className="gmail-pagination" style={{ margin: "16px 0" }}>
+            <span>
+              {`${startIndex + 1}-${Math.min(endIndex, results.length)} of ${results.length} results`}
+            </span>
+            <button 
+              onClick={goToPreviousPage}
+              disabled={currentPage <= 1}
+              title="Previous page"
+            >
+              ‹
+            </button>
+            <span className="gmail-page-info">
+              Page {currentPage} of {totalPages || 1}
+            </span>
+            <button 
+              onClick={goToNextPage}
+              disabled={currentPage >= totalPages}
+              title="Next page"
+            >
+              ›
+            </button>
+          </div>
+        )}
+      </div>
+      
       {isLoading ? (
         <Loading label="Searching…" />
-      ) : results.length === 0 ? (
+      ) : paginatedResults.length === 0 ? (
         <p>No matching mails found.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
-          {results.map((m) => (
+          {paginatedResults.map((m) => (
             <li
               key={m.id}
               onClick={() => openItem(m)}
@@ -329,6 +386,29 @@ const SearchResultsPage = () => {
             </li>
           ))}
         </ul>
+      )}
+      
+      {/* Bottom pagination for better UX on long result lists */}
+      {results.length > mailsPerPage && (
+        <div className="gmail-pagination" style={{ margin: "24px 0 0 0", justifyContent: "center" }}>
+          <button 
+            onClick={goToPreviousPage}
+            disabled={currentPage <= 1}
+            title="Previous page"
+          >
+            ‹ Previous
+          </button>
+          <span className="gmail-page-info">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button 
+            onClick={goToNextPage}
+            disabled={currentPage >= totalPages}
+            title="Next page"
+          >
+            Next ›
+          </button>
+        </div>
       )}
     </div>
   );

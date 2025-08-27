@@ -1,4 +1,4 @@
-// LabelPage.jsx - Simple mail selection with checkmarks only
+// LabelPage.jsx - Simple mail selection with checkmarks and pagination
 
 import { FaTrash, FaArchive, FaTag, FaStar, FaRegStar } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
@@ -34,6 +34,10 @@ const LabelPage = () => {
   // SIMPLE: Just selected mails - no complex state
   const [selectedMails, setSelectedMails] = useState(new Set());
   const [isBulkOperationInProgress, setIsBulkOperationInProgress] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const mailsPerPage = 50;
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
@@ -563,6 +567,65 @@ const LabelPage = () => {
     navigate(location.pathname, { replace: true, state: null });
   }, [location.state?.justDeletedId, location.pathname, navigate]);
 
+  // Filter and sort mails first
+  const allFilteredMails = mails
+    .filter((mail) => {
+      const search = normalize(searchQuery);
+      if (search === "") return true;
+
+      const sender = typeof mail.sender === "string" ? normalize(mail.sender) : normalize(mail.sender?.email || "");
+      const recipient = typeof mail.recipient === "string" ? normalize(mail.recipient) : normalize(mail.recipient?.email || "");
+      const subject = normalize(mail.subject);
+      const content = normalize(mail.content);
+
+      return (
+        subject.includes(search) ||
+        content.includes(search) ||
+        sender.includes(search) ||
+        recipient.includes(search)
+      );
+    })
+    .sort((a, b) => {
+      // Sort by timestamp in descending order (newest first)
+      const dateA = new Date(a.timestamp || 0);
+      const dateB = new Date(b.timestamp || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(allFilteredMails.length / mailsPerPage);
+  const startIndex = (currentPage - 1) * mailsPerPage;
+  const endIndex = startIndex + mailsPerPage;
+  
+  // Apply pagination to get current page mails
+  const filteredMails = allFilteredMails.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search changes or label changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedMails(new Set());
+  }, [searchQuery, labelId]);
+
+  // Pagination functions
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      setSelectedMails(new Set()); // Clear selections when changing pages
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      goToPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      goToPage(currentPage + 1);
+    }
+  };
+
   // Main data loading effect
   useEffect(() => {
     setMails([]);
@@ -808,33 +871,6 @@ const LabelPage = () => {
       });
   }, [labelId, token, setSearchQuery]);
 
-  // Filter mails based on search query and sort by timestamp (newest first)
-  // Apply pagination limit of 50 mails per page
-  const filteredMails = mails
-    .filter((mail) => {
-      const search = normalize(searchQuery);
-      if (search === "") return true;
-
-      const sender = typeof mail.sender === "string" ? normalize(mail.sender) : normalize(mail.sender?.email || "");
-      const recipient = typeof mail.recipient === "string" ? normalize(mail.recipient) : normalize(mail.recipient?.email || "");
-      const subject = normalize(mail.subject);
-      const content = normalize(mail.content);
-
-      return (
-        subject.includes(search) ||
-        content.includes(search) ||
-        sender.includes(search) ||
-        recipient.includes(search)
-      );
-    })
-    .sort((a, b) => {
-      // Sort by timestamp in descending order (newest first)
-      const dateA = new Date(a.timestamp || 0);
-      const dateB = new Date(b.timestamp || 0);
-      return dateB.getTime() - dateA.getTime();
-    })
-    .slice(0, 50); // Limit to 50 mails per page
-
   return (
     <div className="gmail-main-area">
       {loading ? (
@@ -900,14 +936,29 @@ const LabelPage = () => {
             <div className="gmail-toolbar-right">
               <div className="gmail-pagination">
                 <span>
-                  {filteredMails.length > 0 
-                    ? `1-${Math.min(50, filteredMails.length)} of ${mails.length}`
+                  {allFilteredMails.length > 0 
+                    ? `${startIndex + 1}-${Math.min(endIndex, allFilteredMails.length)} of ${allFilteredMails.length}`
                     : "No mails"
                   }
                   {selectedMails.size > 0 && ` (${selectedMails.size} selected)`}
                 </span>
-                <button disabled>‹</button>
-                <button disabled>›</button>
+                <button 
+                  onClick={goToPreviousPage}
+                  disabled={currentPage <= 1}
+                  title="Previous page"
+                >
+                  ‹
+                </button>
+                <span className="gmail-page-info">
+                  Page {currentPage} of {totalPages || 1}
+                </span>
+                <button 
+                  onClick={goToNextPage}
+                  disabled={currentPage >= totalPages}
+                  title="Next page"
+                >
+                  ›
+                </button>
               </div>
             </div>
           </div>

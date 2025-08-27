@@ -396,6 +396,15 @@ body {
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/%3E%3C/svg%3E") center/contain;
 }
 
+.sidebar a[href*="starred"]::before { 
+  content: "";
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E") center/contain;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E") center/contain;
+}
+
 /* Label management */
 .label-row {
   display: flex;
@@ -645,6 +654,36 @@ body {
   border: 1px solid var(--border, #e0e4e7);
 }
 
+.gmail-page-info {
+  font-size: 12px;
+  color: var(--muted, #5f6368);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.search-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.search-header h1 {
+  color: var(--text, #202124);
+  font-size: 24px;
+  font-weight: 400;
+  margin: 0;
+}
+
+/* Enhanced pagination button styling for better UX */
+.gmail-pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--hover, #f1f3f4) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 .gmail-pagination button {
   background: linear-gradient(135deg, var(--surface, #ffffff) 0%, var(--hover, #f8f9fa) 100%);
   border: 1px solid var(--border, #dadce0);
@@ -667,12 +706,6 @@ body {
   color: white;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(26,115,232,0.25);
-}
-
-.gmail-pagination button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  background: var(--hover, #f1f3f4);
 }
 
 /* Mail list container */
@@ -798,14 +831,6 @@ body {
   margin: 0;
   cursor: pointer;
   accent-color: var(--accent, #1a73e8);
-}
-.sidebar a[href*="starred"]::before { 
-  content: "";
-  width: 18px;
-  height: 18px;
-  background: currentColor;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E") center/contain;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E") center/contain;
 }
 
 .gmail-mail-star {
@@ -1105,6 +1130,15 @@ body {
 :root[data-theme="dark"] .gmail-pagination button:hover:not(:disabled) {
   background: linear-gradient(135deg, var(--accent, #8ab4f8) 0%, #5a8fd6 100%);
   color: var(--on-accent, #0b1323);
+}
+
+:root[data-theme="dark"] .search-header h1 {
+  color: var(--text, #e8eaed);
+}
+
+:root[data-theme="dark"] .gmail-pagination button:disabled {
+  background: var(--hover, #404040) !important;
+  color: var(--muted, #6b7280) !important;
 }
 
 :root[data-theme="dark"] .gmail-mail-actions,
