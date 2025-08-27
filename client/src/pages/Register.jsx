@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/Register.css'; // Assuming you have a CSS file for styling
+
 const Register = () => {
     // Local state for each field
     // Required fields
@@ -20,23 +21,41 @@ const Register = () => {
 
     const navigate = useNavigate();
 
+    // Enhanced password validation function
+    const validatePassword = (password) => {
+        if (password.length < 8) {
+            return "Password must be at least 8 characters long";
+        }
+        
+        // Check if password contains at least one letter and one number
+        const hasLetter = /[a-zA-Z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        
+        if (!hasLetter || !hasNumber) {
+            return "Password must contain both letters and numbers";
+        }
+        
+        return null; // Valid password
+    };
+
     // Validate inputs before sending
     const validateForm = () => {
-        const nameRegex = /^[A-Za-z\u0590-\u05FF\s'-]+$/; // כולל עברית, רווחים, מקפים
+        const nameRegex = /^[A-Za-z\u0590-\u05FF\s'-]+$/; // Includes Hebrew, spaces, hyphens
         if (!nameRegex.test(firstName) || !nameRegex.test(lastName)) {
             setErrorMessage("Names can only contain letters");
             return false;
         }
+        
         // Check if required fields are filled
         if (!firstName || !lastName || !email || !password || !confirmPassword) {
-            setErrorMessage("All fields must be filled (except profile picture)");
+            setErrorMessage("All required fields must be filled");
             return false;
         }
+        
         if (!firstName.trim() || !lastName.trim() || !email.trim()) {
             setErrorMessage("Name and email fields cannot be empty or spaces only");
             return false;
         }
-
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
@@ -44,8 +63,10 @@ const Register = () => {
             return false;
         }
 
-        if (password.length < 6) {
-            setErrorMessage("Password must be at least 6 characters");
+        // Enhanced password validation
+        const passwordError = validatePassword(password);
+        if (passwordError) {
+            setErrorMessage(passwordError);
             return false;
         }
 
@@ -53,16 +74,16 @@ const Register = () => {
             setErrorMessage("Passwords do not match");
             return false;
         }
+        
         if (birthDate && new Date(birthDate) > new Date()) {
             setErrorMessage("Birth date cannot be in the future");
             return false;
         }
+        
         if (email.includes(" ")) {
             setErrorMessage("Email cannot contain spaces");
             return false;
         }
-
-
 
         // If phone number is provided, validate it contains digits only
         if (phone) {
@@ -72,8 +93,6 @@ const Register = () => {
                 return false;
             }
         }
-
-
 
         setErrorMessage('');
         return true;
@@ -99,6 +118,7 @@ const Register = () => {
 
         setIsLoading(true);
         setErrorMessage('');
+        
         const payload = {
             firstName,
             lastName,
@@ -110,7 +130,6 @@ const Register = () => {
         if (birthDate) payload.birthDate = birthDate;
         if (phone) payload.phone = phone;
         if (gender) payload.gender = gender;
-
 
         try {
             const response = await fetch("http://localhost:3000/api/users/register", {
@@ -133,7 +152,6 @@ const Register = () => {
         }
     };
 
-
     return (
         <div className="login-container">
             <div className="login-box">
@@ -145,43 +163,83 @@ const Register = () => {
                 <form onSubmit={handleSubmit}>
                     <div className="input-group">
                         <label>First name*</label>
-                        <input placeholder='First name can contain letters only' type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                        <input 
+                            placeholder='First name can contain letters only' 
+                            type="text" 
+                            value={firstName} 
+                            onChange={(e) => setFirstName(e.target.value)} 
+                            required 
+                        />
                     </div>
 
                     <div className="input-group">
                         <label>Last name*</label>
-                        <input placeholder='Last name can contain letters only' type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                        <input 
+                            placeholder='Last name can contain letters only' 
+                            type="text" 
+                            value={lastName} 
+                            onChange={(e) => setLastName(e.target.value)} 
+                            required 
+                        />
                     </div>
 
                     <div className="input-group">
                         <label>Email*</label>
-                        <input placeholder='Email' type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                        <input 
+                            placeholder='Email' 
+                            type="email" 
+                            value={email} 
+                            onChange={(e) => setEmail(e.target.value)} 
+                            required 
+                        />
                     </div>
 
                     <div className="input-group">
                         <label>Password*</label>
-                        <input placeholder='Password at least 6 characters' type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                        <input 
+                            placeholder='Password at least 8 characters with letters and numbers' 
+                            type="password" 
+                            value={password} 
+                            onChange={(e) => setPassword(e.target.value)} 
+                            required 
+                        />
                     </div>
 
                     <div className="input-group">
                         <label>Confirm Password*</label>
-                        <input placeholder='Confirm Password' type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} onPaste={(e) => e.preventDefault()} required />
+                        <input 
+                            placeholder='Confirm Password' 
+                            type="password" 
+                            value={confirmPassword} 
+                            onChange={(e) => setConfirmPassword(e.target.value)} 
+                            onPaste={(e) => e.preventDefault()} 
+                            required 
+                        />
                     </div>
 
                     <div className="input-group">
                         <label>Birth Date</label>
-                        <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+                        <input 
+                            type="date" 
+                            value={birthDate} 
+                            onChange={(e) => setBirthDate(e.target.value)} 
+                        />
                     </div>
 
                     <div className="input-group">
                         <label>Phone</label>
-                        <input placeholder='Phone number' type="text" value={phone} onChange={(e) => {
-                            let value = e.target.value.replace(/[^\d]/g, '');
-                            if (value.length > 3) {
-                                value = value.slice(0, 3) + '-' + value.slice(3);
-                            }
-                            setPhone(value);
-                        }} />
+                        <input 
+                            placeholder='Phone number' 
+                            type="text" 
+                            value={phone} 
+                            onChange={(e) => {
+                                let value = e.target.value.replace(/[^\d]/g, '');
+                                if (value.length > 3) {
+                                    value = value.slice(0, 3) + '-' + value.slice(3);
+                                }
+                                setPhone(value);
+                            }} 
+                        />
                     </div>
 
                     <div className="input-group">
@@ -196,12 +254,18 @@ const Register = () => {
 
                     <div className="input-group">
                         <label>Profile Picture</label>
-                        <input type="file" accept="image/*" onChange={handleImageChange} />
+                        <input 
+                            type="file" 
+                            accept="image/*" 
+                            onChange={handleImageChange} 
+                        />
                     </div>
 
                     {isLoading && <p className="login-loading">Registering...</p>}
 
-                    <button className="login-button" type="submit" disabled={isLoading}>Register</button>
+                    <button className="login-button" type="submit" disabled={isLoading}>
+                        Register
+                    </button>
 
                     <p className="register-link">
                         Already have an account?{' '}
@@ -212,4 +276,5 @@ const Register = () => {
         </div>
     );
 };
+
 export default Register;
