@@ -1,6 +1,6 @@
-// LabelPage.jsx - Complete with fixed read/unread functionality
+// LabelPage.jsx - Enhanced with Starred functionality
 
-import { FaTrash, FaArchive, FaTag } from "react-icons/fa";
+import { FaTrash, FaArchive, FaTag, FaStar, FaRegStar } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
@@ -23,6 +23,7 @@ const LabelPage = () => {
 
   // Label detection helpers
   const [draftLabelId, setDraftLabelId] = useState(null);
+  const [starredLabelId, setStarredLabelId] = useState(null); // Add starred label ID
   const [labelsReady, setLabelsReady] = useState(false);
 
   // Mail management state
@@ -123,6 +124,14 @@ const LabelPage = () => {
     return drafts ? drafts.id : null;
   };
 
+  // Get starred label ID from labels list
+  const getStarredLabelId = (labelsList) => {
+    const starred = (labelsList || []).find(
+      (l) => (l.name || "").toLowerCase() === "starred"
+    );
+    return starred ? starred.id : null;
+  };
+
   const hasNameDraft = (labelsOrNames) => {
     if (!Array.isArray(labelsOrNames)) return false;
     return labelsOrNames.some(
@@ -144,6 +153,13 @@ const LabelPage = () => {
     if (normalize(labelName) === "drafts" || normalize(labelId) === "drafts")
       return true;
     return false;
+  };
+
+  // Check if mail is starred
+  const isMailStarred = (mail) => {
+    if (!starredLabelId || !mail?.id) return false;
+    const idsForMail = currentMailLabels[mail.id] || [];
+    return idsForMail.includes(starredLabelId);
   };
 
   const ensureLabelIdByName = async (name) => {
@@ -209,6 +225,60 @@ const LabelPage = () => {
     navigate(`/mail/${mail.id}`);
   };
 
+  // Toggle starred status for a mail
+  const toggleStarred = async (mailId, event) => {
+    event.stopPropagation(); // Prevent opening the mail
+    
+    if (!starredLabelId || !mailId) {
+      console.warn('Cannot toggle starred: missing starredLabelId or mailId');
+      return;
+    }
+
+    try {
+      const currentLabels = currentMailLabels[mailId] || [];
+      const isCurrentlyStarred = currentLabels.includes(starredLabelId);
+
+      if (isCurrentlyStarred) {
+        // Remove from starred
+        await fetch("/api/labels/untag", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ mailId, labelId: starredLabelId }),
+        });
+
+        // Update local state
+        setCurrentMailLabels(prev => ({
+          ...prev,
+          [mailId]: currentLabels.filter(id => id !== starredLabelId)
+        }));
+      } else {
+        // Add to starred
+        await fetch("/api/labels/tag", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ mailId, labelId: starredLabelId }),
+        });
+
+        // Update local state
+        setCurrentMailLabels(prev => ({
+          ...prev,
+          [mailId]: [...currentLabels, starredLabelId]
+        }));
+      }
+
+      console.log(`Toggled starred status for mail ${mailId}`);
+    } catch (error) {
+      console.error('Error toggling starred status:', error);
+      alert('Failed to update starred status');
+    }
+  };
+
   // Gmail-style selection functions
   const handleSelectAll = () => {
     if (selectAll) {
@@ -249,13 +319,16 @@ const LabelPage = () => {
     }
   };
 
-  // Get mail labels for display
+  // Get mail labels for display (excluding starred from visual chips)
   const getMailLabels = (mail) => {
     const labelIds = currentMailLabels[mail?.id] || [];
     return labelIds.map(id => {
       const label = allLabels.find(l => l.id === id);
       return label || { id, name: `Label ${id}` };
-    }).filter(label => label.name.toLowerCase() !== 'inbox');
+    }).filter(label => 
+      label.name.toLowerCase() !== 'inbox' && 
+      label.name.toLowerCase() !== 'starred' // Don't show starred as a chip
+    );
   };
 
   // Update pending label changes when management opens
@@ -396,7 +469,7 @@ const LabelPage = () => {
     setSearchQuery("");
     if (!token) return;
 
-    const sysNames = new Set(["inbox", "sent", "trash", "spam", "drafts"]);
+    const sysNames = new Set(["inbox", "sent", "trash", "spam", "drafts", "starred"]);
     if (sysNames.has(String(labelId).toLowerCase())) {
       setLabelName(String(labelId).toLowerCase());
     } else {
@@ -457,6 +530,24 @@ const LabelPage = () => {
 
           validMails = final;
 
+        } else if (String(labelId).toLowerCase() === "starred") {
+          // Handle starred label specially
+          const starredId = await resolveSystemLabelId("starred");
+          const ids = await fetchWithAuth(`/labels/by-label/${starredId}`, token);
+          if (Array.isArray(ids) && ids.length > 0) {
+            const full = await Promise.all(
+              ids.map(async (id) => {
+                try {
+                  return await fetchWithAuth(`/mails/${id}`, token);
+                } catch {
+                  return null;
+                }
+              })
+            );
+            validMails = full.filter(Boolean);
+          } else {
+            validMails = [];
+          }
         } else if (String(labelId).toLowerCase() === "trash") {
           const trashId = await resolveSystemLabelId("trash");
           const ids = await fetchWithAuth(`/labels/by-label/${trashId}`, token);
@@ -543,7 +634,24 @@ const LabelPage = () => {
       .then((list) => {
         setAllLabels(list);
         setDraftLabelId(getDraftLabelId(list));
-        setLabelsReady(true);
+        
+        // Ensure starred label exists and get its ID
+        const existingStarred = getStarredLabelId(list);
+        if (existingStarred) {
+          setStarredLabelId(existingStarred);
+          setLabelsReady(true);
+        } else {
+          // Create starred label if it doesn't exist
+          ensureLabelIdByName("starred")
+            .then((id) => {
+              setStarredLabelId(id);
+              setLabelsReady(true);
+            })
+            .catch((e) => {
+              console.error("Failed to create starred label:", e);
+              setLabelsReady(true);
+            });
+        }
       })
       .catch((e) => {
         console.error(e);
@@ -639,6 +747,7 @@ const LabelPage = () => {
                   const draft = isDraftMailRobust(mail);
                   const isSelected = selectedMails.has(mail.id);
                   const isRead = readMails.has(mail.id);
+                  const isStarred = isMailStarred(mail);
                   const mailLabels = getMailLabels(mail);
                   const senderInfo = (() => {
                     const sender = mail.sender || mail.otherParty;
@@ -647,17 +756,11 @@ const LabelPage = () => {
                     return sender.email || `${sender.firstName || ""} ${sender.lastName || ""}`.trim();
                   })();
 
-                  // Debug log for each mail
-                  if (mail.id && readMails.size > 0) {
-                    console.log(`Mail ${mail.id}: isRead=${isRead}, subject="${mail.subject?.slice(0, 20)}"`);
-                  }
-
                   return (
                     <div
                       key={mail.id}
                       className={`gmail-mail-item ${draft ? 'is-draft' : ''} ${isSelected ? 'selected' : ''} ${isRead ? 'read' : 'unread'}`}
                       style={{
-                        // Force inline styles for debugging
                         backgroundColor: isRead ? '#f2f6fc !important' : '#ffffff !important',
                         fontWeight: isRead ? 'normal !important' : 'bold !important'
                       }}
@@ -675,9 +778,13 @@ const LabelPage = () => {
                           />
                         </div>
 
-                        {/* Star */}
-                        <div className="gmail-mail-star">
-                          ☆
+                        {/* Star - Enhanced with toggle functionality */}
+                        <div 
+                          className="gmail-mail-star"
+                          onClick={(e) => toggleStarred(mail.id, e)}
+                          style={{ color: isStarred ? '#fbbc04' : '#5f6368' }}
+                        >
+                          {isStarred ? <FaStar /> : <FaRegStar />}
                         </div>
 
                         {/* Sender */}
@@ -743,7 +850,10 @@ const LabelPage = () => {
                             {openLabelManagement[mail.id] && (
                               <div className="gmail-label-management-popup">
                                 {allLabels
-                                  .filter((label) => (label.name || "").toLowerCase() !== "trash")
+                                  .filter((label) => 
+                                    (label.name || "").toLowerCase() !== "trash" &&
+                                    (label.name || "").toLowerCase() !== "starred" // Exclude starred from manual management
+                                  )
                                   .map((label) => {
                                     const isPendingSelection = (
                                       pendingLabelChanges[mail.id] || []

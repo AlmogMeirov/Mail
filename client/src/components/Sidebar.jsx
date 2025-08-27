@@ -1,9 +1,8 @@
-
 import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useSendMail } from "../context/SendMailContext";
 
-const SYSTEM_LABELS = ["inbox", "sent", "trash", "drafts", "spam"];
+const SYSTEM_LABELS = ["inbox", "sent", "trash", "drafts", "spam", "starred"]; // Add starred to system labels
 const isSystemLabel = (name = "") =>
   SYSTEM_LABELS.includes(String(name).toLowerCase());
 
@@ -24,6 +23,24 @@ const Sidebar = () => {
         });
         const data = await res.json();
         setLabels(Array.isArray(data) ? data : []);
+
+        // Ensure starred label exists
+        const existingStarred = data.find(l => l.name.toLowerCase() === "starred");
+        if (!existingStarred) {
+          // Create starred label if it doesn't exist
+          const starredRes = await fetch("/api/labels", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ name: "Starred" }),
+          });
+          if (starredRes.ok) {
+            const created = await starredRes.json();
+            setLabels(prev => [...prev, created]);
+          }
+        }
       } catch (e) {
         console.error("Failed to fetch labels:", e);
       }
@@ -132,7 +149,7 @@ const Sidebar = () => {
 
   return (
     <nav className="sidebar">
-      {/* Compose mail (ללא שינוי לוגי) */}
+      {/* Compose mail (לא שינוי לוגי) */}
       <div className="sidebar-header">
         <button className="compose-btn" onClick={() => setShow(true)}>
           Compose
@@ -144,6 +161,7 @@ const Sidebar = () => {
         <div className="sidebar-section">
           <ul>
             <li><NavLink to="/label/inbox">Inbox</NavLink></li>
+            <li><NavLink to="/label/starred">Starred</NavLink></li> {/* Add starred link */}
             <li><NavLink to="/label/sent">Sent</NavLink></li>
             <li><NavLink to="/label/drafts">Drafts</NavLink></li>
             <li><NavLink to="/label/spam">Spam</NavLink></li>
