@@ -1,21 +1,28 @@
-// client/src/components/Layout.jsx
 
 import React from "react";
-import Sidebar from "./Sidebar"; // Sidebar component for navigation
-import Topbar from "./Topbar"; // Added by Meir in exercise 4
-import { SearchProvider } from "../context/SearchContext"; // Context provider for search functionality, added by Meir in exercise 4
+import Sidebar from "./Sidebar";
+import Topbar from "./Topbar";
+import { SearchProvider } from "../context/SearchContext";
 import { Outlet } from "react-router-dom";
-import "../App.css"; // Importing styles for the layout
+import "../App.css";
 
 const Layout = () => {
   return (
     <SearchProvider>
       <div className="app-layout">
-        <Sidebar />
-        <div className="main-content">
-          <Topbar />
-          <div className="route-scroll">
-            <Outlet />
+        {/* Top navigation bar */}
+        <Topbar />
+        
+        {/* Main content area below topbar */}
+        <div className="main-layout">
+          {/* Sidebar */}
+          <Sidebar />
+          
+          {/* Main content */}
+          <div className="main-content">
+            <div className="route-scroll">
+              <Outlet />
+            </div>
           </div>
         </div>
       </div>
