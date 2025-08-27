@@ -826,16 +826,12 @@ body {
   transform: scale(1.1);
 }
 
-/* Starred mail items get a subtle yellow background */
-.gmail-mail-item.starred {
-  background: linear-gradient(90deg, #fffbf0 0%, #ffffff 20%) !important;
-  border-left: 3px solid #fbbc04 !important;
+/* Starred mail items - only show star icon in gold, keep normal background */
+.gmail-mail-item.starred .gmail-mail-star {
+  color: #fbbc04 !important;
 }
 
-:root[data-theme="dark"] .gmail-mail-item.starred {
-  background: linear-gradient(90deg, #2a2416 0%, var(--surface) 20%) !important;
-  border-left: 3px solid #fbbc04 !important;
-}
+/* Remove special background for starred items - let normal read/unread styling apply */
 
 .gmail-mail-sender {
   min-width: 160px; /* Reduced from 180px */

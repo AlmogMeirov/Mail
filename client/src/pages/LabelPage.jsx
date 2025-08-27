@@ -749,10 +749,17 @@ const LabelPage = () => {
           }
         }
 
-        setMails(validMails);
+        // Sort all mails by timestamp (newest first) before storing
+        const sortedMails = validMails.sort((a, b) => {
+          const dateA = new Date(a.timestamp || 0);
+          const dateB = new Date(b.timestamp || 0);
+          return dateB.getTime() - dateA.getTime();
+        });
+
+        setMails(sortedMails);
 
         const mailLabelsMap = {};
-        for (const mail of validMails) {
+        for (const mail of sortedMails) {
           try {
             const res = await fetch(`/api/labels/mail/${mail.id}`, {
               headers: { Authorization: `Bearer ${token}` },
@@ -801,23 +808,32 @@ const LabelPage = () => {
       });
   }, [labelId, token, setSearchQuery]);
 
-  // Filter mails based on search query
-  const filteredMails = mails.filter((mail) => {
-    const search = normalize(searchQuery);
-    if (search === "") return true;
+  // Filter mails based on search query and sort by timestamp (newest first)
+  // Apply pagination limit of 50 mails per page
+  const filteredMails = mails
+    .filter((mail) => {
+      const search = normalize(searchQuery);
+      if (search === "") return true;
 
-    const sender = typeof mail.sender === "string" ? normalize(mail.sender) : normalize(mail.sender?.email || "");
-    const recipient = typeof mail.recipient === "string" ? normalize(mail.recipient) : normalize(mail.recipient?.email || "");
-    const subject = normalize(mail.subject);
-    const content = normalize(mail.content);
+      const sender = typeof mail.sender === "string" ? normalize(mail.sender) : normalize(mail.sender?.email || "");
+      const recipient = typeof mail.recipient === "string" ? normalize(mail.recipient) : normalize(mail.recipient?.email || "");
+      const subject = normalize(mail.subject);
+      const content = normalize(mail.content);
 
-    return (
-      subject.includes(search) ||
-      content.includes(search) ||
-      sender.includes(search) ||
-      recipient.includes(search)
-    );
-  });
+      return (
+        subject.includes(search) ||
+        content.includes(search) ||
+        sender.includes(search) ||
+        recipient.includes(search)
+      );
+    })
+    .sort((a, b) => {
+      // Sort by timestamp in descending order (newest first)
+      const dateA = new Date(a.timestamp || 0);
+      const dateB = new Date(b.timestamp || 0);
+      return dateB.getTime() - dateA.getTime();
+    })
+    .slice(0, 50); // Limit to 50 mails per page
 
   return (
     <div className="gmail-main-area">
@@ -885,7 +901,7 @@ const LabelPage = () => {
               <div className="gmail-pagination">
                 <span>
                   {filteredMails.length > 0 
-                    ? `1-${Math.min(50, filteredMails.length)} of ${filteredMails.length}`
+                    ? `1-${Math.min(50, filteredMails.length)} of ${mails.length}`
                     : "No mails"
                   }
                   {selectedMails.size > 0 && ` (${selectedMails.size} selected)`}
