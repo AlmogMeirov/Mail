@@ -30,6 +30,30 @@ const LabelPage = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
+  // figure out current user's email from the JWT (fallback: localStorage key "userEmail")
+  // we use this to detect "inbox" and "sent" system labels
+  //Added by Meir to get user email from token
+  const currentUserEmail = React.useMemo(() => {
+    try {
+      const jwt = String(token || "");
+      const base64 = jwt.split(".")[1];
+      if (!base64) return "";
+      const json = JSON.parse(atob(base64.replace(/-/g, "+").replace(/_/g, "/")));
+      const e = json.email || json.user?.email || json.username || json.sub || "";
+      return String(e).trim().toLowerCase();
+    } catch {
+      return String(localStorage.getItem("userEmail") || "").trim().toLowerCase();
+    }
+  }, [token]);
+
+  // normalize a person field (string or { email })
+  const emailOf = (p) => {
+    if (!p) return "";
+    if (typeof p === "string") return p.trim().toLowerCase();
+    return String(p.email || "").trim().toLowerCase();
+  };
+
+
   // ---------- helpers ----------
   const normalize = (text) => (text || "").toString().trim().toLowerCase();
   /*<<<<<<< MAIL-333-Ensure-Real-Backend-Communication
@@ -278,6 +302,7 @@ const LabelPage = () => {
 
   // ---------- effects ----------
   useEffect(() => {
+    console.log(`=== LabelPage loading for labelId: ${labelId} ===`);
     setSearchQuery("");
     if (!token) return;
 
@@ -300,6 +325,12 @@ const LabelPage = () => {
           });
           const data = await response.json();
 
+          console.log(`Received data for ${labelId}:`, {
+            inbox_count: data.inbox?.length || 0,
+            sent_count: data.sent?.length || 0,
+            labelId: labelId
+          });
+
           const list =
             labelId === "inbox"
               ? Array.isArray(data?.inbox)
@@ -309,8 +340,24 @@ const LabelPage = () => {
                 ? data.sent
                 : [];
 
+          console.log(`Selected list for ${labelId} has ${list.length} mails`);
+
+          // keep only mails that belong to ME in this view - Meir added
+          let roleFiltered = list;
+          if (currentUserEmail) {
+            if (labelId === "inbox") {
+              // inbox = I'm the recipient
+              roleFiltered = list.filter((m) => emailOf(m.recipient) === currentUserEmail);
+            } else {
+              // sent = I'm the sender
+              roleFiltered = list.filter((m) => emailOf(m.sender) === currentUserEmail);
+            }
+          }
+
           // exclude drafts immediately by explicit flag; names fallback remains
-          const prelim = list.filter(
+          // (we'll filter out trash below by querying labels)
+          // Meir changed the first row from list to roleFiltered
+          const prelim = roleFiltered.filter(
             (m) => m?.isDraft !== true && !hasNameDraft(m?.labels || [])
           );
 
@@ -337,7 +384,7 @@ const LabelPage = () => {
                   }
                 })
               );
-              if (!names.includes("trash")) final.push(mail);
+              if (!names.includes("trash") && !names.includes("spam")) final.push(mail);
             } catch {
               final.push(mail);
             }
@@ -402,6 +449,7 @@ const LabelPage = () => {
         }
 
         setMails(validMails);
+        console.log(`Final validMails for ${labelId}: ${validMails.length} mails`);
 
         // fetch labels per mail id
         const mailLabelsMap = {};
