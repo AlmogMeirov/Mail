@@ -1198,7 +1198,9 @@ const LabelPage = () => {
                                 {allLabels
                                   .filter((label) =>
                                     (label.name || "").toLowerCase() !== "trash" &&
-                                    (label.name || "").toLowerCase() !== "starred"
+                                    (label.name || "").toLowerCase() !== "starred" &&
+                                    (label.name || "").toLowerCase() !== "drafts" &&
+                                    (label.name || "").toLowerCase() !== "inbox"
                                   )
                                   .map((label) => {
                                     const isPendingSelection = (
