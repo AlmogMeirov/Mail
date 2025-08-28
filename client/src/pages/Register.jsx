@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../styles/Register.css'; // Assuming you have a CSS file for styling
+import '../styles/Register.css';
 
 const Register = () => {
     // Local state for each field
@@ -18,6 +18,13 @@ const Register = () => {
 
     const [errorMessage, setErrorMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // New state for field-specific errors
+    const [fieldErrors, setFieldErrors] = useState({});
+    
+    // State for password visibility
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const navigate = useNavigate();
 
@@ -38,50 +45,101 @@ const Register = () => {
         return null; // Valid password
     };
 
+    // Helper function to set field-specific error
+    const setFieldError = (field, message) => {
+        setFieldErrors(prev => ({
+            ...prev,
+            [field]: message
+        }));
+        setErrorMessage(message); // Keep the original global error for backward compatibility
+    };
+
+    // Helper function to clear field errors
+    const clearFieldErrors = () => {
+        setFieldErrors({});
+        setErrorMessage('');
+    };
+
     // Validate inputs before sending
     const validateForm = () => {
+        clearFieldErrors(); // Clear previous errors
+        
         const nameRegex = /^[A-Za-z\u0590-\u05FF\s'-]+$/; // Includes Hebrew, spaces, hyphens
-        if (!nameRegex.test(firstName) || !nameRegex.test(lastName)) {
-            setErrorMessage("Names can only contain letters");
-            return false;
-        }
         
         // Check if required fields are filled
         if (!firstName || !lastName || !email || !password || !confirmPassword) {
-            setErrorMessage("All required fields must be filled");
-            return false;
+            if (!firstName) {
+                setFieldError('firstName', "First name is required");
+                return false;
+            }
+            if (!lastName) {
+                setFieldError('lastName', "Last name is required");
+                return false;
+            }
+            if (!email) {
+                setFieldError('email', "Email is required");
+                return false;
+            }
+            if (!password) {
+                setFieldError('password', "Password is required");
+                return false;
+            }
+            if (!confirmPassword) {
+                setFieldError('confirmPassword', "Please confirm your password");
+                return false;
+            }
         }
         
         if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-            setErrorMessage("Name and email fields cannot be empty or spaces only");
+            if (!firstName.trim()) {
+                setFieldError('firstName', "First name cannot be empty or spaces only");
+                return false;
+            }
+            if (!lastName.trim()) {
+                setFieldError('lastName', "Last name cannot be empty or spaces only");
+                return false;
+            }
+            if (!email.trim()) {
+                setFieldError('email', "Email cannot be empty or spaces only");
+                return false;
+            }
+        }
+
+        if (!nameRegex.test(firstName)) {
+            setFieldError('firstName', "First name can only contain letters");
+            return false;
+        }
+        
+        if (!nameRegex.test(lastName)) {
+            setFieldError('lastName', "Last name can only contain letters");
             return false;
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            setErrorMessage("Invalid email format");
+            setFieldError('email', "Invalid email format");
+            return false;
+        }
+
+        if (email.includes(" ")) {
+            setFieldError('email', "Email cannot contain spaces");
             return false;
         }
 
         // Enhanced password validation
         const passwordError = validatePassword(password);
         if (passwordError) {
-            setErrorMessage(passwordError);
+            setFieldError('password', passwordError);
             return false;
         }
 
         if (password !== confirmPassword) {
-            setErrorMessage("Passwords do not match");
+            setFieldError('confirmPassword', "Passwords do not match");
             return false;
         }
         
         if (birthDate && new Date(birthDate) > new Date()) {
-            setErrorMessage("Birth date cannot be in the future");
-            return false;
-        }
-        
-        if (email.includes(" ")) {
-            setErrorMessage("Email cannot contain spaces");
+            setFieldError('birthDate', "Birth date cannot be in the future");
             return false;
         }
 
@@ -89,13 +147,35 @@ const Register = () => {
         if (phone) {
             const digitsOnly = phone.replace(/-/g, '');
             if (!/^\d{10,11}$/.test(digitsOnly)) {
-                setErrorMessage("Phone number must contain 10–11 digits (digits only, dash allowed after 3 digits)");
+                setFieldError('phone', "Phone number must contain 10-11 digits (digits only, dash allowed after 3 digits)");
                 return false;
             }
         }
 
-        setErrorMessage('');
         return true;
+    };
+
+    // Handle phone number formatting with dash after 3 digits
+    const handlePhoneChange = (e) => {
+        let value = e.target.value;
+        
+        // Remove all non-digit characters except dash
+        value = value.replace(/[^0-9-]/g, '');
+        
+        // Remove existing dashes to reformat
+        const digitsOnly = value.replace(/-/g, '');
+        
+        // Add dash after 3 digits if there are more than 3 digits
+        if (digitsOnly.length > 3) {
+            value = digitsOnly.slice(0, 3) + '-' + digitsOnly.slice(3);
+        } else {
+            value = digitsOnly;
+        }
+        
+        // Limit to 12 characters (3 digits + dash + 8 more digits max)
+        value = value.slice(0, 12);
+        
+        setPhone(value);
     };
 
     // Handle profile picture as base64
@@ -117,7 +197,7 @@ const Register = () => {
         if (!validateForm()) return;
 
         setIsLoading(true);
-        setErrorMessage('');
+        clearFieldErrors();
         
         const payload = {
             firstName,
@@ -142,7 +222,14 @@ const Register = () => {
                 navigate('/login');
             } else {
                 const data = await response.json();
-                setErrorMessage(data?.error || "Registration failed");
+                const errorMsg = data?.error || "Registration failed";
+                
+                // If the error is about email already registered, show it next to email field
+                if (errorMsg === "Email already registered") {
+                    setFieldError('email', errorMsg);
+                } else {
+                    setErrorMessage(errorMsg);
+                }
             }
         } catch (err) {
             console.error("Network or unexpected error:", err);
@@ -158,7 +245,7 @@ const Register = () => {
                 <h2>Registration</h2>
                 <p className="login-subtitle">Create a new account</p>
 
-                {errorMessage && <div className="login-error">{errorMessage}</div>}
+                {errorMessage && !Object.keys(fieldErrors).length && <div className="login-error">{errorMessage}</div>}
 
                 <form onSubmit={handleSubmit}>
                     <div className="input-group">
@@ -170,6 +257,7 @@ const Register = () => {
                             onChange={(e) => setFirstName(e.target.value)} 
                             required 
                         />
+                        {fieldErrors.firstName && <div className="field-error">{fieldErrors.firstName}</div>}
                     </div>
 
                     <div className="input-group">
@@ -181,6 +269,7 @@ const Register = () => {
                             onChange={(e) => setLastName(e.target.value)} 
                             required 
                         />
+                        {fieldErrors.lastName && <div className="field-error">{fieldErrors.lastName}</div>}
                     </div>
 
                     <div className="input-group">
@@ -192,29 +281,52 @@ const Register = () => {
                             onChange={(e) => setEmail(e.target.value)} 
                             required 
                         />
+                        {fieldErrors.email && <div className="field-error">{fieldErrors.email}</div>}
                     </div>
 
                     <div className="input-group">
                         <label>Password*</label>
-                        <input 
-                            placeholder='Password at least 8 characters with letters and numbers' 
-                            type="password" 
-                            value={password} 
-                            onChange={(e) => setPassword(e.target.value)} 
-                            required 
-                        />
+                        <div className="password-input-container">
+                            <input 
+                                placeholder='Password at least 8 characters with letters and numbers' 
+                                type={showPassword ? "text" : "password"}
+                                value={password} 
+                                onChange={(e) => setPassword(e.target.value)} 
+                                required 
+                            />
+                            <button
+                                type="button"
+                                className="password-toggle-btn"
+                                onClick={() => setShowPassword(!showPassword)}
+                                title={showPassword ? "Hide password" : "Show password"}
+                            >
+                                {showPassword ? "👁️" : "👁️‍🗨️"}
+                            </button>
+                        </div>
+                        {fieldErrors.password && <div className="field-error">{fieldErrors.password}</div>}
                     </div>
 
                     <div className="input-group">
                         <label>Confirm Password*</label>
-                        <input 
-                            placeholder='Confirm Password' 
-                            type="password" 
-                            value={confirmPassword} 
-                            onChange={(e) => setConfirmPassword(e.target.value)} 
-                            onPaste={(e) => e.preventDefault()} 
-                            required 
-                        />
+                        <div className="password-input-container">
+                            <input 
+                                placeholder='Confirm Password' 
+                                type={showConfirmPassword ? "text" : "password"}
+                                value={confirmPassword} 
+                                onChange={(e) => setConfirmPassword(e.target.value)} 
+                                onPaste={(e) => e.preventDefault()} 
+                                required 
+                            />
+                            <button
+                                type="button"
+                                className="password-toggle-btn"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                title={showConfirmPassword ? "Hide password" : "Show password"}
+                            >
+                                {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
+                            </button>
+                        </div>
+                        {fieldErrors.confirmPassword && <div className="field-error">{fieldErrors.confirmPassword}</div>}
                     </div>
 
                     <div className="input-group">
@@ -224,31 +336,31 @@ const Register = () => {
                             value={birthDate} 
                             onChange={(e) => setBirthDate(e.target.value)} 
                         />
+                        {fieldErrors.birthDate && <div className="field-error">{fieldErrors.birthDate}</div>}
                     </div>
 
                     <div className="input-group">
                         <label>Phone</label>
                         <input 
-                            placeholder='Phone number' 
-                            type="text" 
+                            placeholder='Phone number (10-11 digits)' 
+                            type="tel" 
                             value={phone} 
-                            onChange={(e) => {
-                                let value = e.target.value.replace(/[^\d]/g, '');
-                                if (value.length > 3) {
-                                    value = value.slice(0, 3) + '-' + value.slice(3);
-                                }
-                                setPhone(value);
-                            }} 
+                            onChange={handlePhoneChange}
                         />
+                        {fieldErrors.phone && <div className="field-error">{fieldErrors.phone}</div>}
                     </div>
 
                     <div className="input-group">
                         <label>Gender</label>
-                        <select value={gender} onChange={(e) => setGender(e.target.value)}>
+                        <select 
+                            value={gender} 
+                            onChange={(e) => setGender(e.target.value)}
+                        >
                             <option value="">Select Gender</option>
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                            <option value="other">Other</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                            <option value="Prefer not to say">Prefer not to say</option>
                         </select>
                     </div>
 
@@ -261,16 +373,22 @@ const Register = () => {
                         />
                     </div>
 
-                    {isLoading && <p className="login-loading">Registering...</p>}
+                    {isLoading && <div className="login-loading">Creating your account...</div>}
 
-                    <button className="login-button" type="submit" disabled={isLoading}>
-                        Register
+                    <button 
+                        type="submit" 
+                        className="login-button" 
+                        disabled={isLoading}
+                    >
+                        {isLoading ? 'Creating Account...' : 'Create Account'}
                     </button>
 
-                    <p className="register-link">
+                    <div className="register-link">
                         Already have an account?{' '}
-                        <span onClick={() => navigate('/login')}>Log in here</span>
-                    </p>
+                        <span onClick={() => navigate('/login')}>
+                            Sign in
+                        </span>
+                    </div>
                 </form>
             </div>
         </div>
