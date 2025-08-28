@@ -200,6 +200,7 @@ const DraftEditPage = () => {
                     recipient: r,      // single-recipient schema
                     subject: subject || "",
                     content: body || "",
+                    isDraft: false
                 };
                 // eslint-disable-next-line no-await-in-loop
                 const out = await postOnce(payload);

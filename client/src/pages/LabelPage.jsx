@@ -30,6 +30,30 @@ const LabelPage = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
+  // figure out current user's email from the JWT (fallback: localStorage key "userEmail")
+  // we use this to detect "inbox" and "sent" system labels
+  //Added by Meir to get user email from token
+  const currentUserEmail = React.useMemo(() => {
+    try {
+      const jwt = String(token || "");
+      const base64 = jwt.split(".")[1];
+      if (!base64) return "";
+      const json = JSON.parse(atob(base64.replace(/-/g, "+").replace(/_/g, "/")));
+      const e = json.email || json.user?.email || json.username || json.sub || "";
+      return String(e).trim().toLowerCase();
+    } catch {
+      return String(localStorage.getItem("userEmail") || "").trim().toLowerCase();
+    }
+  }, [token]);
+
+  // normalize a person field (string or { email })
+  const emailOf = (p) => {
+    if (!p) return "";
+    if (typeof p === "string") return p.trim().toLowerCase();
+    return String(p.email || "").trim().toLowerCase();
+  };
+
+
   // ---------- helpers ----------
   const normalize = (text) => (text || "").toString().trim().toLowerCase();
 
@@ -77,50 +101,118 @@ const LabelPage = () => {
     const wanted = String(name || "").trim().toLowerCase();
     if (!wanted) throw new Error("Invalid label name");
 
-    // 1) try to find in the loaded list
+    // 1) First, try to refresh the full list of labels
+    try {
+      const labelsRes = await fetch("/api/labels", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (labelsRes.ok) {
+        const freshLabels = await labelsRes.json();
+        setAllLabels(freshLabels);
+
+        // Check if the label already exists in the fresh list
+        const found = freshLabels.find(
+          (l) => (l.name || "").toLowerCase() === wanted
+        );
+        if (found) return found.id;
+      }
+    } catch (refreshErr) {
+      console.warn("Failed to refresh labels:", refreshErr);
+      // If refresh failed, fall back to local list
+    }
+
+    // 2) Check local list as backup
     const exists = (allLabels || []).find(
       (l) => (l.name || "").toLowerCase() === wanted
     );
     if (exists) return exists.id;
 
-    // 2) try to create once (backend must allow creating labels)
-    const res = await fetch("/api/labels", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name: wanted }),
-    });
+    // 3) Only now try to create the label
+    try {
+      const res = await fetch("/api/labels", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: wanted }),
+      });
 
-    if (!res.ok) {
-      // read error body (json or text) for real diagnostics
-      let msg = `Failed to create label '${wanted}' (${res.status})`;
+      if (res.ok) {
+        const created = await res.json();
+        setAllLabels((prev) => [...prev, created]);
+        return created.id;
+      }
+
+      // If creation failed, check if it's because "already exists"
+      let errorMsg = `Failed to create label '${wanted}' (${res.status})`;
       try {
-        const ct = res.headers.get("content-type") || "";
-        if (ct.includes("application/json")) {
-          const j = await res.json();
-          if (j?.error) msg = j.error;
-        } else {
-          const t = await res.text();
-          if (t) msg = t;
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const errorData = await res.json();
+          if (errorData?.error) {
+            errorMsg = errorData.error;
+            // If label already exists, refresh again and try to find it
+            if (errorData.error.includes("already exists")) {
+              try {
+                const retryRes = await fetch("/api/labels", {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                if (retryRes.ok) {
+                  const retryLabels = await retryRes.json();
+                  setAllLabels(retryLabels);
+                  const foundAfterRetry = retryLabels.find(
+                    (l) => (l.name || "").toLowerCase() === wanted
+                  );
+                  if (foundAfterRetry) return foundAfterRetry.id;
+                }
+              } catch (retryErr) {
+                console.warn("Retry after 'already exists' failed:", retryErr);
+              }
+            }
+          }
         }
-      } catch { }
-      throw new Error(msg);
-    }
+      } catch (parseErr) {
+        console.warn("Failed to parse error response:", parseErr);
+      }
 
-    const created = await res.json();
-    setAllLabels((prev) => [...prev, created]); // keep client cache in sync
-    return created.id;
+      throw new Error(errorMsg);
+      
+    } catch (createErr) {
+      console.error("Error in ensureLabelIdByName:", createErr);
+      throw createErr;
+    }
   };
 
   // Resolve a system label name ('trash'/'spam'/'drafts') to a real numeric labelId
   const resolveSystemLabelId = async (nameLower) => {
     const nm = String(nameLower || "").toLowerCase();
+
+    // Always refresh before system labels
+    try {
+      const labelsRes = await fetch("/api/labels", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (labelsRes.ok) {
+        const freshLabels = await labelsRes.json();
+        setAllLabels(freshLabels);
+        
+        const found = freshLabels.find(
+          (l) => (l.name || "").toLowerCase() === nm
+        );
+        if (found) return found.id;
+      }
+    } catch (refreshErr) {
+      console.warn("Failed to refresh labels in resolveSystemLabelId:", refreshErr);
+    }
+
+    // Backup - check local list
     const found = (allLabels || []).find(
       (l) => (l.name || "").toLowerCase() === nm
     );
     if (found) return found.id;
+    
+    // Only now try to create the label
     return await ensureLabelIdByName(nm);
   };
 
@@ -139,6 +231,7 @@ const LabelPage = () => {
 
   // ---------- effects ----------
   useEffect(() => {
+    console.log(`=== LabelPage loading for labelId: ${labelId} ===`);
     setSearchQuery("");
     if (!token) return;
 
@@ -161,6 +254,12 @@ const LabelPage = () => {
           });
           const data = await response.json();
 
+          console.log(`Received data for ${labelId}:`, {
+            inbox_count: data.inbox?.length || 0,
+            sent_count: data.sent?.length || 0,
+            labelId: labelId
+          });
+
           const list =
             labelId === "inbox"
               ? Array.isArray(data?.inbox)
@@ -170,8 +269,24 @@ const LabelPage = () => {
                 ? data.sent
                 : [];
 
+          console.log(`Selected list for ${labelId} has ${list.length} mails`);
+
+          // keep only mails that belong to ME in this view - Meir added
+          let roleFiltered = list;
+          if (currentUserEmail) {
+            if (labelId === "inbox") {
+              // inbox = I'm the recipient
+              roleFiltered = list.filter((m) => emailOf(m.recipient) === currentUserEmail);
+            } else {
+              // sent = I'm the sender
+              roleFiltered = list.filter((m) => emailOf(m.sender) === currentUserEmail);
+            }
+          }
+
           // exclude drafts immediately by explicit flag; names fallback remains
-          const prelim = list.filter(
+          // (we'll filter out trash below by querying labels)
+          // Meir changed the first row from list to roleFiltered
+          const prelim = roleFiltered.filter(
             (m) => m?.isDraft !== true && !hasNameDraft(m?.labels || [])
           );
 
@@ -198,7 +313,7 @@ const LabelPage = () => {
                   }
                 })
               );
-              if (!names.includes("trash")) final.push(mail);
+              if (!names.includes("trash") && !names.includes("spam")) final.push(mail);
             } catch {
               final.push(mail);
             }
@@ -263,6 +378,7 @@ const LabelPage = () => {
         }
 
         setMails(validMails);
+        console.log(`Final validMails for ${labelId}: ${validMails.length} mails`);
 
         // fetch labels per mail id
         const mailLabelsMap = {};

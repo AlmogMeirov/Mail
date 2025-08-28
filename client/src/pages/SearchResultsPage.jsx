@@ -232,12 +232,21 @@ const SearchResultsPage = () => {
         //  a) Only mails that involve me (sender or recipient)
         //  b) If draft -> only if I am the sender (owner)
         const safe = enriched.filter((m) => {
-          const involvesMe =
+          /*const involvesMe =
             m.__sender === myEmail || m.__recipient === myEmail;
 
           if (!involvesMe) return false;
           if (!m.__isDraft) return true;
-          return m.__sender === myEmail; // only my drafts
+          return m.__sender === myEmail; // only my drafts*/
+
+          // For drafts, only show if I'm the sender (owner)
+          if (m.__isDraft) {
+            return m.__sender === myEmail;
+          }
+          
+          // For non-drafts, show all mails (the server should already filter appropriately)
+          return true;
+
         });
 
         // Debug traces (optional)

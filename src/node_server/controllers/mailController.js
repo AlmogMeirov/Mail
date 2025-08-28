@@ -11,8 +11,9 @@ const { addUrlToBlacklist } = require("../utils/blacklistClient"); // Added by M
 
 // mailController.js
 const createMail = async (req, res) => {
+
     let { labels = ["inbox"] } = req.body; // changed by Meir in exercise 4 from "const { labels = ["inbox"] } = req.body;"
-    const { sender, recipient, recipients, subject, content } = req.body;
+    const { sender, recipient, recipients, subject, content, isDraft } = req.body; // Added isDraft by Meir in exercise 4 to support saving drafts
     const groupId = uuidv4();
 
     // ----- build recipients list (back-compat) -----
@@ -21,6 +22,15 @@ const createMail = async (req, res) => {
         : recipient
             ? [recipient]
             : [];
+    
+    console.log("[createMail:init]", {
+        authUser: req.user?.email,
+        sender,
+        recipientsList,
+        isDraft,
+        labels,
+        groupId
+    });
 
     // ----- basic validation -----
 
@@ -42,8 +52,43 @@ const createMail = async (req, res) => {
             return res.status(400).json({ error: `Recipient does not exist: ${r}` });
         }
     }
+    /**************************************************************
+    Added by Meir in exercise 4 to allow drafts with no recipients
+    ***************************************************************/
+     // ----- Handle drafts BEFORE blacklist check -----
+    if (isDraft) {
+        // For drafts, just save to sender's inbox with draft labels
+        const mail = {
+            id: uuidv4(),
+            sender,
+            recipient: recipientsList[0] || "", // Keep first recipient for compatibility
+            recipients: recipientsList,
+            subject,
+            content,
+            labels,
+            groupId,
+            timestamp: new Date().toISOString(),
+            isDraft: true // Explicitly mark as draft
+        };
+        
+        // Add draft to sender's inbox only
+        inboxMap.get(sender).push(mail);
+        
+        // Assign labels to the mail
+        labels.forEach(labelId => {
+            labelModel.addLabelToMail(sender, mail.id, labelId);
+        });
 
-    // ----- blacklist check (once for whole message) -----
+        console.log("[createMail:draft] saved draft", {
+            sender,
+            groupId,
+            labels
+        });
+
+        return res.status(201).json({ message: "Draft saved successfully", draft: mail });
+    }
+
+    // ----- blacklist check (once for whole message and only for actual sending, not drafts) -----
     let finalLabels = labels;
     try {
         const urls = extractUrls(`${subject} ${content}`);
@@ -53,12 +98,33 @@ const createMail = async (req, res) => {
             console.log("Message contains blacklisted URL, marking as spam");
             const spamLabelMap = new Map(); // key: recipient, value: spam label id
             for (const r of recipientsList) {
-                let spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
-                if (!spamLabel) {
-                    spamLabel = labelModel.addLabel(r, "Spam");
+            let spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
+            if (!spamLabel) { // Edited by Meir to create the Spam label if it doesn't exist
+                try {
+                    spamLabel = labelModel.createLabel(r, "Spam"); 
+                } catch (err) {
+                    // If creation failed because label already exists, find it again
+                    if (err.message && err.message.includes("already exists")) {
+                        spamLabel = getAllLabels(r).find(l => l.name.toLowerCase() === "spam");
+                        if (!spamLabel) {
+                            // If still not found, something is wrong - log and skip this recipient
+                            console.error(`Critical error: Spam label creation failed and label not found for user ${r}`);
+                            continue;
+                        }
+                    } else {
+                        // Different error, re-throw
+                        throw err;
+                    }
                 }
-                spamLabelMap.set(r, spamLabel.id);
             }
+            spamLabelMap.set(r, spamLabel.id);
+        }
+        
+        // Only proceed if we have spam labels for all recipients
+        if (spamLabelMap.size !== recipientsList.length) {
+            console.error("Failed to create spam labels for all recipients, aborting spam processing");
+            return res.status(500).json({ error: "Failed to process spam labeling" });
+        }
             const sent = [];
             for (const r of recipientsList) {
                 const mail = {
@@ -72,8 +138,11 @@ const createMail = async (req, res) => {
                     groupId,
                     timestamp: new Date().toISOString(),
                 };
+                console.log("[SPAM push:before] from=%s to=%s id=%s", sender, r, mail.id);
                 inboxMap.get(r).push(mail);
                 sent.push(mail);
+                console.log("[SPAM push:after] inbox[%s].len=%d sent.len=%d",
+                    r, (inboxMap.get(r) || []).length, sent.length);
                 labelModel.addLabelToMail(sender, mail.id, spamLabelMap.get(r));
                 labelModel.addLabelToMail(r, mail.id, spamLabelMap.get(r));
             }
@@ -120,8 +189,12 @@ const createMail = async (req, res) => {
             groupId, // Added by Tomer in exercises 4
             timestamp: new Date().toISOString(),
         };
+        console.log("[DELIVER push:before] group=%s from=%s to=%s id=%s",
+            groupId, sender, r, mail.id);
         inboxMap.get(r).push(mail);
         sent.push(mail);
+        console.log("[DELIVER push:after] inbox[%s].len=%d sent.len=%d",
+            r, (inboxMap.get(r) || []).length, sent.length);
         // Add in exercises 4, assign labels to the mail
         labels.forEach(labelId => {
             labelModel.addLabelToMail(sender, mail.id, labelId);
@@ -139,6 +212,13 @@ const getMails = (req, res) => {
 
         const userEmail = req.user.email;
 
+
+        const allofMyInbox = inboxMap.get(userEmail) || [];
+        console.log(`=== All mails in ${userEmail}'s inbox ===`);
+        allofMyInbox.forEach((mail, index) => {
+            console.log(`[${index}] ID: ${mail.id}, Sender: ${mail.sender}, Recipients: ${JSON.stringify(mail.recipients || [mail.recipient])}, Subject: "${mail.subject}", GroupId: ${mail.groupId}`);
+        });
+
         if (!inboxMap || inboxMap.size === 0) {
             return res.status(200).json({ 
                 message: "No mails exist in the system", 
@@ -148,16 +228,37 @@ const getMails = (req, res) => {
             });
         }
 
-        const inbox = inboxMap.get(userEmail) || [];
+        const allMyInbox = inboxMap.get(userEmail) || []; // edited by Meir to get all mails including drafts
+        const inbox = allMyInbox.filter(m => m?.isDraft !== true); // exclude drafts from inbox view
+
 
         const sent = [];
+        console.log(`=== Computing sent mails for ${userEmail} ===`);
+        for (const [recipient, mails] of inboxMap.entries()) {
+            if (recipient !== userEmail) {
+                console.log(`Checking inbox of ${recipient} (${mails.length} mails)`);
+                mails.forEach(mail => {
+                    const isSentByUser = mail.sender === userEmail && mail?.isDraft !== true;
+                    console.log(`  Mail "${mail.subject}" - sender: ${mail.sender}, isDraft: ${mail.isDraft}, isSentByUser: ${isSentByUser}`);
+                    if (isSentByUser) {
+                        sent.push(mail);
+                        console.log(`    -> Added to sent!`);
+                    }
+                });
+            } else {
+                console.log(`Skipping ${recipient}'s own inbox`);
+            }
+        }
+        console.log(`Final sent array: ${sent.length} mails`);
+        /*Edited by Meir. previous code was:*/
+        /*const sent = [];
         for (const [recipient, mails] of inboxMap.entries()) {
             mails.forEach(mail => {
                 if (mail.sender === userEmail) {
                     sent.push(mail);
                 }
             });
-        }
+        }*/
 
         if (inbox.length === 0 && sent.length === 0) {
             return res.status(200).json({ 
@@ -460,10 +561,10 @@ function searchMails(req, res) {
 
     const q = query.toLowerCase();
 
-    // inbox של המשתמש
+    // user's inbox
     const inbox = inboxMap.get(userEmail) || [];
 
-    // מיילים שהמשתמש שלח
+    // user's sent mails
     const sent = [];
     for (const mails of inboxMap.values()) {
         for (const mail of mails) {
@@ -473,10 +574,10 @@ function searchMails(req, res) {
         }
     }
 
-    // חיבור בין מיילים נכנסים ויוצאים
+    // user's combined mails
     const combined = inbox.concat(sent);
 
-    // סינון לפי תוכן החיפוש
+    // filtering by search content
     const results = combined.filter(mail => {
         const subject = mail.subject?.toLowerCase() || "";
         const content = mail.content?.toLowerCase() || "";
@@ -499,8 +600,8 @@ function searchMails(req, res) {
         return res.status(404).json({ error: "No matching mails found" });
     }
 
-    // הסרת כפילויות לפי id (כדי לא להציג את אותו מייל שנשלח לקבוצה כמה פעמים)
-    // סינון תוצאות כפולות לפי groupId
+    // Removing duplicates by id (to avoid showing the same mail sent to a group multiple times)
+    // Filtering duplicate results by groupId
     const seenGroups = new Set();
     const uniqueResults = results.filter(mail => {
         if (mail.groupId && seenGroups.has(mail.groupId)) return false;
@@ -509,7 +610,7 @@ function searchMails(req, res) {
     });
 
 
-    // בניית הפלט עם recipients כ-array
+    // recipienrs as array
     return res.json(uniqueResults.map(mail => ({
         id: mail.id,
         subject: mail.subject,

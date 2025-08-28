@@ -1,4 +1,5 @@
 services:
+  # C++ blacklist TCP server (port 5555)
   blacklist-server:
     build:
       context: .
@@ -9,12 +10,38 @@ services:
     volumes:
       - ./data:/usr/src/app/data
 
+  # Node.js mail API server (port 3000)
   mail-server:
     build:
       context: .
       dockerfile: src/node_server/Dockerfile
     container_name: mail-server
+    environment:
+      - NODE_ENV=production
+      # That's how the mail server connects to the blacklist server in the same Docker Compose network
+      - BLACKLIST_HOST=blacklist-server
+      - BLACKLIST_PORT=5555
     ports:
       - "3000:3000"
     depends_on:
       - blacklist-server
+
+  # React client
+  client:
+    image: node:20
+    container_name: mail-client
+    working_dir: /app
+    volumes:
+      - ./client:/app
+      # To avoid issues with node_modules in the host and container
+      - /app/node_modules
+    environment:
+      # CRA knows to listen on this port – prevents conflicts with the Node server
+      - PORT=3001
+      # Sometimes needed in Docker to detect changes from the host
+      - CHOKIDAR_USEPOLLING=true
+    command: sh -c "npm ci && npm start"
+    ports:
+      - "3001:3001"
+    depends_on:
+      - mail-server

@@ -82,7 +82,7 @@ export default function SendMailComponent({
       if (!confirmSend) return;
     }
 
-    const res = await fetch("http://localhost:3000/api/mails", {
+    const res = await fetch("/api/mails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -93,7 +93,8 @@ export default function SendMailComponent({
         subject,
         content,
         sender,
-      }),
+        isDraft: false
+      })
     });
 
     if (res.ok) {
