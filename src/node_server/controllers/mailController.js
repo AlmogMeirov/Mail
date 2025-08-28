@@ -44,7 +44,7 @@ const createMail = async (req, res) => {
         return null;
       }
     };
-    const finalLabelIds = (labels || []).map(resolveLabelId).filter(Boolean);
+    const finalLabelIds = (labels || []).map(resolveLabelId).filter(Boolean); // Meir draft issue
     // ------------------------------------------------------------------------------
 
 
@@ -53,7 +53,7 @@ const createMail = async (req, res) => {
         sender,
         recipientsList,
         isDraft,
-        labels: finalLabelIds,
+        labels: finalLabelIds, // Meir draft issue
         groupId
     });
 
@@ -90,7 +90,7 @@ const createMail = async (req, res) => {
             recipients: recipientsList,
             subject,
             content,
-            labels: finalLabelIds,
+            labels: finalLabelIds, // Meir draft issue
             groupId,
             timestamp: new Date().toISOString(),
             isDraft: true // Explicitly mark as draft
@@ -100,21 +100,21 @@ const createMail = async (req, res) => {
         inboxMap.get(sender).push(mail);
         
         // Assign labels to the mail
-        finalLabelIds.forEach(labelId => {
+        finalLabelIds.forEach(labelId => { // Meir draft issue
             labelModel.addLabelToMail(sender, mail.id, labelId);
         });
 
         console.log("[createMail:draft] saved draft", {
             sender,
             groupId,
-            labels: finalLabelIds
+            labels: finalLabelIds // Meir draft issue
         });
 
         return res.status(201).json({ message: "Draft saved successfully", draft: mail });
     }
 
     // ----- blacklist check (once for whole message and only for actual sending, not drafts) -----
-    let finalLabels = finalLabelIds;
+    let finalLabels = finalLabelIds; // Meir draft issue
     try {
         const urls = extractUrls(`${subject} ${content}`);
         const results = await Promise.all(urls.map(checkUrlBlacklist));
@@ -210,7 +210,7 @@ const createMail = async (req, res) => {
             recipients: recipientsList, // Added by Meir to keep track of all recipients
             subject,
             content,
-            labels: finalLabels,
+            labels: finalLabels, // Meir draft issue
             groupId, // Added by Tomer in exercises 4
             timestamp: new Date().toISOString(),
         };
@@ -221,7 +221,7 @@ const createMail = async (req, res) => {
         console.log("[DELIVER push:after] inbox[%s].len=%d sent.len=%d",
             r, (inboxMap.get(r) || []).length, sent.length);
         // Add in exercises 4, assign labels to the mail
-        finalLabels.forEach(labelId => {
+        finalLabels.forEach(labelId => { // Meir draft issue
             labelModel.addLabelToMail(sender, mail.id, labelId);
         });
     }
