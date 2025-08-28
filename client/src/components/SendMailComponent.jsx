@@ -259,19 +259,20 @@ export default function SendMailComponent({
         console.log(`Removed ${duplicatesCount} duplicate email address(es)`);
       }
 
-      const res = await fetch("http://localhost:3000/api/mails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          recipients: uniqueRecipients,
-          subject,
-          content,
-          sender,
-        }),
-      });
+       const res = await fetch("/api/mails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        recipients: recipientsArray,
+        subject,
+        content,
+        sender,
+        isDraft: false
+      })
+    });
 
       if (res.ok) {
         // Show success message with duplicate info if relevant
@@ -303,6 +304,7 @@ export default function SendMailComponent({
     // Escape to close (only if not focused on textarea)
     if (e.key === 'Escape' && e.target.tagName !== 'TEXTAREA') {
       e.preventDefault();
+
       onClose();
     }
   };

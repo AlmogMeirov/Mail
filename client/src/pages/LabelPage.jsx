@@ -1,4 +1,4 @@
-// LabelPage.jsx - Simple mail selection with checkmarks and pagination
+// LabelPage.jsx - Merged version combining both UI improvements and custom label logic
 
 import { FaTrash, FaArchive, FaTag, FaStar, FaRegStar } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
@@ -31,7 +31,7 @@ const LabelPage = () => {
   const [openLabelManagement, setOpenLabelManagement] = useState({});
   const [pendingLabelChanges, setPendingLabelChanges] = useState({});
   
-  // SIMPLE: Just selected mails - no complex state
+  // Selection functionality
   const [selectedMails, setSelectedMails] = useState(new Set());
   const [isBulkOperationInProgress, setIsBulkOperationInProgress] = useState(false);
 
@@ -42,6 +42,27 @@ const LabelPage = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
+  // Get current user email from JWT
+  const currentUserEmail = React.useMemo(() => {
+    try {
+      const jwt = String(token || "");
+      const base64 = jwt.split(".")[1];
+      if (!base64) return "";
+      const json = JSON.parse(atob(base64.replace(/-/g, "+").replace(/_/g, "/")));
+      const e = json.email || json.user?.email || json.username || json.sub || "";
+      return String(e).trim().toLowerCase();
+    } catch {
+      return String(localStorage.getItem("userEmail") || "").trim().toLowerCase();
+    }
+  }, [token]);
+
+  // Normalize email helper
+  const emailOf = (p) => {
+    if (!p) return "";
+    if (typeof p === "string") return p.trim().toLowerCase();
+    return String(p.email || "").trim().toLowerCase();
+  };
+
   // Load read mails from localStorage
   useEffect(() => {
     const loadReadMails = () => {
@@ -50,29 +71,22 @@ const LabelPage = () => {
         try {
           const readArray = JSON.parse(stored);
           setReadMails(new Set(readArray));
-          console.log('Loaded read mails:', readArray);
         } catch (e) {
           console.error('Error loading read mails:', e);
           setReadMails(new Set());
         }
       }
     };
-
     loadReadMails();
-
+    
     const handleStorageChange = (e) => {
-      if (e.key === 'readMails') {
-        loadReadMails();
-      }
+      if (e.key === 'readMails') loadReadMails();
     };
-
-    const handleReadMailUpdate = () => {
-      loadReadMails();
-    };
-
+    const handleReadMailUpdate = () => loadReadMails();
+    
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('readMailsUpdated', handleReadMailUpdate);
-
+    
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('readMailsUpdated', handleReadMailUpdate);
@@ -137,69 +151,133 @@ const LabelPage = () => {
     return idsForMail.includes(starredLabelId);
   };
 
+  // Enhanced ensureLabelIdByName - combines both approaches
   const ensureLabelIdByName = async (name) => {
     const wanted = String(name || "").trim().toLowerCase();
     if (!wanted) throw new Error("Invalid label name");
 
+    // 1) First, try to refresh the full list of labels
+    try {
+      const labelsRes = await fetch("/api/labels", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (labelsRes.ok) {
+        const freshLabels = await labelsRes.json();
+        setAllLabels(freshLabels);
+
+        // Check if the label already exists in the fresh list
+        const found = freshLabels.find(
+          (l) => (l.name || "").toLowerCase() === wanted
+        );
+        if (found) return found.id;
+      }
+    } catch (refreshErr) {
+      console.warn("Failed to refresh labels:", refreshErr);
+    }
+
+    // 2) Check local list as backup
     const exists = (allLabels || []).find(
       (l) => (l.name || "").toLowerCase() === wanted
     );
     if (exists) return exists.id;
 
-    // Only create system labels automatically, not custom ones
+    // 3) Determine if we should create the label
     const systemLabels = ['inbox', 'sent', 'trash', 'spam', 'drafts', 'starred'];
-    if (!systemLabels.includes(wanted)) {
-      throw new Error(`Label '${wanted}' does not exist`);
+    const isSystemLabel = systemLabels.includes(wanted);
+
+    // For system labels, always try to create
+    // For custom labels, only create if this is a user-initiated action
+    if (!isSystemLabel) {
+      // Check if this is being called from a system context vs user context
+      // For now, allow creation of custom labels
+      console.log(`Attempting to create custom label: ${wanted}`);
     }
 
-    const res = await fetch("/api/labels", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name: wanted }),
-    });
+    try {
+      const res = await fetch("/api/labels", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: wanted }),
+      });
 
-    if (!res.ok) {
-      let msg = `Failed to create label '${wanted}' (${res.status})`;
+      if (res.ok) {
+        const created = await res.json();
+        setAllLabels((prev) => [...prev, created]);
+        return created.id;
+      }
+
+      // Handle creation failure
+      let errorMsg = `Failed to create label '${wanted}' (${res.status})`;
       try {
-        const ct = res.headers.get("content-type") || "";
-        if (ct.includes("application/json")) {
-          const j = await res.json();
-          if (j?.error) msg = j.error;
-        } else {
-          const t = await res.text();
-          if (t) msg = t;
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const errorData = await res.json();
+          if (errorData?.error) {
+            errorMsg = errorData.error;
+            // If label already exists, refresh again and try to find it
+            if (errorData.error.includes("already exists")) {
+              try {
+                const retryRes = await fetch("/api/labels", {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                if (retryRes.ok) {
+                  const retryLabels = await retryRes.json();
+                  setAllLabels(retryLabels);
+                  const foundAfterRetry = retryLabels.find(
+                    (l) => (l.name || "").toLowerCase() === wanted
+                  );
+                  if (foundAfterRetry) return foundAfterRetry.id;
+                }
+              } catch (retryErr) {
+                console.warn("Retry after 'already exists' failed:", retryErr);
+              }
+            }
+          }
         }
-      } catch { }
-      throw new Error(msg);
-    }
+      } catch (parseErr) {
+        console.warn("Failed to parse error response:", parseErr);
+      }
 
-    const created = await res.json();
-    setAllLabels((prev) => [...prev, created]);
-    return created.id;
+      throw new Error(errorMsg);
+      
+    } catch (createErr) {
+      console.error("Error in ensureLabelIdByName:", createErr);
+      throw createErr;
+    }
   };
 
   const resolveSystemLabelId = async (nameLower) => {
     const nm = String(nameLower || "").toLowerCase();
+
+    // Always refresh before system labels
+    try {
+      const labelsRes = await fetch("/api/labels", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (labelsRes.ok) {
+        const freshLabels = await labelsRes.json();
+        setAllLabels(freshLabels);
+        
+        const found = freshLabels.find(
+          (l) => (l.name || "").toLowerCase() === nm
+        );
+        if (found) return found.id;
+      }
+    } catch (refreshErr) {
+      console.warn("Failed to refresh labels in resolveSystemLabelId:", refreshErr);
+    }
+
+    // Backup - check local list
     const found = (allLabels || []).find(
       (l) => (l.name || "").toLowerCase() === nm
     );
     if (found) return found.id;
     
-    // Only resolve system labels, don't create random ones
-    const systemLabels = ['inbox', 'sent', 'trash', 'spam', 'drafts', 'starred'];
-    if (systemLabels.includes(nm)) {
-      return await ensureLabelIdByName(nm);
-    }
-    
-    // If it's a custom label ID (UUID format), just return it
-    if (nameLower && nameLower.includes('-')) {
-      return nameLower;
-    }
-    
-    throw new Error(`Label '${nameLower}' not found`);
+    // Try to create the label
+    return await ensureLabelIdByName(nm);
   };
 
   // Open mail and mark as read
@@ -269,7 +347,7 @@ const LabelPage = () => {
     }
   };
 
-  // SIMPLE SELECTION FUNCTIONS
+  // Selection functions
   const toggleMailSelection = (mailId, event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -658,10 +736,22 @@ const LabelPage = () => {
           const data = await response.json();
 
           const list = labelId === "inbox" ? (data?.inbox || []) : (data?.sent || []);
-          const prelim = list.filter(
+          
+          // Filter by user role
+          let roleFiltered = list;
+          if (currentUserEmail) {
+            if (labelId === "inbox") {
+              roleFiltered = list.filter((m) => emailOf(m.recipient) === currentUserEmail);
+            } else {
+              roleFiltered = list.filter((m) => emailOf(m.sender) === currentUserEmail);
+            }
+          }
+
+          const prelim = roleFiltered.filter(
             (m) => m?.isDraft !== true && !hasNameDraft(m?.labels || [])
           );
 
+          // Filter out trash by querying label names
           const final = [];
           for (const mail of prelim) {
             try {
@@ -691,7 +781,6 @@ const LabelPage = () => {
           validMails = final;
 
         } else if (String(labelId).toLowerCase() === "starred") {
-          // Handle starred label specially
           try {
             const starredId = await resolveSystemLabelId("starred");
             const ids = await fetchWithAuth(`/labels/by-label/${starredId}`, token);
@@ -844,6 +933,7 @@ const LabelPage = () => {
     setError("");
     fetchMails().finally(() => setLoading(false));
 
+    // Load labels and mark ready
     fetchWithAuth("/labels", token)
       .then((list) => {
         setAllLabels(list);
@@ -879,7 +969,7 @@ const LabelPage = () => {
         <p style={{ color: "red", padding: "1rem" }}>{error}</p>
       ) : (
         <>
-          {/* Toolbar with simple checkmark selection */}
+          {/* Toolbar with selection functionality */}
           <div className="gmail-toolbar">
             <div className="gmail-toolbar-left">
               <div className="gmail-checkbox-all">
@@ -1005,7 +1095,7 @@ const LabelPage = () => {
                         onClick={(e) => handleMailItemClick(mail, e)}
                         style={{ cursor: 'pointer' }}
                       >
-                        {/* Simple checkmark */}
+                        {/* Checkbox */}
                         <div className="gmail-mail-checkbox">
                           <div 
                             onClick={(e) => toggleMailSelection(mail.id, e)}
