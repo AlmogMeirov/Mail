@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useSendMail } from "../context/SendMailContext";
-import "./Sidebar.css";
 
-const SYSTEM_LABELS = ["inbox", "sent", "trash", "drafts", "spam"];
+const SYSTEM_LABELS = ["inbox", "sent", "trash", "drafts", "spam", "starred"]; // Add starred to system labels
 const isSystemLabel = (name = "") =>
   SYSTEM_LABELS.includes(String(name).toLowerCase());
 
@@ -11,6 +10,7 @@ const Sidebar = () => {
   const [labels, setLabels] = useState([]);
   const [newLabel, setNewLabel] = useState("");
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false); // UI only: toggle form
   const { setShow } = useSendMail();
 
   // load labels
@@ -23,6 +23,24 @@ const Sidebar = () => {
         });
         const data = await res.json();
         setLabels(Array.isArray(data) ? data : []);
+
+        // Ensure starred label exists
+        const existingStarred = data.find(l => l.name.toLowerCase() === "starred");
+        if (!existingStarred) {
+          // Create starred label if it doesn't exist
+          const starredRes = await fetch("/api/labels", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ name: "Starred" }),
+          });
+          if (starredRes.ok) {
+            const created = await starredRes.json();
+            setLabels(prev => [...prev, created]);
+          }
+        }
       } catch (e) {
         console.error("Failed to fetch labels:", e);
       }
@@ -45,6 +63,7 @@ const Sidebar = () => {
     setOpenMenuId((prev) => (prev === id ? null : id));
   };
 
+  // unchanged logic for creating a label (validation מתבצע בשרת)
   const handleCreateLabel = async () => {
     const name = newLabel.trim();
     if (!name) return;
@@ -61,17 +80,14 @@ const Sidebar = () => {
         let errorMsg = `Failed to create label (${res.status})`;
         try {
           const errorData = await res.json();
-          if (errorData?.error) {
-            errorMsg = errorData.error;
-          }
-        } catch {
-          // If there's no JSON body, it's okay – we'll keep the generic message
-        }
+          if (errorData?.error) errorMsg = errorData.error;
+        } catch {}
         throw new Error(errorMsg);
-    }
+      }
       const created = await res.json();
       setLabels((prev) => [...prev, created]);
       setNewLabel("");
+      setShowAddForm(false); // סגירה אחרי יצירה (UI בלבד)
     } catch (e) {
       console.error("Create label error:", e);
       alert(e.message || "An unexpected error occurred while creating the label.");
@@ -102,7 +118,6 @@ const Sidebar = () => {
     const duplicate = labels.some(
       (l) => l.id !== label.id && l.name.toLowerCase() === next.toLowerCase()
     );
-
     if (duplicate) {
       alert("A label with this name already exists.");
       return;
@@ -134,75 +149,91 @@ const Sidebar = () => {
 
   return (
     <nav className="sidebar">
-      <h2>FooMail</h2>
-
-      <div className="new-mail">
+      {/* Compose mail (לא שינוי לוגי) */}
+      <div className="sidebar-header">
         <button className="compose-btn" onClick={() => setShow(true)}>
           Compose
         </button>
       </div>
 
-      <ul>
-        {/* system labels*/}
-        <li>
-          <NavLink to="/label/inbox">Inbox</NavLink>
-        </li>
-        <li>
-          <NavLink to="/label/sent">Sent</NavLink>
-        </li>
-        <li>
-          <NavLink to="/label/spam">Spam</NavLink>
-        </li>
-        <li>
-            <NavLink to="/label/drafts">Drafts</NavLink>
-        </li>
-        <li>
-          <NavLink to="/label/trash">Trash</NavLink>
-        </li>
+      <div className="sidebar-content">
+        {/* Main navigation */}
+        <div className="sidebar-section">
+          <ul>
+            <li><NavLink to="/label/inbox">Inbox</NavLink></li>
+            <li><NavLink to="/label/starred">Starred</NavLink></li> {/* Add starred link */}
+            <li><NavLink to="/label/sent">Sent</NavLink></li>
+            <li><NavLink to="/label/drafts">Drafts</NavLink></li>
+            <li><NavLink to="/label/spam">Spam</NavLink></li>
+            <li><NavLink to="/label/trash">Trash</NavLink></li>
+          </ul>
+        </div>
 
         {/* User labels */}
-        {userLabels.map((label) => (
-          <li key={label.id}>
-            <div className="label-row" data-menu-for={label.id}>
-              <NavLink to={`/label/${label.id}`}>{label.name}</NavLink>
+        <div className="sidebar-section">
+          <div className="labels-header">
+            <h3>Labels</h3>
+            <button
+              className="labels-add-btn"
+              aria-label="Create new label"
+              title="Create new label"
+              onClick={() => setShowAddForm((v) => !v)}
+            >
+              +
+            </button>
+          </div>
 
-              <button
-                className="menu-toggle"
-                onClick={() => toggleMenu(label.id)}
-                aria-label={`Actions for ${label.name}`}
-                title="Actions"
-              >
-                <i className="bi bi-three-dots-vertical"></i>
-              </button>
+          {userLabels.length > 0 && (
+            <ul>
+              {userLabels.map((label) => (
+                <li key={label.id}>
+                  <div className="label-row" data-menu-for={label.id}>
+                    <NavLink to={`/label/${label.id}`}>{label.name}</NavLink>
 
-              <div
-                className={`label-menu ${
-                  openMenuId === label.id ? "open" : ""
-                }`}
-              >
-                <button onClick={() => handleRenameLabel(label)}>Rename</button>
-                <button onClick={() => handleDeleteLabel(label.id)}>Remove</button>
-              </div>
+                    <button
+                      className="menu-toggle"
+                      onClick={() => toggleMenu(label.id)}
+                      aria-label={`Actions for ${label.name}`}
+                      title="Actions"
+                    >
+                      ⋮
+                    </button>
+
+                    <div
+                      className={`label-menu ${
+                        openMenuId === label.id ? "open" : ""
+                      }`}
+                    >
+                      <button onClick={() => handleRenameLabel(label)}>Rename</button>
+                      <button onClick={() => handleDeleteLabel(label.id)}>Remove</button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {showAddForm && (
+            <div className="new-label-form">
+              <input
+                type="text"
+                placeholder="Create new label"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleCreateLabel();
+                  }
+                }}
+                autoFocus
+              />
+              <button onClick={handleCreateLabel}>Create Label</button>
             </div>
-          </li>
-        ))}
-      </ul>
-
-      <div className="new-label-form">
-        <input
-          type="text"
-          placeholder="New label name"
-          value={newLabel}
-          onChange={(e) => setNewLabel(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault(); // prevent form submission
-              handleCreateLabel();
-            }
-          }}
-        />
-        <button onClick={handleCreateLabel}>Create Label</button>
+          )}
+        </div>
       </div>
+
     </nav>
   );
 };

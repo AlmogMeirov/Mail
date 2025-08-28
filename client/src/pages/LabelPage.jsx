@@ -1,6 +1,6 @@
-// LabelPage.jsx
+// LabelPage.jsx - Merged version combining both UI improvements and custom label logic
 
-import { FaTrash } from "react-icons/fa";
+import { FaTrash, FaArchive, FaTag, FaStar, FaRegStar } from "react-icons/fa";
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchWithAuth } from "../utils/api";
@@ -18,21 +18,31 @@ const LabelPage = () => {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
 
-  // label + draft detection helpers
-  const [draftLabelId, setDraftLabelId] = useState(null);
-  const [labelsReady, setLabelsReady] = useState(false); // true after /labels loaded
+  // Read status tracking
+  const [readMails, setReadMails] = useState(new Set());
 
-  // per-mail labels and UI state
+  // Label detection helpers
+  const [draftLabelId, setDraftLabelId] = useState(null);
+  const [starredLabelId, setStarredLabelId] = useState(null);
+  const [labelsReady, setLabelsReady] = useState(false);
+
+  // Mail management state
   const [currentMailLabels, setCurrentMailLabels] = useState({});
   const [openLabelManagement, setOpenLabelManagement] = useState({});
   const [pendingLabelChanges, setPendingLabelChanges] = useState({});
+  
+  // Selection functionality
+  const [selectedMails, setSelectedMails] = useState(new Set());
+  const [isBulkOperationInProgress, setIsBulkOperationInProgress] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const mailsPerPage = 50;
 
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
-  // figure out current user's email from the JWT (fallback: localStorage key "userEmail")
-  // we use this to detect "inbox" and "sent" system labels
-  //Added by Meir to get user email from token
+  // Get current user email from JWT
   const currentUserEmail = React.useMemo(() => {
     try {
       const jwt = String(token || "");
@@ -46,15 +56,55 @@ const LabelPage = () => {
     }
   }, [token]);
 
-  // normalize a person field (string or { email })
+  // Normalize email helper
   const emailOf = (p) => {
     if (!p) return "";
     if (typeof p === "string") return p.trim().toLowerCase();
     return String(p.email || "").trim().toLowerCase();
   };
 
+  // Load read mails from localStorage
+  useEffect(() => {
+    const loadReadMails = () => {
+      const stored = localStorage.getItem('readMails');
+      if (stored) {
+        try {
+          const readArray = JSON.parse(stored);
+          setReadMails(new Set(readArray));
+        } catch (e) {
+          console.error('Error loading read mails:', e);
+          setReadMails(new Set());
+        }
+      }
+    };
+    loadReadMails();
+    
+    const handleStorageChange = (e) => {
+      if (e.key === 'readMails') loadReadMails();
+    };
+    const handleReadMailUpdate = () => loadReadMails();
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('readMailsUpdated', handleReadMailUpdate);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('readMailsUpdated', handleReadMailUpdate);
+    };
+  }, []);
 
-  // ---------- helpers ----------
+  // Mark mail as read
+  const markAsRead = (mailId) => {
+    setReadMails(prev => {
+      const newSet = new Set([...prev, mailId]);
+      const newArray = Array.from(newSet);
+      localStorage.setItem('readMails', JSON.stringify(newArray));
+      window.dispatchEvent(new CustomEvent('readMailsUpdated'));
+      return newSet;
+    });
+  };
+
+  // Helper functions
   const normalize = (text) => (text || "").toString().trim().toLowerCase();
 
   const getDraftLabelId = (labelsList) => {
@@ -64,8 +114,14 @@ const LabelPage = () => {
     return drafts ? drafts.id : null;
   };
 
+  const getStarredLabelId = (labelsList) => {
+    const starred = (labelsList || []).find(
+      (l) => (l.name || "").toLowerCase() === "starred"
+    );
+    return starred ? starred.id : null;
+  };
+
   const hasNameDraft = (labelsOrNames) => {
-    // detect 'drafts' string among names
     if (!Array.isArray(labelsOrNames)) return false;
     return labelsOrNames.some(
       (x) => typeof x === "string" && normalize(x) === "drafts"
@@ -76,27 +132,26 @@ const LabelPage = () => {
     Array.isArray(arr) && id != null ? arr.includes(id) : false;
 
   const isDraftMailRobust = (mail) => {
-    // 1) explicit boolean from server
     if (mail?.isDraft === true) return true;
-
-    // 2) labels on the mail object itself (could be ids or names)
     if (Array.isArray(mail?.labels)) {
       if (draftLabelId && includesId(mail.labels, draftLabelId)) return true;
       if (hasNameDraft(mail.labels)) return true;
     }
-
-    // 3) labels we fetched per mail id (ids only)
     const idsForMail = currentMailLabels[mail?.id] || [];
     if (draftLabelId && includesId(idsForMail, draftLabelId)) return true;
-
-    // 4) current page is drafts label (extra safety)
     if (normalize(labelName) === "drafts" || normalize(labelId) === "drafts")
       return true;
-
     return false;
   };
 
-  // Ensure a labelId exists for a given label name (create if missing). Names are lowercased.
+  // Check if mail is starred
+  const isMailStarred = (mail) => {
+    if (!starredLabelId || !mail?.id) return false;
+    const idsForMail = currentMailLabels[mail.id] || [];
+    return idsForMail.includes(starredLabelId);
+  };
+
+  // Enhanced ensureLabelIdByName - combines both approaches
   const ensureLabelIdByName = async (name) => {
     const wanted = String(name || "").trim().toLowerCase();
     if (!wanted) throw new Error("Invalid label name");
@@ -118,7 +173,6 @@ const LabelPage = () => {
       }
     } catch (refreshErr) {
       console.warn("Failed to refresh labels:", refreshErr);
-      // If refresh failed, fall back to local list
     }
 
     // 2) Check local list as backup
@@ -127,7 +181,18 @@ const LabelPage = () => {
     );
     if (exists) return exists.id;
 
-    // 3) Only now try to create the label
+    // 3) Determine if we should create the label
+    const systemLabels = ['inbox', 'sent', 'trash', 'spam', 'drafts', 'starred'];
+    const isSystemLabel = systemLabels.includes(wanted);
+
+    // For system labels, always try to create
+    // For custom labels, only create if this is a user-initiated action
+    if (!isSystemLabel) {
+      // Check if this is being called from a system context vs user context
+      // For now, allow creation of custom labels
+      console.log(`Attempting to create custom label: ${wanted}`);
+    }
+
     try {
       const res = await fetch("/api/labels", {
         method: "POST",
@@ -144,7 +209,7 @@ const LabelPage = () => {
         return created.id;
       }
 
-      // If creation failed, check if it's because "already exists"
+      // Handle creation failure
       let errorMsg = `Failed to create label '${wanted}' (${res.status})`;
       try {
         const contentType = res.headers.get("content-type") || "";
@@ -184,7 +249,6 @@ const LabelPage = () => {
     }
   };
 
-  // Resolve a system label name ('trash'/'spam'/'drafts') to a real numeric labelId
   const resolveSystemLabelId = async (nameLower) => {
     const nm = String(nameLower || "").toLowerCase();
 
@@ -212,16 +276,18 @@ const LabelPage = () => {
     );
     if (found) return found.id;
     
-    // Only now try to create the label
+    // Try to create the label
     return await ensureLabelIdByName(nm);
   };
 
+  // Open mail and mark as read
   const safeOpenMail = (mail) => {
-    // If labels are not ready yet AND server didn't mark isDraft=true,
-    // avoid accidental opening – wait until labelsReady.
     if (!labelsReady && mail?.isDraft !== true) {
       return;
     }
+    
+    markAsRead(mail.id);
+    
     if (isDraftMailRobust(mail)) {
       navigate(`/draft/${mail.id}`);
       return;
@@ -229,199 +295,224 @@ const LabelPage = () => {
     navigate(`/mail/${mail.id}`);
   };
 
-  // ---------- effects ----------
-  useEffect(() => {
-    console.log(`=== LabelPage loading for labelId: ${labelId} ===`);
-    setSearchQuery("");
-    if (!token) return;
-
-    // compute display name for label (do not fetch system names)
-    const sysNames = new Set(["inbox", "sent", "trash", "spam", "drafts"]);
-    if (sysNames.has(String(labelId).toLowerCase())) {
-      setLabelName(String(labelId).toLowerCase());
-    } else {
-      fetchWithAuth(`/labels/${labelId}`, token)
-        .then((data) => setLabelName(data?.name || labelId))
-        .catch(() => setLabelName(labelId));
+  // Toggle starred status
+  const toggleStarred = async (mailId, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (!starredLabelId || !mailId) {
+      console.warn('Cannot toggle starred: missing starredLabelId or mailId');
+      return;
     }
-    const fetchMails = async () => {
-      try {
-        let validMails = [];
 
-        if (labelId === "inbox" || labelId === "sent") {
-          const response = await fetch("/api/mails", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const data = await response.json();
+    try {
+      const currentLabels = currentMailLabels[mailId] || [];
+      const isCurrentlyStarred = currentLabels.includes(starredLabelId);
 
-          console.log(`Received data for ${labelId}:`, {
-            inbox_count: data.inbox?.length || 0,
-            sent_count: data.sent?.length || 0,
-            labelId: labelId
-          });
+      if (isCurrentlyStarred) {
+        const response = await fetch("/api/labels/untag", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ mailId, labelId: starredLabelId }),
+        });
 
-          const list =
-            labelId === "inbox"
-              ? Array.isArray(data?.inbox)
-                ? data.inbox
-                : []
-              : Array.isArray(data?.sent)
-                ? data.sent
-                : [];
-
-          console.log(`Selected list for ${labelId} has ${list.length} mails`);
-
-          // keep only mails that belong to ME in this view - Meir added
-          let roleFiltered = list;
-          if (currentUserEmail) {
-            if (labelId === "inbox") {
-              // inbox = I'm the recipient
-              roleFiltered = list.filter((m) => emailOf(m.recipient) === currentUserEmail);
-            } else {
-              // sent = I'm the sender
-              roleFiltered = list.filter((m) => emailOf(m.sender) === currentUserEmail);
-            }
-          }
-
-          // exclude drafts immediately by explicit flag; names fallback remains
-          // (we'll filter out trash below by querying labels)
-          // Meir changed the first row from list to roleFiltered
-          const prelim = roleFiltered.filter(
-            (m) => m?.isDraft !== true && !hasNameDraft(m?.labels || [])
-          );
-
-
-          // filter out trash by querying label names (compat with current backend)
-          const final = [];
-          for (const mail of prelim) {
-            try {
-              const res = await fetch(`/api/labels/mail/${mail.id}`, {
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              if (!res.ok) {
-                final.push(mail);
-                continue;
-              }
-              const labelIds = await res.json();
-              const names = await Promise.all(
-                (labelIds || []).map(async (lid) => {
-                  try {
-                    const ld = await fetchWithAuth(`/labels/${lid}`, token);
-                    return ld?.name?.toLowerCase() || "";
-                  } catch {
-                    return "";
-                  }
-                })
-              );
-              if (!names.includes("trash") && !names.includes("spam")) final.push(mail);
-            } catch {
-              final.push(mail);
-            }
-          }
-
-          validMails = final;
-
-        } else if (String(labelId).toLowerCase() === "trash") {
-          // system "trash" page -> resolve to numeric id and list mails by that label
-          const trashId = await resolveSystemLabelId("trash");
-          const ids = await fetchWithAuth(`/labels/by-label/${trashId}`, token);
-          if (Array.isArray(ids) && ids.length > 0) {
-            const full = await Promise.all(
-              ids.map(async (id) => {
-                try {
-                  return await fetchWithAuth(`/mails/${id}`, token);
-                } catch {
-                  return null;
-                }
-              })
-            );
-            validMails = full.filter(Boolean);
-          } else {
-            validMails = [];
-          }
-        } else if (String(labelId).toLowerCase() === "spam") {
-          // system "spam" page -> resolve and list
-          const spamId = await resolveSystemLabelId("spam");
-          const ids = await fetchWithAuth(`/labels/by-label/${spamId}`, token);
-          if (Array.isArray(ids) && ids.length > 0) {
-            const full = await Promise.all(
-              ids.map(async (id) => {
-                try {
-                  return await fetchWithAuth(`/mails/${id}`, token);
-                } catch {
-                  return null;
-                }
-              })
-            );
-            validMails = full.filter(Boolean);
-          } else {
-            validMails = [];
-          }
-        } else {
-          // generic label view (numeric id)
-          const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
-          if (Array.isArray(ids) && ids.length > 0) {
-            const full = await Promise.all(
-              ids.map(async (id) => {
-                try {
-                  return await fetchWithAuth(`/mails/${id}`, token);
-                } catch (err) {
-                  console.warn(`Failed to fetch mail ${id}:`, err);
-                  return null;
-                }
-              })
-            );
-            validMails = full.filter(Boolean);
-          } else {
-            validMails = [];
-          }
+        if (response.ok) {
+          setCurrentMailLabels(prev => ({
+            ...prev,
+            [mailId]: currentLabels.filter(id => id !== starredLabelId)
+          }));
         }
+      } else {
+        const response = await fetch("/api/labels/tag", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ mailId, labelId: starredLabelId }),
+        });
 
-        setMails(validMails);
-        console.log(`Final validMails for ${labelId}: ${validMails.length} mails`);
+        if (response.ok) {
+          setCurrentMailLabels(prev => ({
+            ...prev,
+            [mailId]: [...currentLabels, starredLabelId]
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling starred status:', error);
+    }
+  };
 
-        // fetch labels per mail id
-        const mailLabelsMap = {};
-        for (const mail of validMails) {
+  // Selection functions
+  const toggleMailSelection = (mailId, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    setSelectedMails(prev => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(mailId)) {
+        newSelected.delete(mailId);
+      } else {
+        newSelected.add(mailId);
+      }
+      return newSelected;
+    });
+  };
+
+  const toggleSelectAll = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const visibleMailIds = filteredMails.map(mail => mail.id);
+    const allVisibleSelected = visibleMailIds.every(id => selectedMails.has(id));
+    
+    if (allVisibleSelected) {
+      // Deselect all visible
+      setSelectedMails(prev => {
+        const newSelected = new Set(prev);
+        visibleMailIds.forEach(id => newSelected.delete(id));
+        return newSelected;
+      });
+    } else {
+      // Select all visible
+      setSelectedMails(prev => {
+        const newSelected = new Set(prev);
+        visibleMailIds.forEach(id => newSelected.add(id));
+        return newSelected;
+      });
+    }
+  };
+
+  const areAllVisibleSelected = () => {
+    if (filteredMails.length === 0) return false;
+    return filteredMails.every(mail => selectedMails.has(mail.id));
+  };
+
+  // Bulk move to trash
+  const moveSelectedMailsToTrash = async () => {
+    if (selectedMails.size === 0) return;
+
+    setIsBulkOperationInProgress(true);
+
+    try {
+      const trashId = await ensureLabelIdByName("trash");
+      const selectedMailIds = Array.from(selectedMails);
+
+      const results = await Promise.allSettled(
+        selectedMailIds.map(async (mailId) => {
           try {
-            const res = await fetch(`/api/labels/mail/${mail.id}`, {
+            const res = await fetch(`/api/labels/mail/${mailId}`, {
               headers: { Authorization: `Bearer ${token}` },
             });
-            if (!res.ok) {
-              mailLabelsMap[mail.id] = [];
-              continue;
+            
+            const currentLabels = res.ok ? await res.json() : [];
+            const safeCurrent = Array.isArray(currentLabels) ? currentLabels : [];
+
+            await Promise.all(
+              safeCurrent.map((lblId) =>
+                fetch(`/api/labels/untag`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ mailId, labelId: lblId }),
+                })
+              )
+            );
+
+            const tagRes = await fetch(`/api/labels/tag`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ mailId, labelId: trashId }),
+            });
+
+            if (!tagRes.ok) {
+              throw new Error(`Failed to tag mail ${mailId} with trash`);
             }
-            const labels = await res.json();
-            mailLabelsMap[mail.id] = Array.isArray(labels) ? labels : [];
-          } catch (err) {
-            console.warn(`Failed to fetch labels for mail ${mail.id}:`, err);
-            mailLabelsMap[mail.id] = [];
+
+            return { mailId, success: true };
+          } catch (error) {
+            console.error(`Error moving mail ${mailId} to trash:`, error);
+            return { mailId, success: false, error: error.message };
           }
-        }
-        setCurrentMailLabels(mailLabelsMap);
-      } catch (err) {
-        console.error("Fetch error:", err);
-        setError("Failed to load mail data");
-      }
-    };
-    setLoading(true);
-    fetchMails()
-      .finally(() => setLoading(false));
+        })
+      );
 
-    // load labels once and mark ready
-    fetchWithAuth("/labels", token)
-      .then((list) => {
-        setAllLabels(list);
-        setDraftLabelId(getDraftLabelId(list));
-        setLabelsReady(true);
-      })
-      .catch((e) => {
-        console.error(e);
-        setLabelsReady(true); // even on error, avoid blocking clicks forever
+      const successful = results.filter(r => r.status === 'fulfilled' && r.value.success);
+      const successfulMailIds = successful.map(r => r.value.mailId);
+      
+      setMails(prev => prev.filter(m => !successfulMailIds.includes(m.id)));
+      
+      setCurrentMailLabels(prev => {
+        const updated = { ...prev };
+        successfulMailIds.forEach(mailId => {
+          updated[mailId] = [trashId];
+        });
+        return updated;
       });
-  }, [labelId, token, setSearchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // initialize pending selection when a label-management popover is opened
+      setSelectedMails(new Set());
+
+    } catch (error) {
+      console.error("Error in bulk trash operation:", error);
+    } finally {
+      setIsBulkOperationInProgress(false);
+    }
+  };
+
+  // Handle mail item click
+  const handleMailItemClick = (mail, event) => {
+    if (
+      event.target.closest('.gmail-mail-star') ||
+      event.target.closest('.gmail-mail-actions') ||
+      event.target.closest('.gmail-mail-checkbox') ||
+      event.target.closest('.gmail-label-management-popup')
+    ) {
+      return;
+    }
+    
+    safeOpenMail(mail);
+  };
+
+  // Format date like Gmail
+  const formatDate = (timestamp) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffDays < 7) {
+      return date.toLocaleDateString([], { weekday: 'short' });
+    } else if (date.getFullYear() === now.getFullYear()) {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    } else {
+      return date.toLocaleDateString([], { year: '2-digit', month: 'short', day: 'numeric' });
+    }
+  };
+
+  // Get mail labels for display
+  const getMailLabels = (mail) => {
+    const labelIds = currentMailLabels[mail?.id] || [];
+    return labelIds.map(id => {
+      const label = allLabels.find(l => l.id === id);
+      return label || { id, name: `Label ${id}` };
+    }).filter(label => 
+      label.name.toLowerCase() !== 'inbox' && 
+      label.name.toLowerCase() !== 'starred'
+    );
+  };
+
+  // Update pending label changes
   useEffect(() => {
     const updates = {};
     let needUpdate = false;
@@ -435,9 +526,9 @@ const LabelPage = () => {
     if (needUpdate) {
       setPendingLabelChanges((prev) => ({ ...prev, ...updates }));
     }
-  }, [openLabelManagement, currentMailLabels, pendingLabelChanges]); // do not include pendingLabelChanges
+  }, [openLabelManagement, currentMailLabels, pendingLabelChanges]);
 
-  // ---------- actions ----------
+  // Action handlers
   const handleMoveToLabels = async (mailId) => {
     try {
       const selectedLabels = pendingLabelChanges[mailId] || [];
@@ -490,38 +581,17 @@ const LabelPage = () => {
       });
       if (!res.ok) throw new Error(`delete failed ${res.status}`);
 
-      // pass the deleted id so LabelPage can update immediately
       navigate("/label/drafts", { replace: true, state: { justDeletedId: mailId, ts: Date.now() } });
-
     } catch (e) {
       console.error(e);
       alert("Failed to discard draft.");
     }
   };
 
-  useEffect(() => {
-    const deletedId = location.state?.justDeletedId;
-    if (!deletedId) return;
-
-    // optimistic remove from UI
-    setMails((prev) => prev.filter((m) => m.id !== deletedId));
-    setCurrentMailLabels((prev) => {
-      const next = { ...prev };
-      delete next[deletedId];
-      return next;
-    });
-
-    // clear the state so it won't re-apply on back/forward
-    navigate(location.pathname, { replace: true, state: null });
-  }, [location.state?.justDeletedId, location.pathname, navigate]);
-
-  // Move mail so that its only label becomes "trash"
   const moveMailToTrashOnly = async (mailId) => {
     try {
-      // 1) ensure we have a labelId for "trash" (create if missing)
       const trashId = await ensureLabelIdByName("trash");
 
-      // 2) fetch current labels ONCE
       const res = await fetch(`/api/labels/mail/${mailId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -529,7 +599,6 @@ const LabelPage = () => {
       const currentLabels = await res.json();
       const safeCurrent = Array.isArray(currentLabels) ? currentLabels : [];
 
-      // 3) untag all current labels (idempotent if none)
       await Promise.all(
         safeCurrent.map((lblId) =>
           fetch(`/api/labels/untag`, {
@@ -543,7 +612,6 @@ const LabelPage = () => {
         )
       );
 
-      // 4) tag only trash
       const tagRes = await fetch(`/api/labels/tag`, {
         method: "POST",
         headers: {
@@ -554,7 +622,6 @@ const LabelPage = () => {
       });
       if (!tagRes.ok) throw new Error(`tag trash failed ${tagRes.status}`);
 
-      // 5) optimistic UI update (remove from current list)
       setMails((prev) => prev.filter((m) => m.id !== mailId));
       setCurrentMailLabels((prev) => ({ ...prev, [mailId]: [trashId] }));
     } catch (err) {
@@ -563,335 +630,705 @@ const LabelPage = () => {
     }
   };
 
-  // ---------- filtering ----------
-  const filteredMails = mails.filter((mail) => {
-    const search = normalize(searchQuery);
+  // Handle deleted drafts
+  useEffect(() => {
+    const deletedId = location.state?.justDeletedId;
+    if (!deletedId) return;
 
-    const sender =
-      typeof mail.sender === "string"
-        ? normalize(mail.sender)
-        : normalize(mail.sender?.email || "");
+    setMails((prev) => prev.filter((m) => m.id !== deletedId));
+    setCurrentMailLabels((prev) => {
+      const next = { ...prev };
+      delete next[deletedId];
+      return next;
+    });
 
-    const recipient =
-      typeof mail.recipient === "string"
-        ? normalize(mail.recipient)
-        : normalize(mail.recipient?.email || "");
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state?.justDeletedId, location.pathname, navigate]);
 
-    const subject = normalize(mail.subject);
-    const content = normalize(mail.content);
+  // Filter and sort mails first
+  const allFilteredMails = mails
+    .filter((mail) => {
+      const search = normalize(searchQuery);
+      if (search === "") return true;
 
-    if (search === "") return true;
+      const sender = typeof mail.sender === "string" ? normalize(mail.sender) : normalize(mail.sender?.email || "");
+      const recipient = typeof mail.recipient === "string" ? normalize(mail.recipient) : normalize(mail.recipient?.email || "");
+      const subject = normalize(mail.subject);
+      const content = normalize(mail.content);
 
-    return (
-      subject.includes(search) ||
-      content.includes(search) ||
-      sender.includes(search) ||
-      recipient.includes(search)
-    );
-  });
+      return (
+        subject.includes(search) ||
+        content.includes(search) ||
+        sender.includes(search) ||
+        recipient.includes(search)
+      );
+    })
+    .sort((a, b) => {
+      // Sort by timestamp in descending order (newest first)
+      const dateA = new Date(a.timestamp || 0);
+      const dateB = new Date(b.timestamp || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
 
-  // ---------- render ----------
+  // Calculate pagination
+  const totalPages = Math.ceil(allFilteredMails.length / mailsPerPage);
+  const startIndex = (currentPage - 1) * mailsPerPage;
+  const endIndex = startIndex + mailsPerPage;
+  
+  // Apply pagination to get current page mails
+  const filteredMails = allFilteredMails.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search changes or label changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedMails(new Set());
+  }, [searchQuery, labelId]);
+
+  // Pagination functions
+  const goToPage = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      setSelectedMails(new Set()); // Clear selections when changing pages
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      goToPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      goToPage(currentPage + 1);
+    }
+  };
+
+  // Main data loading effect
+  useEffect(() => {
+    setMails([]);
+    setCurrentMailLabels({});
+    setSelectedMails(new Set());
+    setOpenLabelManagement({});
+    setPendingLabelChanges({});
+    setError("");
+    setSearchQuery("");
+    
+    if (!token) return;
+
+    const sysNames = new Set(["inbox", "sent", "trash", "spam", "drafts", "starred"]);
+    if (sysNames.has(String(labelId).toLowerCase())) {
+      setLabelName(String(labelId).toLowerCase());
+    } else {
+      fetchWithAuth(`/labels/${labelId}`, token)
+        .then((data) => setLabelName(data?.name || labelId))
+        .catch(() => setLabelName(labelId));
+    }
+    
+    const fetchMails = async () => {
+      try {
+        let validMails = [];
+
+        if (labelId === "inbox" || labelId === "sent") {
+          const response = await fetch("/api/mails", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await response.json();
+
+          const list = labelId === "inbox" ? (data?.inbox || []) : (data?.sent || []);
+          
+          // Filter by user role
+          let roleFiltered = list;
+          if (currentUserEmail) {
+            if (labelId === "inbox") {
+              roleFiltered = list.filter((m) => emailOf(m.recipient) === currentUserEmail);
+            } else {
+              roleFiltered = list.filter((m) => emailOf(m.sender) === currentUserEmail);
+            }
+          }
+
+          const prelim = roleFiltered.filter(
+            (m) => m?.isDraft !== true && !hasNameDraft(m?.labels || [])
+          );
+
+          // Filter out trash by querying label names
+          const final = [];
+          for (const mail of prelim) {
+            try {
+              const res = await fetch(`/api/labels/mail/${mail.id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (!res.ok) {
+                final.push(mail);
+                continue;
+              }
+              const labelIds = await res.json();
+              const names = await Promise.all(
+                (labelIds || []).map(async (lid) => {
+                  try {
+                    const ld = await fetchWithAuth(`/labels/${lid}`, token);
+                    return ld?.name?.toLowerCase() || "";
+                  } catch {
+                    return "";
+                  }
+                })
+              );
+              if (!names.includes("trash")) final.push(mail);
+            } catch {
+              final.push(mail);
+            }
+          }
+          validMails = final;
+
+        } else if (String(labelId).toLowerCase() === "starred") {
+          try {
+            const starredId = await resolveSystemLabelId("starred");
+            const ids = await fetchWithAuth(`/labels/by-label/${starredId}`, token);
+            if (Array.isArray(ids) && ids.length > 0) {
+              const full = await Promise.all(
+                ids.map(async (id) => {
+                  try {
+                    return await fetchWithAuth(`/mails/${id}`, token);
+                  } catch (err) {
+                    console.warn(`Failed to fetch mail ${id}:`, err);
+                    return null;
+                  }
+                })
+              );
+              validMails = full.filter(Boolean);
+            } else {
+              validMails = [];
+            }
+          } catch (err) {
+            console.error("Error fetching starred mails:", err);
+            validMails = [];
+          }
+
+        } else if (String(labelId).toLowerCase() === "trash") {
+          try {
+            const trashId = await resolveSystemLabelId("trash");
+            const ids = await fetchWithAuth(`/labels/by-label/${trashId}`, token);
+            if (Array.isArray(ids) && ids.length > 0) {
+              const full = await Promise.all(
+                ids.map(async (id) => {
+                  try {
+                    return await fetchWithAuth(`/mails/${id}`, token);
+                  } catch (err) {
+                    console.warn(`Failed to fetch mail ${id}:`, err);
+                    return null;
+                  }
+                })
+              );
+              validMails = full.filter(Boolean);
+            } else {
+              validMails = [];
+            }
+          } catch (err) {
+            console.error("Error fetching trash mails:", err);
+            validMails = [];
+          }
+
+        } else if (String(labelId).toLowerCase() === "spam") {
+          try {
+            const spamId = await resolveSystemLabelId("spam");
+            const ids = await fetchWithAuth(`/labels/by-label/${spamId}`, token);
+            if (Array.isArray(ids) && ids.length > 0) {
+              const full = await Promise.all(
+                ids.map(async (id) => {
+                  try {
+                    return await fetchWithAuth(`/mails/${id}`, token);
+                  } catch (err) {
+                    console.warn(`Failed to fetch mail ${id}:`, err);
+                    return null;
+                  }
+                })
+              );
+              validMails = full.filter(Boolean);
+            } else {
+              validMails = [];
+            }
+          } catch (err) {
+            console.error("Error fetching spam mails:", err);
+            validMails = [];
+          }
+
+        } else if (String(labelId).toLowerCase() === "drafts") {
+          try {
+            const draftsId = await resolveSystemLabelId("drafts");
+            const ids = await fetchWithAuth(`/labels/by-label/${draftsId}`, token);
+            if (Array.isArray(ids) && ids.length > 0) {
+              const full = await Promise.all(
+                ids.map(async (id) => {
+                  try {
+                    return await fetchWithAuth(`/mails/${id}`, token);
+                  } catch (err) {
+                    console.warn(`Failed to fetch mail ${id}:`, err);
+                    return null;
+                  }
+                })
+              );
+              validMails = full.filter(Boolean);
+            } else {
+              validMails = [];
+            }
+          } catch (err) {
+            console.error("Error fetching drafts mails:", err);
+            validMails = [];
+          }
+
+        } else {
+          // Handle custom user labels
+          try {
+            const ids = await fetchWithAuth(`/labels/by-label/${labelId}`, token);
+            if (Array.isArray(ids) && ids.length > 0) {
+              const full = await Promise.all(
+                ids.map(async (id) => {
+                  try {
+                    return await fetchWithAuth(`/mails/${id}`, token);
+                  } catch (err) {
+                    console.warn(`Failed to fetch mail ${id}:`, err);
+                    return null;
+                  }
+                })
+              );
+              validMails = full.filter(Boolean);
+            } else {
+              validMails = [];
+            }
+          } catch (err) {
+            console.error("Error fetching label mails:", err);
+            validMails = [];
+          }
+        }
+
+        // Sort all mails by timestamp (newest first) before storing
+        const sortedMails = validMails.sort((a, b) => {
+          const dateA = new Date(a.timestamp || 0);
+          const dateB = new Date(b.timestamp || 0);
+          return dateB.getTime() - dateA.getTime();
+        });
+
+        setMails(sortedMails);
+
+        const mailLabelsMap = {};
+        for (const mail of sortedMails) {
+          try {
+            const res = await fetch(`/api/labels/mail/${mail.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const labels = res.ok ? await res.json() : [];
+            mailLabelsMap[mail.id] = Array.isArray(labels) ? labels : [];
+          } catch (err) {
+            mailLabelsMap[mail.id] = [];
+          }
+        }
+        setCurrentMailLabels(mailLabelsMap);
+      } catch (err) {
+        console.error("Fetch error:", err);
+        setError("Failed to load mail data");
+      }
+    };
+    
+    setLoading(true);
+    setError("");
+    fetchMails().finally(() => setLoading(false));
+
+    // Load labels and mark ready
+    fetchWithAuth("/labels", token)
+      .then((list) => {
+        setAllLabels(list);
+        setDraftLabelId(getDraftLabelId(list));
+        
+        const existingStarred = getStarredLabelId(list);
+        if (existingStarred) {
+          setStarredLabelId(existingStarred);
+          setLabelsReady(true);
+        } else {
+          ensureLabelIdByName("starred")
+            .then((id) => {
+              setStarredLabelId(id);
+              setLabelsReady(true);
+            })
+            .catch((e) => {
+              console.error("Failed to create starred label:", e);
+              setLabelsReady(true);
+            });
+        }
+      })
+      .catch((e) => {
+        console.error(e);
+        setLabelsReady(true);
+      });
+  }, [labelId, token, setSearchQuery]);
+
   return (
-    <div style={{ padding: "1rem" }}>
-      {labelId === "inbox" && (
-        <>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          />
-        </>
-      )}
-
-      {labelId !== "inbox"}
+    <div className="gmail-main-area">
       {loading ? (
         <Loading label="Loading Mails…" />
       ) : error ? (
-        <p style={{ color: "red" }}>{error}</p>
-      ) : filteredMails.length === 0 ? (
-        <p>No mails found.</p>
+        <p style={{ color: "red", padding: "1rem" }}>{error}</p>
       ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {filteredMails.map((mail) => {
-            const draft = isDraftMailRobust(mail);
+        <>
+          {/* Toolbar with selection functionality */}
+          <div className="gmail-toolbar">
+            <div className="gmail-toolbar-left">
+              <div className="gmail-checkbox-all">
+                <div 
+                  onClick={toggleSelectAll}
+                  title={areAllVisibleSelected() ? "Deselect all" : "Select all"}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    border: '2px solid #dadce0',
+                    borderRadius: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    backgroundColor: areAllVisibleSelected() ? '#1a73e8' : 'transparent',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {areAllVisibleSelected() ? '✓' : ''}
+                </div>
+              </div>
+              
+              {selectedMails.size > 0 && (labelName || "").toLowerCase() !== "trash" && (
+                <button 
+                  onClick={moveSelectedMailsToTrash}
+                  disabled={isBulkOperationInProgress}
+                  style={{
+                    marginLeft: '12px',
+                    padding: '8px 12px',
+                    background: isBulkOperationInProgress ? '#ccc' : '#d93025',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: isBulkOperationInProgress ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <FaTrash />
+                  {isBulkOperationInProgress ? 'Moving...' : `Move to Trash (${selectedMails.size})`}
+                </button>
+              )}
+              
+              <button className="gmail-refresh-btn" onClick={() => window.location.reload()}>
+                ↻
+              </button>
+            </div>
+            <div className="gmail-toolbar-right">
+              <div className="gmail-pagination">
+                <span>
+                  {allFilteredMails.length > 0 
+                    ? `${startIndex + 1}-${Math.min(endIndex, allFilteredMails.length)} of ${allFilteredMails.length}`
+                    : "No mails"
+                  }
+                  {selectedMails.size > 0 && ` (${selectedMails.size} selected)`}
+                </span>
+                <button 
+                  onClick={goToPreviousPage}
+                  disabled={currentPage <= 1}
+                  title="Previous page"
+                >
+                  ‹
+                </button>
+                <span className="gmail-page-info">
+                  Page {currentPage} of {totalPages || 1}
+                </span>
+                <button 
+                  onClick={goToNextPage}
+                  disabled={currentPage >= totalPages}
+                  title="Next page"
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          </div>
 
-            return (
-              <li
-                key={mail.id}
-                className={`mail-item ${draft ? 'is-draft' : ''}`}
-                // do not attach onClick for drafts to avoid accidental navigation
-                onClick={draft ? undefined : () => safeOpenMail(mail)}
-                style={{
-                  cursor: draft ? "default" : "pointer",
-                  border: "1px solid #ccc",
-                  padding: "1rem",
-                  marginBottom: "1rem",
-                  borderRadius: "8px",
-                  // הסרתי את backgroundColor כדי שה-CSS יקבע את הצבע
-                }}
-              >
-                <strong>From:</strong>{" "}
-                {(() => {
-                  const sender = mail.sender || mail.otherParty;
-                  if (!sender) return "(unknown)";
-                  if (typeof sender === "string") return sender;
+          {/* Mail list */}
+          <div className="gmail-mail-list-container">
+            {filteredMails.length === 0 ? (
+              <div className="gmail-no-mails">
+                <h3>No conversations in {labelName}</h3>
+                <p>When you get new mail it will appear here.</p>
+              </div>
+            ) : (
+              <div className="gmail-mail-list">
+                {filteredMails.map((mail) => {
+                  const draft = isDraftMailRobust(mail);
+                  const isSelected = selectedMails.has(mail.id);
+                  const isRead = readMails.has(mail.id);
+                  const isStarred = isMailStarred(mail);
+                  const mailLabels = getMailLabels(mail);
+                  
+                  const senderInfo = (() => {
+                    const sender = mail.sender || mail.otherParty;
+                    if (!sender) return "(unknown)";
+                    if (typeof sender === "string") return sender;
+                    return sender.email || `${sender.firstName || ""} ${sender.lastName || ""}`.trim();
+                  })();
+
                   return (
-                    sender.email ||
-                    `${sender.firstName || ""} ${sender.lastName || ""}`.trim()
-                  );
-                })()}
-                <br />
-                <strong>Subject:</strong>{" "}
-                {mail.subject || <em>(no subject)</em>} <br />
-                <strong>Date:</strong>{" "}
-                {mail.timestamp
-                  ? new Date(mail.timestamp).toLocaleString()
-                  : "Invalid Date"}
-                <br />
-                <p style={{ color: "#666" }}>
-                  {mail.preview ||
-                    mail.content?.slice(0, 100) || <em>(no content)</em>}
-                </p>
-
-                {draft ? (
-                  // Drafts: show explicit Edit button and block parent click bubbling
-                  <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.stopPropagation()} // prevent parent from seeing this click
-                      onClick={(e) => {
-                        e.stopPropagation(); // belt-and-suspenders
-                        navigate(`/draft/${mail.id}`, { state: { assumeDraft: true } }); // <-- add state
-
-                      }}
+                    <div
+                      key={mail.id}
+                      className={`gmail-mail-item ${draft ? 'is-draft' : ''} ${isSelected ? 'selected' : ''} ${isRead ? 'read' : 'unread'} ${isStarred ? 'starred' : ''}`}
                       style={{
-                        backgroundColor: "#e8f0fe",
-                        border: "1px solid #c6dafc",
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        cursor: "pointer",
+                        backgroundColor: isSelected 
+                          ? 'var(--accent-weak, #fce8e6)' 
+                          : isRead 
+                            ? 'var(--surface, #f2f6fc)' 
+                            : '#ffffff',
+                        fontWeight: isRead ? 'normal' : 'bold',
+                        borderLeft: isSelected ? '3px solid var(--accent, #1a73e8)' : 'none'
                       }}
                     >
-                      Edit Draft
-                    </button>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm("Discard this draft permanently?")) {
-                          discardDraft(mail.id); // <-- now defined
-                        }
-                      }}
-                      style={{
-                        backgroundColor: "#dc3545",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "4px",
-                        padding: "4px 8px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Discard Draft
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    {!["trash", "drafts"].includes(
-                      (labelName || "").toLowerCase()
-                    ) && (
-                        <div style={{ marginBottom: "0.5rem" }}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenLabelManagement((prev) => ({
-                                ...prev,
-                                [mail.id]: !prev[mail.id],
-                              }));
-                            }}
+                      <div 
+                        className="gmail-mail-item-content"
+                        onClick={(e) => handleMailItemClick(mail, e)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {/* Checkbox */}
+                        <div className="gmail-mail-checkbox">
+                          <div 
+                            onClick={(e) => toggleMailSelection(mail.id, e)}
+                            title={isSelected ? `Deselect mail from ${senderInfo}` : `Select mail from ${senderInfo}`}
                             style={{
-                              cursor: "pointer",
-                              color: "#174ea6",
-                              fontWeight: "500",
-                              marginBottom: "0.3rem",
-                              background: "none",
-                              border: "none",
-                              textDecoration: "underline",
+                              width: '18px',
+                              height: '18px',
+                              border: '2px solid #dadce0',
+                              borderRadius: '2px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              backgroundColor: isSelected ? '#1a73e8' : 'transparent',
+                              color: 'white',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              transition: 'all 0.2s ease'
                             }}
                           >
-                            {openLabelManagement[mail.id]
-                              ? "Hide Labels"
-                              : "Manage Labels"}
-                          </button>
-
-                          {openLabelManagement[mail.id] && (
-                            <div
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                padding: "0.5rem 0",
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: "0.5rem",
-                              }}
-                            >
-                              {allLabels
-                                .filter(
-                                  (label) =>
-                                    (label.name || "").toLowerCase() !== "trash"
-                                )
-                                .map((label) => {
-                                  const isPendingSelection = (
-                                    pendingLabelChanges[mail.id] || []
-                                  ).includes(label.id);
-
-                                  return (
-                                    <label
-                                      key={label.id}
-                                      onClick={(e) => e.stopPropagation()}
-                                      style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        backgroundColor: isPendingSelection
-                                          ? "#e8f0fe"
-                                          : "#f1f3f4",
-                                        color: isPendingSelection
-                                          ? "#174ea6"
-                                          : "#202124",
-                                        padding: "4px 10px",
-                                        borderRadius: "16px",
-                                        border: isPendingSelection
-                                          ? "1px solid #174ea6"
-                                          : "1px solid #ccc",
-                                        fontSize: "0.85rem",
-                                        cursor: "pointer",
-                                        fontWeight: isPendingSelection
-                                          ? "500"
-                                          : "normal",
-                                      }}
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        style={{ marginRight: "6px" }}
-                                        onClick={(e) => e.stopPropagation()}
-                                        onChange={(e) => {
-                                          e.stopPropagation();
-                                          setPendingLabelChanges((prev) => {
-                                            const base =
-                                              prev[mail.id] ||
-                                              currentMailLabels[mail.id] ||
-                                              [];
-                                            const pending = new Set(base);
-                                            if (e.target.checked) {
-                                              pending.add(label.id);
-                                            } else {
-                                              pending.delete(label.id);
-                                            }
-                                            return {
-                                              ...prev,
-                                              [mail.id]: Array.from(pending),
-                                            };
-                                          });
-                                        }}
-                                        checked={isPendingSelection}
-                                      />
-                                      <span onClick={(e) => e.stopPropagation()}>
-                                        {label.name}
-                                      </span>
-                                    </label>
-                                  );
-                                })}
-                            </div>
-                          )}
+                            {isSelected ? '✓' : ''}
+                          </div>
                         </div>
-                      )}
 
-                    {(labelName || "").toLowerCase() !== "trash" && (
-                      <button
-                        className="trash-button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          moveMailToTrashOnly(mail.id);
-                        }}
-                        title="Move to Trash"
-                        style={{
-                          marginLeft: "0.5rem",
-                          backgroundColor: "#f8d7da",
-                          color: "#721c24",
-                          border: "1px solid #f5c6cb",
-                          borderRadius: "4px",
-                          padding: "4px 8px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <FaTrash />
-                      </button>
-                    )}
-
-                    {(labelName || "").toLowerCase() !== "trash" &&
-                      openLabelManagement[mail.id] && (
-                        <button
-                          className="move-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMoveToLabels(mail.id);
-                          }}
-                          style={{
-                            backgroundColor: "#e8f0fe",
-                            color: "#174ea6",
-                            border: "1px solid #c6dafc",
-                            padding: "4px 8px",
-                            fontSize: "0.8rem",
-                            borderRadius: "4px",
-                            cursor: "pointer",
-                            marginRight: "0.5rem",
+                        {/* Star */}
+                        <div 
+                          className="gmail-mail-star"
+                          onClick={(e) => toggleStarred(mail.id, e)}
+                          style={{ 
+                            color: isStarred ? '#fbbc04' : '#5f6368',
+                            cursor: 'pointer',
+                            userSelect: 'none'
                           }}
                         >
-                          Apply Changes
-                        </button>
-                      )}
+                          {isStarred ? <FaStar /> : <FaRegStar />}
+                        </div>
 
-                    {(labelName || "").toLowerCase() === "trash" && (
-                      <button
-                        className="delete-button"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          try {
-                            await fetch(`/api/mails/${mail.id}`, {
-                              method: "DELETE",
-                              headers: {
-                                Authorization: `Bearer ${token}`,
-                              },
-                            });
-                            // optimistic UI update
-                            setMails((prev) =>
-                              prev.filter((m) => m.id !== mail.id)
-                            );
-                          } catch (err) {
-                            console.error("Failed to delete mail:", err);
-                            alert("Failed to delete mail.");
-                          }
-                        }}
-                        style={{
-                          marginLeft: "0.5rem",
-                          backgroundColor: "#dc3545",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "4px",
-                          padding: "4px 8px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Delete Forever
-                      </button>
-                    )}
-                  </>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+                        {/* Sender */}
+                        <div className="gmail-mail-sender" style={{
+                          fontWeight: isRead ? 'normal' : 'bold',
+                          color: isRead ? '#5f6368' : '#202124'
+                        }}>
+                          {senderInfo}
+                          {draft && <span style={{ color: 'var(--muted)', fontSize: '12px' }}> Draft</span>}
+                        </div>
+
+                        {/* Subject and preview */}
+                        <div className="gmail-mail-subject-content">
+                          <span className="gmail-mail-subject" style={{
+                            fontWeight: isRead ? 'normal' : 'bold',
+                            color: isRead ? '#5f6368' : '#202124'
+                          }}>
+                            {mail.subject || "(no subject)"}
+                          </span>
+                          <span className="gmail-mail-preview">
+                            {mail.preview || mail.content?.slice(0, 100) || "(no content)"}
+                          </span>
+                        </div>
+
+                        {/* Labels */}
+                        <div className="gmail-mail-labels">
+                          {mailLabels.map((label) => (
+                            <span 
+                              key={label.id} 
+                              className={`gmail-label-chip ${label.name.toLowerCase()}`}
+                            >
+                              {label.name}
+                            </span>
+                          ))}
+                        </div>
+
+                        {/* Date */}
+                        <div className="gmail-mail-date" style={{
+                          fontWeight: isRead ? 'normal' : 'bold',
+                          color: isRead ? '#5f6368' : '#202124'
+                        }}>
+                          {formatDate(mail.timestamp)}
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="gmail-mail-actions">
+                        {!["trash", "drafts"].includes((labelName || "").toLowerCase()) && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenLabelManagement((prev) => ({
+                                  ...prev,
+                                  [mail.id]: !prev[mail.id],
+                                }));
+                              }}
+                              title="Labels"
+                            >
+                              <FaTag />
+                            </button>
+                            
+                            {openLabelManagement[mail.id] && (
+                              <div className="gmail-label-management-popup">
+                                {allLabels
+                                  .filter((label) => 
+                                    (label.name || "").toLowerCase() !== "trash" &&
+                                    (label.name || "").toLowerCase() !== "starred"
+                                  )
+                                  .map((label) => {
+                                    const isPendingSelection = (
+                                      pendingLabelChanges[mail.id] || []
+                                    ).includes(label.id);
+
+                                    return (
+                                      <div 
+                                          key={label.id} 
+                                          className="gmail-label-checkbox-item"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPendingLabelChanges((prev) => {
+                                              const base = prev[mail.id] || currentMailLabels[mail.id] || [];
+                                              const pending = new Set(base);
+                                              if (!isPendingSelection) {
+                                                pending.add(label.id);
+                                              } else {
+                                                pending.delete(label.id);
+                                              }
+                                              return {
+                                                ...prev,
+                                                [mail.id]: Array.from(pending),
+                                              };
+                                            });
+                                          }}
+                                          style={{ cursor: 'pointer' }}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            onChange={() => {}}
+                                            checked={isPendingSelection}
+                                            readOnly
+                                          />
+                                          <span>{label.name}</span>
+                                        </div>
+                                    );
+                                  })}
+                                
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleMoveToLabels(mail.id);
+                                  }}
+                                  style={{ 
+                                    marginTop: '8px', 
+                                    width: '100%',
+                                    padding: '6px',
+                                    background: 'var(--accent)',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px'
+                                  }}
+                                >
+                                  Apply
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {draft ? (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/draft/${mail.id}`, { state: { assumeDraft: true } });
+                              }}
+                              title="Edit Draft"
+                            >
+                              ✎
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm("Discard this draft permanently?")) {
+                                  discardDraft(mail.id);
+                                }
+                              }}
+                              title="Discard Draft"
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {(labelName || "").toLowerCase() !== "trash" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  moveMailToTrashOnly(mail.id);
+                                }}
+                                title="Move to Trash"
+                              >
+                                <FaTrash />
+                              </button>
+                            )}
+
+                            {(labelName || "").toLowerCase() === "trash" && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    await fetch(`/api/mails/${mail.id}`, {
+                                      method: "DELETE",
+                                      headers: {
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                    });
+                                    setMails((prev) => prev.filter((m) => m.id !== mail.id));
+                                  } catch (err) {
+                                    console.error("Failed to delete mail:", err);
+                                    alert("Failed to delete mail.");
+                                  }
+                                }}
+                                title="Delete Forever"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

@@ -70,7 +70,7 @@ const Login = () => {
         <div className="login-container">
             <div className="login-box">
                 <h2>Login</h2>
-                <p className="login-subtitle">Continue to Gmail</p>
+                <p className="login-subtitle">Continue to FooMail</p>
 
                 {errorMessage && (
                     <div className="login-error">
@@ -105,7 +105,7 @@ const Login = () => {
 
                     {isLoading && <p className="login-loading">Logging in...</p>}
 
-                    <button type="submit" className="login-button">הבא</button>
+                    <button type="submit" className="login-button">Login</button>
 
                     <p className="register-link">
                         Don't have an account?{" "}
