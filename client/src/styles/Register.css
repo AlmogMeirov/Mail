@@ -1,104 +1,165 @@
-.login-box body {
-    font-family: 'Rubik', sans-serif;
-    background-color: #121212;
-    margin: 0;
-    padding: 0;
-    color: #fff;
-    direction: rtl;
-}
-
 .login-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #f6f7f9;
+  color: #202124;
 }
 
 .login-box {
-    background-color: #1e1e1e;
-    padding: 40px;
-    border-radius: 20px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-    width: 100%;
-    max-width: 450px;
-    color: white;
+  width: min(720px, 92vw);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 28px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.07);
 }
 
 .login-box h2 {
-    font-size: 24px;
-    margin-bottom: 10px;
+  margin: 0 0 6px 0;
+  font-size: 28px;
 }
 
 .login-subtitle {
-    font-size: 14px;
-    color: #aaa;
-    margin-bottom: 20px;
+  margin: 0 0 18px 0;
+  color: #5f6368;
 }
 
 .input-group {
-    margin-bottom: 18px;
+  margin: 12px 0;
+  display: grid;
+  gap: 6px;
 }
 
 .input-group label {
-    display: block;
-    margin-bottom: 6px;
-    font-size: 14px;
-    color: #ccc;
+  font-weight: 600;
+  font-size: 0.95rem;
 }
 
 .input-group input,
 .input-group select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #555;
-    border-radius: 8px;
-    background-color: #efe9e9;
-    color: #131111;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #202124;
+  outline: none;
 }
 
-.input-group input::placeholder {
-    color: #aaa;
+.input-group input[type="file"] {
+  height: auto;
+  padding: 8px 12px;
 }
 
-.login-button {
-    width: 100%;
-    padding: 12px;
-    background-color: #8ab4f8;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-    cursor: pointer;
-    color: black;
-}
-
-.login-button:hover {
-    background-color: #669df6;
+.input-group input:focus,
+.input-group select:focus {
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 3px rgba(26,115,232,.15);
 }
 
 .login-error {
-    background-color: #c62828;
-    padding: 10px;
-    border-radius: 8px;
-    margin-bottom: 15px;
-    text-align: center;
-}
-
-.register-link {
-    margin-top: 20px;
-    text-align: center;
-    font-size: 14px;
-    color: #bbb;
-}
-
-.register-link span {
-    color: #8ab4f8;
-    cursor: pointer;
-    text-decoration: underline;
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fde8e8;
+  color: #8a1c1c;
+  border: 1px solid #f8c6c6;
 }
 
 .login-loading {
-    text-align: center;
-    margin-bottom: 10px;
-    font-size: 14px;
-    color: #aaa;
+  margin: 6px 0 0;
+  color: #5f6368;
+}
+
+.login-button {
+  margin-top: 12px;
+  width: 100%;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #1a73e8;
+  color: #ffffff;
+}
+
+.login-button:disabled {
+  opacity: .7;
+  cursor: not-allowed;
+}
+
+.register-link {
+  margin-top: 14px;
+  color: #5f6368;
+}
+
+.register-link span {
+  color: #1a73e8;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ===== Dark Mode – only when data-theme="dark" ===== */
+:root[data-theme="dark"] .login-container {
+  background: var(--bg, #0f1115);
+  color: var(--text, #e7e7ea);
+}
+
+:root[data-theme="dark"] .login-box {
+  background: var(--surface, #1a1d22);
+  border-color: var(--border, #2a2f36);
+  box-shadow: 0 18px 60px rgba(0,0,0,.45);
+}
+
+:root[data-theme="dark"] .login-subtitle {
+  color: var(--muted, #9aa0a6);
+}
+
+:root[data-theme="dark"] .input-group label {
+  color: var(--text, #e7e7ea);
+}
+
+:root[data-theme="dark"] .input-group input,
+:root[data-theme="dark"] .input-group select {
+  background: var(--input-bg, #23272f);
+  color: var(--text, #e7e7ea);
+  border-color: var(--input-border, #3a4049);
+}
+
+:root[data-theme="dark"] .input-group input::placeholder {
+  color: var(--muted, #8b9198);
+}
+
+:root[data-theme="dark"] .input-group input:focus,
+:root[data-theme="dark"] .input-group select:focus {
+  border-color: var(--accent, #8ab4f8);
+  box-shadow: 0 0 0 3px rgba(138,180,248,.18);
+}
+
+:root[data-theme="dark"] .login-error {
+  background: #2a1b1b;
+  color: #ffb3b3;
+  border-color: #5a2d2d;
+}
+
+:root[data-theme="dark"] .login-loading,
+:root[data-theme="dark"] .register-link {
+  color: var(--muted, #9aa0a6);
+}
+
+:root[data-theme="dark"] .register-link span {
+  color: var(--accent, #8ab4f8);
+}
+
+:root[data-theme="dark"] .login-button {
+  background: var(--accent, #8ab4f8);
+  color: var(--on-accent, #0b1323);
+}
+
+/* --- Dark Mode override for login/register title --- */
+:root[data-theme="dark"] .login-box h2,
+:root[data-theme="dark"] .login-box .login-subtitle {
+  color: #ffffff !important;   /* white title + subtitle */
 }
