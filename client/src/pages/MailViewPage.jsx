@@ -214,6 +214,40 @@ function MailViewPage() {
     return <Loading label="Loading mail…" />;
   }
 
+  const myEmail = (localStorage.getItem("email") || "").trim().toLowerCase();
+const iAmSender = (mail.sender?.email || "").trim().toLowerCase() === myEmail;
+
+const recipientsArray = Array.isArray(mail.recipients)
+  ? mail.recipients
+  : mail.recipient
+  ? [mail.recipient]
+  : [];
+
+// de-duplication by email
+const uniqueRecipients = [
+  ...new Map(
+    recipientsArray
+      .filter(r => r && r.email)
+      .map(r => [r.email.trim().toLowerCase(), r])
+  ).values(),
+];
+
+// Processing name for display (me if it's me, otherwise first+last or email)
+const nameOf = (r) => {
+  const isMe = (r.email || "").trim().toLowerCase() === myEmail;
+  if (isMe) return "me";
+  const full = [r.firstName, r.lastName].filter(Boolean).join(" ").trim();
+  return full || r.email;
+};
+
+// Order: if I'm not the sender – "me" first then the rest; if I am the sender – by the order sent
+const orderedRecipients = iAmSender
+  ? uniqueRecipients
+  : [
+      ...uniqueRecipients.filter(r => (r.email || "").trim().toLowerCase() === myEmail),
+      ...uniqueRecipients.filter(r => (r.email || "").trim().toLowerCase() !== myEmail),
+    ];
+
   return (
     <div className="mail-view-container">
       <div className="mail-card">
@@ -288,15 +322,14 @@ function MailViewPage() {
               </span>
             </div>
             <div className="mail-to-line">
-              to <span className="mail-to-me">me</span>
-              {Array.isArray(mail.recipients) && mail.recipients.length > 1 && (
-                <span>
-                  , {mail.recipients
-                    .filter(r => r.email !== localStorage.getItem("email"))
-                    .map(r => `${r.firstName || ""} ${r.lastName || ""}`.trim() || r.email)
-                    .join(", ")}
-                </span>
-              )}
+              to{" "}
+              {orderedRecipients.length
+                ? orderedRecipients.map((r, idx) => (
+                    <span key={r.email || idx}>
+                      {nameOf(r)}{idx < orderedRecipients.length - 1 ? ", " : ""}
+                    </span>
+                  ))
+                : <span>no recipient</span>}
             </div>
           </div>
           
