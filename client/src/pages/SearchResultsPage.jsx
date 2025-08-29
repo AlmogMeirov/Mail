@@ -1,5 +1,5 @@
 // client/src/pages/SearchResultsPage.jsx
-// Enhanced search results page with pagination support
+// Enhanced search results page reusing existing mail row components
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -30,83 +30,87 @@ const emailFromToken = (jwt) => {
 // Extract a single email from string/object/array
 const extractEmail = (v) => {
   if (!v) return "";
-  // string: maybe "Full Name <user@x>" or plain "user@x"
   if (typeof v === "string") {
-    const m = v.match(/<([^>]+)>/); // capture address inside < >
+    const m = v.match(/<([^>]+)>/);
     const addr = m ? m[1] : v;
-    return normalize(addr);
+    return addr.toLowerCase().trim();
   }
-  // array: return first valid email we find
-  if (Array.isArray(v)) {
-    for (const el of v) {
-      const e = extractEmail(el);
-      if (e) return e;
-    }
-    return "";
+  if (typeof v === "object" && v.email) {
+    return v.email.toLowerCase().trim();
   }
-  // object: common fields { email } or { address } or { value: "name <mail>" }
-  if (typeof v === "object") {
-    if (typeof v.email === "string") return normalize(v.email);
-    if (typeof v.address === "string") return normalize(v.address);
-    if (typeof v.value === "string") return extractEmail(v.value);
+  if (Array.isArray(v) && v.length > 0) {
+    return extractEmail(v[0]);
   }
   return "";
 };
 
-const senderEmailOf = (mail) =>
-  (mail && (extractEmail(mail.sender) || extractEmail(mail.from))) || "";
+// Format date like Gmail - shows time for today, date for older emails
+const formatDate = (timestamp) => {
+  if (!timestamp) return "";
+  const date = new Date(timestamp);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const mailDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-const recipientEmailOf = (mail) =>
-  (mail && (extractEmail(mail.recipient) || extractEmail(mail.to))) || "";
-
-// Accepts array of strings OR objects with a `name` field
-const hasNameDraft = (labelsOrNames) => {
-  if (!Array.isArray(labelsOrNames)) return false;
-  return labelsOrNames.some((x) => {
-    if (typeof x === "string") return normalize(x) === "drafts";
-    if (x && typeof x.name === "string") return normalize(x.name) === "drafts";
-    return false;
-  });
+  // If today - show time (e.g., "2:30 PM")
+  if (mailDate.getTime() === today.getTime()) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  
+  // If yesterday - show "Yesterday"
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (mailDate.getTime() === yesterday.getTime()) {
+    return "Yesterday";
+  }
+  
+  // If this week - show day name (e.g., "Mon")
+  const dayDiff = Math.floor((today.getTime() - mailDate.getTime()) / (1000 * 60 * 60 * 24));
+  if (dayDiff < 7) {
+    return date.toLocaleDateString([], { weekday: 'short' });
+  }
+  
+  // If this year - show month and day (e.g., "Aug 15")
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+  
+  // If older - show full date (e.g., "8/15/23")
+  return date.toLocaleDateString([], { year: '2-digit', month: 'numeric', day: 'numeric' });
 };
 
 const SearchResultsPage = () => {
-  const location = useLocation();
   const navigate = useNavigate();
-  const token = localStorage.getItem("token") || "";
-  const myEmail = useMemo(() => normalize(emailFromToken(token)), [token]);
-  const query = new URLSearchParams(location.search).get("q") || "";
-  const [mails, setMails] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const [draftsId, setDraftsId] = useState(null);
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const query = searchParams.get("q") || "";
   
-  // Pagination state
+  const [results, setResults] = useState([]);
+  const [selectedMails, setSelectedMails] = useState(new Set());
+  const [isLoading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [draftsId, setDraftsId] = useState(null);
+  
+  const token = localStorage.getItem("token");
+  const myEmail = emailFromToken(token);
+  
   const mailsPerPage = 50;
+  
+  const draftLabelCacheRef = useRef(new Map());
+  const inflightRef = useRef(new Map());
 
-  // Caches to avoid duplicate network calls per mailId
-  const draftLabelCacheRef = useRef(new Map()); // mailId -> boolean
-  const inflightRef = useRef(new Map());        // mailId -> Promise<boolean>
-
-  // 1) fetch labels to get the real "drafts" label id
+  // Get drafts label ID - same as existing LabelPage logic
   useEffect(() => {
+    if (!token) return;
     let dead = false;
     const run = async () => {
-      if (!token || !query.trim()) {
-        setIsLoading(false);
-        return;
-      }
-      setIsLoading(true);
       try {
-        // IMPORTANT: pass { token }
-        const list = await fetchWithAuth("/labels", token);
-        const drafts = (list || []).find(
-          (l) => (l.name || "").toLowerCase() === "drafts"
-        );
-        if (!dead) setDraftsId(drafts ? drafts.id : null);
+        const labels = await fetchWithAuth("/labels", token);
+        const drafts = Array.isArray(labels)
+          ? labels.find((l) => normalize(l.name) === "drafts")
+          : null;
+        if (!dead) setDraftsId(drafts?.id || drafts?.name || drafts?.id || null);
       } catch (e) {
         if (!dead) setDraftsId(null);
       }
@@ -115,15 +119,12 @@ const SearchResultsPage = () => {
     return () => { dead = true; };
   }, [token]);
 
-  // Ask server if a mail has Drafts; supports multiple response shapes
+  // Check if mail is draft by server labels - same as existing logic
   const checkIsDraftByServerLabels = async (mailId) => {
     if (!mailId || !token) return false;
-
-    // cache hit
     const cache = draftLabelCacheRef.current;
     if (cache.has(mailId)) return cache.get(mailId);
 
-    // collapse concurrent calls for same id
     const inflight = inflightRef.current;
     if (inflight.has(mailId)) return inflight.get(mailId);
 
@@ -137,7 +138,6 @@ const SearchResultsPage = () => {
         const arr = await res.json();
         if (!Array.isArray(arr)) return false;
 
-        // supports: ["Inbox","Drafts"] OR ["id1","id2"] OR [{id,name}, ...]
         let result = false;
         if (arr.length && typeof arr[0] === "object") {
           result = arr.some(
@@ -166,7 +166,7 @@ const SearchResultsPage = () => {
     return p;
   };
 
-  // 2) run search and hard-filter
+  // Load search results - improved error handling
   useEffect(() => {
     let dead = false;
 
@@ -178,9 +178,7 @@ const SearchResultsPage = () => {
       setLoading(true);
       setErr("");
       try {
-        // try /api/mails/search first
         const tryFetch = async (path) => {
-          // IMPORTANT: pass { token }
           return await fetchWithAuth(
             `${path}?q=${encodeURIComponent(query)}&ts=${Date.now()}`,
             token
@@ -189,10 +187,15 @@ const SearchResultsPage = () => {
 
         let data;
         try {
-          data = await tryFetch("/mails/search"); // resolves to /api/mails/search inside fetchWithAuth
+          data = await tryFetch("/mails/search");
         } catch (e1) {
-          // fallback to /api/search if the first path doesn't exist
-          data = await tryFetch("/search");
+          try {
+            data = await tryFetch("/search");
+          } catch (e2) {
+            // If both endpoints fail, still try to handle empty results gracefully
+            console.warn("[Search] Both search endpoints failed:", e1, e2);
+            data = [];
+          }
         }
 
         const raw = Array.isArray(data)
@@ -201,117 +204,63 @@ const SearchResultsPage = () => {
             ? data.results
             : [];
 
-        // enrich with precise draft flag by querying label ids when needed
+        // Enrich with draft detection - same as existing logic
         const enriched = await Promise.all(
-          raw.map(async (m) => {
-            const sender = normalize(senderEmailOf(m));
-            const recipient = normalize(recipientEmailOf(m));
-
-            let isDraft =
-              m?.isDraft === true ||
-              hasNameDraft(m?.labels || []);
-
-            // Prefer local labelIds if present; compare as strings
-            if (!isDraft && Array.isArray(m.labelIds) && draftsId != null) {
-              const ids = m.labelIds.map(String);
-              isDraft = ids.includes(String(draftsId));
-            }
-
-            // Fallback: even if draftsId is null, ask server (can detect by name)
-            if (!isDraft && !Array.isArray(m.labelIds)) {
-              isDraft = await checkIsDraftByServerLabels(m.id);
-            }
-
-            return {
-              ...m,
-              __sender: sender,
-              __recipient: recipient,
-              __isDraft: !!isDraft,
-            };
-          })
-        );
-
-        // HARD FILTER:
-        //  a) Only mails that involve me (sender or recipient)
-        //  b) If draft -> only if I am the sender (owner)
-        const safe = enriched.filter((m) => {
-          /*const involvesMe =
-            m.__sender === myEmail || m.__recipient === myEmail;
-
-          if (!involvesMe) return false;
-          if (!m.__isDraft) return true;
-          return m.__sender === myEmail; // only my drafts*/
-
-          // For drafts, only show if I'm the sender (owner)
-          if (m.__isDraft) {
-            return m.__sender === myEmail;
-          }
-          
-          // For non-drafts, show all mails (the server should already filter appropriately)
-          return true;
-
-        });
-
-        // Debug traces (optional)
-        console.table(
-          enriched.map((m) => ({
-            id: m.id,
-            subj: m.subject,
-            sender: m.__sender,
-            recipient: m.__recipient,
-            isDraft: m.__isDraft,
-            kept: safe.some((x) => x.id === m.id),
-          }))
-        );
-        console.log("[labels] draftsId:", draftsId);
-        console.table(
-          enriched.map((m) => ({
-            id: m.id,
-            hasIsDraft: m?.isDraft === true,
+          raw.map(async (m) => ({
+            ...m,
+            isDraft: m?.isDraft === true,
             hasLabels: Array.isArray(m.labels),
             hasLabelIds: Array.isArray(m.labelIds),
-            __isDraft: m.__isDraft,
+            __isDraft: await checkIsDraftByServerLabels(m?.id),
           }))
         );
 
-        if (!dead) setResults(safe);
-        
-        // Reset to page 1 when new search is performed
-        setCurrentPage(1);
+        if (!dead) {
+          // Sort results by timestamp - newest first (like Gmail)
+          const sortedResults = enriched.sort((a, b) => {
+            const dateA = new Date(a.timestamp || 0);
+            const dateB = new Date(b.timestamp || 0);
+            return dateB.getTime() - dateA.getTime(); // Newest first
+          });
+          
+          setResults(sortedResults);
+          setCurrentPage(1);
+        }
       } catch (e) {
         console.error("[Search] error:", e);
         if (!dead) {
-          setErr("Failed to load search results");
+          // Only set error for actual technical failures, not empty results
+          setErr("Connection error. Please try again.");
           setResults([]);
         }
       } finally {
-        if (!dead) setIsLoading(false);
+        if (!dead) setLoading(false);
       }
     };
 
     run();
-    // re-run when query, token, or draftsId changes
   }, [query, token, draftsId, myEmail]);
 
+  // Open mail item - same as existing logic
   const openItem = (m) => {
     if (!m?.id) return;
     if (m.__isDraft) {
-      navigate(`/draft/${m.id}`, { state: { assumeDraft: true } }); // no /edit
+      navigate(`/draft/${m.id}`, { state: { assumeDraft: true } });
     } else {
       navigate(`/mail/${m.id}`);
     }
   };
 
-  // Calculate pagination for search results
+  // Pagination calculations - same as existing
   const totalPages = Math.ceil(results.length / mailsPerPage);
   const startIndex = (currentPage - 1) * mailsPerPage;
   const endIndex = startIndex + mailsPerPage;
   const paginatedResults = results.slice(startIndex, endIndex);
 
-  // Pagination functions
   const goToPage = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
+      setSelectedMails(new Set()); // Clear selections when changing pages
     }
   };
 
@@ -327,98 +276,277 @@ const SearchResultsPage = () => {
     }
   };
 
+  // Transform search results to mail format for consistency with existing components
+  const transformedMails = paginatedResults.map(mail => ({
+    ...mail,
+    // Ensure compatibility with existing mail display logic
+    sender: mail.sender || mail.from,
+    direction: extractEmail(mail.sender || mail.from) === myEmail ? "sent" : "received",
+    preview: mail.preview || mail.content?.slice(0, 100) || "",
+    labels: ["search-result"], // Add search result indicator
+    isRead: false, // Search results should appear unread for visibility
+  }));
+
   return (
-    <div style={{ padding: "1rem" }}>
-      <div className="search-header">
-        <h1>Search Results for: "{query}"</h1>
-        {results.length > 0 && (
-          <div className="gmail-pagination" style={{ margin: "16px 0" }}>
-            <span>
-              {`${startIndex + 1}-${Math.min(endIndex, results.length)} of ${results.length} results`}
+    <div className="gmail-main-area">
+      {/* Reuse existing Gmail toolbar structure from LabelPage */}
+      <div className="gmail-toolbar">
+        <div className="gmail-toolbar-left">
+          <div className="gmail-select-all-container">
+            <input
+              type="checkbox"
+              onChange={(e) => {
+                const allCurrentIds = transformedMails.map(m => m.id);
+                if (e.target.checked) {
+                  setSelectedMails(new Set([...selectedMails, ...allCurrentIds]));
+                } else {
+                  const newSelected = new Set(selectedMails);
+                  allCurrentIds.forEach(id => newSelected.delete(id));
+                  setSelectedMails(newSelected);
+                }
+              }}
+              checked={transformedMails.length > 0 && transformedMails.every(mail => selectedMails.has(mail.id))}
+              title="Select all on this page"
+            />
+          </div>
+          
+          {selectedMails.size > 0 && (
+            <span className="gmail-selection-count">
+              {selectedMails.size} selected
             </span>
+          )}
+        </div>
+
+        <div className="gmail-toolbar-right">
+          <button 
+            className="gmail-refresh-btn"
+            onClick={() => window.location.reload()}
+            title="Refresh"
+          >
+            ↻
+          </button>
+          
+          {/* Reuse existing pagination structure */}
+          {results.length > 0 && (
+            <div className="gmail-pagination">
+              <span className="gmail-results-info">
+                {`${startIndex + 1}-${Math.min(endIndex, results.length)} of ${results.length}`}
+              </span>
+              <button 
+                onClick={goToPreviousPage}
+                disabled={currentPage <= 1}
+                title="Previous page"
+              >
+                ‹
+              </button>
+              <button 
+                onClick={goToNextPage}
+                disabled={currentPage >= totalPages}
+                title="Next page"
+              >
+                ›
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Search header with same styling as existing pages */}
+      <div style={{ 
+        padding: '16px 20px', 
+        borderBottom: '1px solid var(--border, #e0e4e7)',
+        background: 'var(--surface, #ffffff)'
+      }}>
+        <h1 style={{ 
+          fontSize: '20px', 
+          fontWeight: '400', 
+          margin: '0', 
+          color: 'var(--text, #202124)' 
+        }}>
+          Search results for: "<strong>{query}</strong>"
+        </h1>
+        {results.length > 0 && (
+          <p style={{ 
+            color: 'var(--muted, #5f6368)', 
+            fontSize: '14px', 
+            margin: '4px 0 0 0' 
+          }}>
+            {results.length} result{results.length !== 1 ? 's' : ''} found
+          </p>
+        )}
+      </div>
+
+      {/* Mail list container with same structure as LabelPage */}
+      <div className="gmail-mail-list-container">
+        {isLoading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>
+            <Loading label="Searching…" />
+          </div>
+        ) : err ? (
+          <div style={{ 
+            padding: '60px 20px', 
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>
+              ⚠️
+            </div>
+            <h3 style={{ 
+              fontSize: '18px', 
+              fontWeight: '400', 
+              margin: '0 0 8px 0', 
+              color: 'var(--error, #ea4335)' 
+            }}>
+              {err}
+            </h3>
+            <button 
+              onClick={() => window.location.reload()} 
+              style={{
+                background: 'var(--accent, #1a73e8)',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                marginTop: '8px'
+              }}
+            >
+              Try Again
+            </button>
+          </div>
+        ) : transformedMails.length === 0 ? (
+          <div style={{ 
+            padding: '60px 20px', 
+            textAlign: 'center', 
+            color: 'var(--muted, #5f6368)',
+            fontSize: '16px',
+            lineHeight: '1.5'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}>
+              🔍
+            </div>
+            <h3 style={{ 
+              fontSize: '18px', 
+              fontWeight: '400', 
+              margin: '0 0 8px 0', 
+              color: 'var(--text, #202124)' 
+            }}>
+              No results found
+            </h3>
+            <p style={{ margin: '0', color: 'var(--muted, #5f6368)' }}>
+              Try different keywords or check your spelling
+            </p>
+          </div>
+        ) : (
+          // Reuse existing mail list structure - this will automatically use existing CSS
+          <div className="gmail-mail-list">
+            {transformedMails.map((mail) => {
+              const isSelected = selectedMails.has(mail.id);
+              const isDraft = mail.__isDraft || mail.isDraft;
+              const isRead = false; // Search results appear unread
+              
+              // Use same sender info logic as LabelPage
+              let senderInfo = "";
+              if (isDraft) {
+                senderInfo = "Draft";
+              } else {
+                const senderEmail = extractEmail(mail.sender);
+                senderInfo = senderEmail === myEmail ? "me" : senderEmail || "(unknown)";
+              }
+
+              return (
+                <div
+                  key={mail.id}
+                  className={`gmail-mail-item ${isSelected ? 'selected' : ''} ${isRead ? 'read' : 'unread'} ${isDraft ? 'is-draft' : ''}`}
+                  onClick={() => openItem(mail)}
+                >
+                  <div className="gmail-mail-item-content">
+                    {/* Checkbox - same as LabelPage */}
+                    <div className="gmail-mail-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          const newSelected = new Set(selectedMails);
+                          if (newSelected.has(mail.id)) {
+                            newSelected.delete(mail.id);
+                          } else {
+                            newSelected.add(mail.id);
+                          }
+                          setSelectedMails(newSelected);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+
+                    {/* Star - same as LabelPage */}
+                    <div className="gmail-mail-star">
+                      ☆
+                    </div>
+
+                    {/* Sender - same styling as LabelPage */}
+                    <div className="gmail-mail-sender">
+                      {senderInfo}
+                      {isDraft && <span style={{ color: 'var(--muted)', fontSize: '12px' }}> Draft</span>}
+                    </div>
+
+                    {/* Subject and preview - same as LabelPage */}
+                    <div className="gmail-mail-subject-content">
+                      <span className="gmail-mail-subject">
+                        {mail.subject || "(no subject)"}
+                      </span>
+                      <span className="gmail-mail-preview">
+                        {mail.preview || mail.content?.slice(0, 100) || "(no content)"}
+                      </span>
+                    </div>
+
+                    {/* Labels - show search result indicator */}
+                    <div className="gmail-mail-labels">
+                      <span className="gmail-label-chip search-result">
+                        Search Result
+                      </span>
+                    </div>
+
+                    {/* Date - Gmail-style formatting */}
+                    <div className="gmail-mail-date">
+                      {formatDate(mail.timestamp)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Bottom pagination - same as LabelPage */}
+        {results.length > mailsPerPage && (
+          <div className="gmail-pagination" style={{ 
+            margin: '24px 0 0 0', 
+            justifyContent: 'center',
+            padding: '16px',
+            borderTop: '1px solid var(--border, #e0e4e7)'
+          }}>
             <button 
               onClick={goToPreviousPage}
               disabled={currentPage <= 1}
               title="Previous page"
             >
-              ‹
+              ‹ Previous
             </button>
-            <span className="gmail-page-info">
-              Page {currentPage} of {totalPages || 1}
+            <span style={{ margin: '0 16px', color: 'var(--text, #202124)' }}>
+              Page {currentPage} of {totalPages}
             </span>
             <button 
               onClick={goToNextPage}
               disabled={currentPage >= totalPages}
               title="Next page"
             >
-              ›
+              Next ›
             </button>
           </div>
         )}
       </div>
-      
-      {isLoading ? (
-        <Loading label="Searching…" />
-      ) : paginatedResults.length === 0 ? (
-        <p>No matching mails found.</p>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          {paginatedResults.map((m) => (
-            <li
-              key={m.id}
-              onClick={() => openItem(m)}
-              style={{
-                cursor: "pointer",
-                border: "1px solid #ccc",
-                padding: "1rem",
-                marginBottom: "1rem",
-                borderRadius: "8px",
-                backgroundColor: m.__isDraft ? "#fff7e6" : "#f9f9f9",
-              }}
-            >
-              <strong>
-                {m.subject || <em>(no subject)</em>}
-                {m.__isDraft ? " [Draft]" : ""}
-              </strong>
-              <br />
-              <strong>From:</strong>{" "}
-              {extractEmail(m.sender) || extractEmail(m.from) || "(unknown)"}
-              <br />
-              <strong>Date:</strong>{" "}
-              {m.timestamp
-                ? new Date(m.timestamp).toLocaleString()
-                : "Invalid Date"}
-              <p style={{ color: "#666" }}>
-                {m.preview ||
-                  (m.content || "").slice(0, 100) || <em>(no content)</em>}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-      
-      {/* Bottom pagination for better UX on long result lists */}
-      {results.length > mailsPerPage && (
-        <div className="gmail-pagination" style={{ margin: "24px 0 0 0", justifyContent: "center" }}>
-          <button 
-            onClick={goToPreviousPage}
-            disabled={currentPage <= 1}
-            title="Previous page"
-          >
-            ‹ Previous
-          </button>
-          <span className="gmail-page-info">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button 
-            onClick={goToNextPage}
-            disabled={currentPage >= totalPages}
-            title="Next page"
-          >
-            Next ›
-          </button>
-        </div>
-      )}
     </div>
   );
 };
