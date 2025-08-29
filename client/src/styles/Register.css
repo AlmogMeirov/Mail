@@ -1,70 +1,30 @@
-/* Modern Gmail-inspired Registration Design */
+/* Login/Register container styling */
 .login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 50%, #10b981 100%);
-  color: #202124;
+  padding: 20px;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 50%, #d1d5db 100%);
   overflow-y: auto;
   overflow-x: hidden;
-  position: relative;
-}
-
-/* Animated background particles */
-.login-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: 
-    radial-gradient(circle at 25% 25%, rgba(79, 70, 229, 0.2) 0%, transparent 50%),
-    radial-gradient(circle at 75% 25%, rgba(6, 182, 212, 0.2) 0%, transparent 50%),
-    radial-gradient(circle at 25% 75%, rgba(16, 185, 129, 0.2) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(245, 158, 11, 0.1) 0%, transparent 50%);
-  animation: float 25s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  25% { transform: translateY(-15px) rotate(0.5deg); }
-  50% { transform: translateY(10px) rotate(-0.5deg); }
-  75% { transform: translateY(-5px) rotate(0.3deg); }
 }
 
 .login-box {
-  width: min(720px, 92vw);
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(25px);
-  -webkit-backdrop-filter: blur(25px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: #ffffff;
   border-radius: 20px;
-  padding: 40px;
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 420px;
   box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.1),
-    0 0 0 1px rgba(255, 255, 255, 0.2) inset;
-  max-height: 85vh; /* Restore scrolling height limit */
-  overflow-y: auto;
-  overflow-x: hidden;
+    0 10px 25px rgba(0, 0, 0, 0.08),
+    0 4px 6px rgba(0, 0, 0, 0.06);
   position: relative;
   z-index: 1;
-  animation: slideIn 0.7s ease-out;
-  /* Ensure consistent background coverage */
-  min-height: auto;
-  box-sizing: border-box;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Updated hover border effect - covers entire box */
@@ -141,6 +101,51 @@
   text-align: center;
   font-size: 14px;
   animation: errorSlideIn 0.3s ease-out;
+}
+
+/* Field-specific error styling */
+.field-error {
+  margin: 4px 0 0 0;
+  padding: 6px 0;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 500;
+  animation: errorSlideIn 0.3s ease-out;
+  line-height: 1.2;
+}
+
+/* Password input container for eye toggle */
+.password-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-container input {
+  width: 100%;
+  padding-right: 40px; /* Make space for the eye button */
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 16px;
+  color: #6b7280;
+  transition: color 0.2s ease;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.password-toggle-btn:hover {
+  color: #4f46e5;
+  background-color: rgba(79, 70, 229, 0.05);
 }
 
 @keyframes errorSlideIn {
@@ -268,46 +273,25 @@
 }
 
 .login-box::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #4338ca 0%, #0891b2 50%, #059669 100%);
+  background: linear-gradient(135deg, #3730a3 0%, #0891b2 50%, #059669 100%);
 }
 
-/* Dark Mode */
+/* Dark mode support */
 :root[data-theme="dark"] .login-container {
-  background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 50%, #064e3b 100%);
-  color: #e2e8f0;
-}
-
-:root[data-theme="dark"] .login-container::before {
-  background-image: 
-    radial-gradient(circle at 25% 25%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 75% 25%, rgba(6, 182, 212, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 25% 75%, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(245, 158, 11, 0.1) 0%, transparent 50%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
 }
 
 :root[data-theme="dark"] .login-box {
-  background: rgba(15, 23, 42, 0.98);
-  border: 1px solid rgba(71, 85, 105, 0.4);
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
   box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(148, 163, 184, 0.1) inset;
-  max-height: 85vh; /* Restore scrolling for dark mode too */
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: auto;
-  box-sizing: border-box;
+    0 10px 25px rgba(0, 0, 0, 0.25),
+    0 4px 6px rgba(0, 0, 0, 0.15);
 }
 
-:root[data-theme="dark"] .login-box::before {
-  background: linear-gradient(45deg, #8b5cf6, #06b6d4, #10b981, #8b5cf6);
-  border-radius: 22px;
-}
-
-:root[data-theme="dark"] .login-box h2 {
-  background: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 50%, #10b981 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+:root[data-theme="dark"] .login-box:hover::before {
+  opacity: 0.4;
 }
 
 :root[data-theme="dark"] .login-subtitle {
@@ -315,20 +299,19 @@
 }
 
 :root[data-theme="dark"] .input-group label {
-  color: #e2e8f0;
+  color: #f1f5f9;
 }
 
 :root[data-theme="dark"] .input-group input,
 :root[data-theme="dark"] .input-group select {
-  background: rgba(30, 41, 59, 0.8);
-  color: #e2e8f0;
+  background: #334155;
   border-color: #475569;
+  color: #f8fafc;
 }
 
 :root[data-theme="dark"] .input-group input:focus,
 :root[data-theme="dark"] .input-group select:focus {
   border-color: #8b5cf6;
-  background: rgba(30, 41, 59, 1);
   box-shadow: 
     0 0 0 3px rgba(139, 92, 246, 0.1),
     0 3px 10px rgba(139, 92, 246, 0.15);
@@ -343,6 +326,21 @@
   background: #450a0a;
   color: #fca5a5;
   border-color: #7f1d1d;
+}
+
+/* Dark mode field-specific error styling */
+:root[data-theme="dark"] .field-error {
+  color: #fca5a5;
+}
+
+/* Dark mode password toggle button */
+:root[data-theme="dark"] .password-toggle-btn {
+  color: #94a3b8;
+}
+
+:root[data-theme="dark"] .password-toggle-btn:hover {
+  color: #8b5cf6;
+  background-color: rgba(139, 92, 246, 0.1);
 }
 
 :root[data-theme="dark"] .login-loading {
@@ -376,7 +374,7 @@
 @media (max-width: 768px) {
   .login-container {
     padding: 16px;
-    overflow-y: auto; /* Keep scrolling on mobile */
+    overflow-y: auto;
     overflow-x: hidden;
   }
   
@@ -384,7 +382,7 @@
     width: 95%;
     padding: 24px;
     border-radius: 16px;
-    max-height: 90vh; /* Mobile specific height limit for scrolling */
+    max-height: 90vh;
     overflow-y: auto;
     overflow-x: hidden;
     min-height: auto;
