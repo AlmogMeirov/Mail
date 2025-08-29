@@ -1,5 +1,5 @@
 // client/src/pages/SearchResultsPage.jsx
-// Enhanced search results page reusing existing mail row components
+// Enhanced search results page with proper draft detection logic
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -90,7 +90,12 @@ const SearchResultsPage = () => {
   const [isLoading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [draftsId, setDraftsId] = useState(null);
+  
+  // Draft detection state - copied from LabelPage
+  const [allLabels, setAllLabels] = useState([]);
+  const [draftLabelId, setDraftLabelId] = useState(null);
+  const [labelsReady, setLabelsReady] = useState(false);
+  const [currentMailLabels, setCurrentMailLabels] = useState({});
   
   const token = localStorage.getItem("token");
   const myEmail = emailFromToken(token);
@@ -100,62 +105,125 @@ const SearchResultsPage = () => {
   const draftLabelCacheRef = useRef(new Map());
   const inflightRef = useRef(new Map());
 
-  // Get drafts label ID - same as existing LabelPage logic
-  useEffect(() => {
-    if (!token) return;
-    let dead = false;
-    const run = async () => {
-      try {
-        const labels = await fetchWithAuth("/labels", token);
-        const drafts = Array.isArray(labels)
-          ? labels.find((l) => normalize(l.name) === "drafts")
-          : null;
-        if (!dead) setDraftsId(drafts?.id || drafts?.name || drafts?.id || null);
-      } catch (e) {
-        if (!dead) setDraftsId(null);
-      }
-    };
-    run();
-    return () => { dead = true; };
-  }, [token]);
+  // Helper functions for draft detection - copied from LabelPage
+  const getDraftLabelId = (labelsList) => {
+    const drafts = (labelsList || []).find(
+      (l) => (l.name || "").toLowerCase() === "drafts"
+    );
+    return drafts ? drafts.id : null;
+  };
 
-  // Check if mail is draft by server labels - same as existing logic
+  const hasNameDraft = (labelsOrNames) => {
+    if (!Array.isArray(labelsOrNames)) return false;
+    return labelsOrNames.some(
+      (x) => typeof x === "string" && normalize(x) === "drafts"
+    );
+  };
+
+  const includesId = (arr, id) =>
+    Array.isArray(arr) && id != null ? arr.includes(id) : false;
+
+  const isDraftMailRobust = (mail) => {
+    console.log(`[SearchResults] Checking if mail ${mail?.id} is draft:`, {
+      mailIsDraft: mail?.isDraft,
+      mailLabels: mail?.labels,
+      draftLabelId,
+      currentMailLabels: currentMailLabels[mail?.id],
+      __isDraft: mail?.__isDraft
+    });
+
+    if (mail?.isDraft === true) {
+      console.log(`[SearchResults] Mail ${mail?.id} is draft (isDraft=true)`);
+      return true;
+    }
+    if (Array.isArray(mail?.labels)) {
+      if (draftLabelId && includesId(mail.labels, draftLabelId)) {
+        console.log(`[SearchResults] Mail ${mail?.id} is draft (has draftLabelId in labels)`);
+        return true;
+      }
+      if (hasNameDraft(mail.labels)) {
+        console.log(`[SearchResults] Mail ${mail?.id} is draft (has 'drafts' name in labels)`);
+        return true;
+      }
+    }
+    const idsForMail = currentMailLabels[mail?.id] || [];
+    if (draftLabelId && includesId(idsForMail, draftLabelId)) {
+      console.log(`[SearchResults] Mail ${mail?.id} is draft (has draftLabelId in currentMailLabels)`);
+      return true;
+    }
+    if (mail?.__isDraft === true) {
+      console.log(`[SearchResults] Mail ${mail?.id} is draft (__isDraft=true)`);
+      return true;
+    }
+    
+    console.log(`[SearchResults] Mail ${mail?.id} is NOT draft`);
+    return false;
+  };
+
+  // Check if mail is draft by server labels - same as existing logic but with more logging
   const checkIsDraftByServerLabels = async (mailId) => {
-    if (!mailId || !token) return false;
+    if (!mailId || !token) {
+      console.log(`[SearchResults] checkIsDraftByServerLabels: missing mailId or token`);
+      return false;
+    }
+    
     const cache = draftLabelCacheRef.current;
-    if (cache.has(mailId)) return cache.get(mailId);
+    if (cache.has(mailId)) {
+      const cached = cache.get(mailId);
+      console.log(`[SearchResults] checkIsDraftByServerLabels: cached result for ${mailId}: ${cached}`);
+      return cached;
+    }
 
     const inflight = inflightRef.current;
-    if (inflight.has(mailId)) return inflight.get(mailId);
+    if (inflight.has(mailId)) {
+      console.log(`[SearchResults] checkIsDraftByServerLabels: waiting for inflight request for ${mailId}`);
+      return inflight.get(mailId);
+    }
 
     const p = (async () => {
       try {
+        console.log(`[SearchResults] checkIsDraftByServerLabels: fetching labels for mail ${mailId}`);
         const res = await fetch(`/api/labels/mail/${mailId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) return false;
+        if (!res.ok) {
+          console.log(`[SearchResults] checkIsDraftByServerLabels: failed to fetch labels for ${mailId}: ${res.status}`);
+          return false;
+        }
 
         const arr = await res.json();
-        if (!Array.isArray(arr)) return false;
+        console.log(`[SearchResults] checkIsDraftByServerLabels: labels for mail ${mailId}:`, arr);
+        
+        if (!Array.isArray(arr)) {
+          console.log(`[SearchResults] checkIsDraftByServerLabels: labels not array for ${mailId}`);
+          return false;
+        }
 
         let result = false;
         if (arr.length && typeof arr[0] === "object") {
           result = arr.some(
             (l) =>
               normalize(l?.name) === "drafts" ||
-              (draftsId != null && String(l?.id) === String(draftsId))
+              (draftLabelId != null && String(l?.id) === String(draftLabelId))
           );
+          console.log(`[SearchResults] checkIsDraftByServerLabels: object labels check for ${mailId}: ${result}`);
         } else if (arr.length && typeof arr[0] === "string") {
           const names = arr.map(normalize);
-          if (names.includes("drafts")) result = true;
-          else if (draftsId != null) {
-            result = arr.map(String).includes(String(draftsId));
+          console.log(`[SearchResults] checkIsDraftByServerLabels: string labels for ${mailId}:`, names);
+          if (names.includes("drafts")) {
+            result = true;
+            console.log(`[SearchResults] checkIsDraftByServerLabels: found 'drafts' name for ${mailId}`);
+          } else if (draftLabelId != null) {
+            result = arr.map(String).includes(String(draftLabelId));
+            console.log(`[SearchResults] checkIsDraftByServerLabels: draftLabelId check for ${mailId}: ${result}`);
           }
         }
 
         cache.set(mailId, result);
+        console.log(`[SearchResults] checkIsDraftByServerLabels: final result for ${mailId}: ${result}`);
         return result;
-      } catch {
+      } catch (error) {
+        console.error(`[SearchResults] checkIsDraftByServerLabels: error for ${mailId}:`, error);
         return false;
       } finally {
         inflight.delete(mailId);
@@ -166,7 +234,53 @@ const SearchResultsPage = () => {
     return p;
   };
 
-  // Load search results - improved error handling
+  // Load labels - copied from LabelPage
+  useEffect(() => {
+    if (!token) return;
+
+    console.log('[SearchResults] Loading labels...');
+    
+    fetchWithAuth("/labels", token)
+      .then((list) => {
+        console.log('[SearchResults] Labels loaded:', list);
+        setAllLabels(list);
+        setDraftLabelId(getDraftLabelId(list));
+        setLabelsReady(true);
+      })
+      .catch((e) => {
+        console.error('[SearchResults] Failed to load labels:', e);
+        setLabelsReady(true);
+      });
+  }, [token]);
+
+  // Load current mail labels - copied from LabelPage logic
+  useEffect(() => {
+    if (!results.length || !token) return;
+
+    console.log('[SearchResults] Loading current mail labels for', results.length, 'mails...');
+
+    const loadMailLabels = async () => {
+      const mailLabelsMap = {};
+      for (const mail of results) {
+        try {
+          const res = await fetch(`/api/labels/mail/${mail.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const labels = res.ok ? await res.json() : [];
+          mailLabelsMap[mail.id] = Array.isArray(labels) ? labels : [];
+          console.log(`[SearchResults] Labels for mail ${mail.id}:`, mailLabelsMap[mail.id]);
+        } catch (err) {
+          console.error(`[SearchResults] Error loading labels for mail ${mail.id}:`, err);
+          mailLabelsMap[mail.id] = [];
+        }
+      }
+      setCurrentMailLabels(mailLabelsMap);
+    };
+
+    loadMailLabels();
+  }, [results, token]);
+
+  // Load search results - improved error handling and draft detection
   useEffect(() => {
     let dead = false;
 
@@ -178,6 +292,8 @@ const SearchResultsPage = () => {
       setLoading(true);
       setErr("");
       try {
+        console.log('[SearchResults] Starting search for:', query);
+        
         const tryFetch = async (path) => {
           return await fetchWithAuth(
             `${path}?q=${encodeURIComponent(query)}&ts=${Date.now()}`,
@@ -188,12 +304,14 @@ const SearchResultsPage = () => {
         let data;
         try {
           data = await tryFetch("/mails/search");
+          console.log('[SearchResults] Search results from /mails/search:', data);
         } catch (e1) {
           try {
             data = await tryFetch("/search");
+            console.log('[SearchResults] Search results from /search:', data);
           } catch (e2) {
             // If both endpoints fail, still try to handle empty results gracefully
-            console.warn("[Search] Both search endpoints failed:", e1, e2);
+            console.warn("[SearchResults] Both search endpoints failed:", e1, e2);
             data = [];
           }
         }
@@ -204,15 +322,35 @@ const SearchResultsPage = () => {
             ? data.results
             : [];
 
-        // Enrich with draft detection - same as existing logic
+        console.log('[SearchResults] Raw search results:', raw);
+
+        // Wait for labels to be ready before processing drafts
+        if (!labelsReady) {
+          console.log('[SearchResults] Labels not ready yet, waiting...');
+          // We'll process this again when labelsReady becomes true
+          return;
+        }
+
+        // Enrich with draft detection - same as existing logic but with more logging
+        console.log('[SearchResults] Enriching results with draft detection...');
         const enriched = await Promise.all(
-          raw.map(async (m) => ({
-            ...m,
-            isDraft: m?.isDraft === true,
-            hasLabels: Array.isArray(m.labels),
-            hasLabelIds: Array.isArray(m.labelIds),
-            __isDraft: await checkIsDraftByServerLabels(m?.id),
-          }))
+          raw.map(async (m) => {
+            const __isDraft = await checkIsDraftByServerLabels(m?.id);
+            const enrichedMail = {
+              ...m,
+              isDraft: m?.isDraft === true,
+              hasLabels: Array.isArray(m.labels),
+              hasLabelIds: Array.isArray(m.labelIds),
+              __isDraft,
+            };
+            console.log(`[SearchResults] Enriched mail ${m?.id}:`, {
+              isDraft: enrichedMail.isDraft,
+              __isDraft: enrichedMail.__isDraft,
+              hasLabels: enrichedMail.hasLabels,
+              labels: m.labels
+            });
+            return enrichedMail;
+          })
         );
 
         if (!dead) {
@@ -223,11 +361,12 @@ const SearchResultsPage = () => {
             return dateB.getTime() - dateA.getTime(); // Newest first
           });
           
+          console.log('[SearchResults] Final sorted results:', sortedResults);
           setResults(sortedResults);
           setCurrentPage(1);
         }
       } catch (e) {
-        console.error("[Search] error:", e);
+        console.error("[SearchResults] error:", e);
         if (!dead) {
           // Only set error for actual technical failures, not empty results
           setErr("Connection error. Please try again.");
@@ -239,14 +378,24 @@ const SearchResultsPage = () => {
     };
 
     run();
-  }, [query, token, draftsId, myEmail]);
+    return () => { dead = true; };
+  }, [query, token, labelsReady, draftLabelId, myEmail]);
 
-  // Open mail item - same as existing logic
+  // Open mail item - enhanced with proper draft detection
   const openItem = (m) => {
-    if (!m?.id) return;
-    if (m.__isDraft) {
+    if (!m?.id) {
+      console.log('[SearchResults] openItem: no mail ID');
+      return;
+    }
+    
+    const isDraft = isDraftMailRobust(m);
+    console.log(`[SearchResults] openItem: opening mail ${m.id}, isDraft: ${isDraft}`);
+    
+    if (isDraft) {
+      console.log(`[SearchResults] openItem: navigating to draft editor for ${m.id}`);
       navigate(`/draft/${m.id}`, { state: { assumeDraft: true } });
     } else {
+      console.log(`[SearchResults] openItem: navigating to mail view for ${m.id}`);
       navigate(`/mail/${m.id}`);
     }
   };
@@ -442,7 +591,7 @@ const SearchResultsPage = () => {
           <div className="gmail-mail-list">
             {transformedMails.map((mail) => {
               const isSelected = selectedMails.has(mail.id);
-              const isDraft = mail.__isDraft || mail.isDraft;
+              const isDraft = isDraftMailRobust(mail);
               const isRead = false; // Search results appear unread
               
               // Use same sender info logic as LabelPage
@@ -453,6 +602,8 @@ const SearchResultsPage = () => {
                 const senderEmail = extractEmail(mail.sender);
                 senderInfo = senderEmail === myEmail ? "me" : senderEmail || "(unknown)";
               }
+
+              console.log(`[SearchResults] Rendering mail ${mail.id}: isDraft=${isDraft}, senderInfo="${senderInfo}"`);
 
               return (
                 <div
