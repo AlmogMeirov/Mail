@@ -11,8 +11,9 @@ import Layout from "./components/Layout";
 import RequireAuth from "./RequireAuth"; // <-- add
 import "./App.css";
 
-import { useEffect } from "react"; // Added earlier for theme boot – OK to keep
+import { useEffect, useState } from "react"; // Added earlier for theme boot – OK to keep
 import { ThemeProvider } from "./theme/ThemeProvider"; // Added for Dark Mode: wrap app with provider
+import { waitForServerReady } from "./utils/waitForServer"; // Added by Meir for initial loading screen
 
 function App() {
   useEffect(() => {
@@ -20,6 +21,18 @@ function App() {
     const saved = localStorage.getItem("theme") || "light"; // Added for Dark Mode
     document.documentElement.setAttribute("data-theme", saved); // Added for Dark Mode
   }, []); // Added for Dark Mode
+
+  // server readiness state
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    waitForServerReady().then(ok => alive && setReady(ok));
+    return () => { alive = false; };
+  }, []);
+
+  if (!ready) {
+    return <div className="loading">Starting services…</div>;
+  }
 
   return (
     <SendMailProvider>

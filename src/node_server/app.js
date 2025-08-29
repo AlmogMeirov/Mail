@@ -22,6 +22,11 @@ app.set("blacklistClient", blacklistClient); // exposes checkUrlBlacklist, addUr
 
 //app.use("/api/labels", require("./routes/labels")); - remove in exercises 4 becuse we moved the labels routes to the main router
 
+// Healthcheck route for Docker
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({ ok: true, ts: Date.now() });
+});
+
 // Fallback for unknown endpoints
 app.use((req, res) => {
     res.status(404).json({ error: "Not found" });

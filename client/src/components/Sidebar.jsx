@@ -63,10 +63,18 @@ const Sidebar = () => {
     setOpenMenuId((prev) => (prev === id ? null : id));
   };
 
-  // unchanged logic for creating a label (validation מתבצע בשרת)
+  // unchanged logic for creating a label (validation is mostly in server)
   const handleCreateLabel = async () => {
     const name = newLabel.trim();
     if (!name) return;
+
+    // Check for reserved system label names (case-insensitive)
+    const systemLabels = ["inbox", "sent", "spam", "drafts", "starred", "trash"];
+    if (systemLabels.includes(name.toLowerCase())) {
+      alert("Cannot create label with a reserved system name. Please choose a different name.");
+      return;
+    }
+
     try {
       const res = await fetch("/api/labels", {
         method: "POST",
@@ -81,13 +89,13 @@ const Sidebar = () => {
         try {
           const errorData = await res.json();
           if (errorData?.error) errorMsg = errorData.error;
-        } catch {}
+        } catch { }
         throw new Error(errorMsg);
       }
       const created = await res.json();
       setLabels((prev) => [...prev, created]);
       setNewLabel("");
-      setShowAddForm(false); // סגירה אחרי יצירה (UI בלבד)
+      setShowAddForm(false); // close after creation (UI Only)
     } catch (e) {
       console.error("Create label error:", e);
       alert(e.message || "An unexpected error occurred while creating the label.");
@@ -115,6 +123,14 @@ const Sidebar = () => {
   const handleRenameLabel = async (label) => {
     const next = (window.prompt("New label name:", label.name) || "").trim();
     if (!next || next === label.name) return;
+
+    // Check for reserved system label names (case-insensitive)
+    const systemLabels = ["inbox", "sent", "spam", "drafts", "starred", "trash"];
+    if (systemLabels.includes(next.toLowerCase())) {
+      alert("Cannot rename label to a reserved system name. Please choose a different name.");
+      return;
+    }
+
     const duplicate = labels.some(
       (l) => l.id !== label.id && l.name.toLowerCase() === next.toLowerCase()
     );
@@ -122,6 +138,7 @@ const Sidebar = () => {
       alert("A label with this name already exists.");
       return;
     }
+
     try {
       const res = await fetch(`/api/labels/${label.id}`, {
         method: "PATCH",
@@ -149,7 +166,7 @@ const Sidebar = () => {
 
   return (
     <nav className="sidebar">
-      {/* Compose mail (לא שינוי לוגי) */}
+      {/* Compose mail (not a logical change) */}
       <div className="sidebar-header">
         <button className="compose-btn" onClick={() => setShow(true)}>
           Compose
@@ -200,9 +217,8 @@ const Sidebar = () => {
                     </button>
 
                     <div
-                      className={`label-menu ${
-                        openMenuId === label.id ? "open" : ""
-                      }`}
+                      className={`label-menu ${openMenuId === label.id ? "open" : ""
+                        }`}
                     >
                       <button onClick={() => handleRenameLabel(label)}>Rename</button>
                       <button onClick={() => handleDeleteLabel(label.id)}>Remove</button>

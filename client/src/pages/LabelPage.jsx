@@ -30,7 +30,7 @@ const LabelPage = () => {
   const [currentMailLabels, setCurrentMailLabels] = useState({});
   const [openLabelManagement, setOpenLabelManagement] = useState({});
   const [pendingLabelChanges, setPendingLabelChanges] = useState({});
-  
+
   // Selection functionality
   const [selectedMails, setSelectedMails] = useState(new Set());
   const [isBulkOperationInProgress, setIsBulkOperationInProgress] = useState(false);
@@ -78,15 +78,15 @@ const LabelPage = () => {
       }
     };
     loadReadMails();
-    
+
     const handleStorageChange = (e) => {
       if (e.key === 'readMails') loadReadMails();
     };
     const handleReadMailUpdate = () => loadReadMails();
-    
+
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('readMailsUpdated', handleReadMailUpdate);
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('readMailsUpdated', handleReadMailUpdate);
@@ -242,7 +242,7 @@ const LabelPage = () => {
       }
 
       throw new Error(errorMsg);
-      
+
     } catch (createErr) {
       console.error("Error in ensureLabelIdByName:", createErr);
       throw createErr;
@@ -260,7 +260,7 @@ const LabelPage = () => {
       if (labelsRes.ok) {
         const freshLabels = await labelsRes.json();
         setAllLabels(freshLabels);
-        
+
         const found = freshLabels.find(
           (l) => (l.name || "").toLowerCase() === nm
         );
@@ -275,7 +275,7 @@ const LabelPage = () => {
       (l) => (l.name || "").toLowerCase() === nm
     );
     if (found) return found.id;
-    
+
     // Try to create the label
     return await ensureLabelIdByName(nm);
   };
@@ -285,9 +285,9 @@ const LabelPage = () => {
     if (!labelsReady && mail?.isDraft !== true) {
       return;
     }
-    
+
     markAsRead(mail.id);
-    
+
     if (isDraftMailRobust(mail)) {
       navigate(`/draft/${mail.id}`);
       return;
@@ -299,7 +299,7 @@ const LabelPage = () => {
   const toggleStarred = async (mailId, event) => {
     event.preventDefault();
     event.stopPropagation();
-    
+
     if (!starredLabelId || !mailId) {
       console.warn('Cannot toggle starred: missing starredLabelId or mailId');
       return;
@@ -351,7 +351,7 @@ const LabelPage = () => {
   const toggleMailSelection = (mailId, event) => {
     event.preventDefault();
     event.stopPropagation();
-    
+
     setSelectedMails(prev => {
       const newSelected = new Set(prev);
       if (newSelected.has(mailId)) {
@@ -366,10 +366,10 @@ const LabelPage = () => {
   const toggleSelectAll = (event) => {
     event.preventDefault();
     event.stopPropagation();
-    
+
     const visibleMailIds = filteredMails.map(mail => mail.id);
     const allVisibleSelected = visibleMailIds.every(id => selectedMails.has(id));
-    
+
     if (allVisibleSelected) {
       // Deselect all visible
       setSelectedMails(prev => {
@@ -408,7 +408,7 @@ const LabelPage = () => {
             const res = await fetch(`/api/labels/mail/${mailId}`, {
               headers: { Authorization: `Bearer ${token}` },
             });
-            
+
             const currentLabels = res.ok ? await res.json() : [];
             const safeCurrent = Array.isArray(currentLabels) ? currentLabels : [];
 
@@ -448,9 +448,9 @@ const LabelPage = () => {
 
       const successful = results.filter(r => r.status === 'fulfilled' && r.value.success);
       const successfulMailIds = successful.map(r => r.value.mailId);
-      
+
       setMails(prev => prev.filter(m => !successfulMailIds.includes(m.id)));
-      
+
       setCurrentMailLabels(prev => {
         const updated = { ...prev };
         successfulMailIds.forEach(mailId => {
@@ -478,7 +478,7 @@ const LabelPage = () => {
     ) {
       return;
     }
-    
+
     safeOpenMail(mail);
   };
 
@@ -488,7 +488,7 @@ const LabelPage = () => {
     const date = new Date(timestamp);
     const now = new Date();
     const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 0) {
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     } else if (diffDays < 7) {
@@ -506,8 +506,8 @@ const LabelPage = () => {
     return labelIds.map(id => {
       const label = allLabels.find(l => l.id === id);
       return label || { id, name: `Label ${id}` };
-    }).filter(label => 
-      label.name.toLowerCase() !== 'inbox' && 
+    }).filter(label =>
+      label.name.toLowerCase() !== 'inbox' &&
       label.name.toLowerCase() !== 'starred'
     );
   };
@@ -674,7 +674,7 @@ const LabelPage = () => {
   const totalPages = Math.ceil(allFilteredMails.length / mailsPerPage);
   const startIndex = (currentPage - 1) * mailsPerPage;
   const endIndex = startIndex + mailsPerPage;
-  
+
   // Apply pagination to get current page mails
   const filteredMails = allFilteredMails.slice(startIndex, endIndex);
 
@@ -713,7 +713,7 @@ const LabelPage = () => {
     setPendingLabelChanges({});
     setError("");
     setSearchQuery("");
-    
+
     if (!token) return;
 
     const sysNames = new Set(["inbox", "sent", "trash", "spam", "drafts", "starred"]);
@@ -724,7 +724,7 @@ const LabelPage = () => {
         .then((data) => setLabelName(data?.name || labelId))
         .catch(() => setLabelName(labelId));
     }
-    
+
     const fetchMails = async () => {
       try {
         let validMails = [];
@@ -736,7 +736,7 @@ const LabelPage = () => {
           const data = await response.json();
 
           const list = labelId === "inbox" ? (data?.inbox || []) : (data?.sent || []);
-          
+
           // Filter by user role
           let roleFiltered = list;
           if (currentUserEmail) {
@@ -773,7 +773,7 @@ const LabelPage = () => {
                   }
                 })
               );
-              if (!names.includes("trash")) final.push(mail);
+              if (!names.includes("trash") && !names.includes("spam")) final.push(mail);
             } catch {
               final.push(mail);
             }
@@ -928,7 +928,7 @@ const LabelPage = () => {
         setError("Failed to load mail data");
       }
     };
-    
+
     setLoading(true);
     setError("");
     fetchMails().finally(() => setLoading(false));
@@ -938,7 +938,7 @@ const LabelPage = () => {
       .then((list) => {
         setAllLabels(list);
         setDraftLabelId(getDraftLabelId(list));
-        
+
         const existingStarred = getStarredLabelId(list);
         if (existingStarred) {
           setStarredLabelId(existingStarred);
@@ -973,7 +973,7 @@ const LabelPage = () => {
           <div className="gmail-toolbar">
             <div className="gmail-toolbar-left">
               <div className="gmail-checkbox-all">
-                <div 
+                <div
                   onClick={toggleSelectAll}
                   title={areAllVisibleSelected() ? "Deselect all" : "Select all"}
                   style={{
@@ -995,9 +995,9 @@ const LabelPage = () => {
                   {areAllVisibleSelected() ? '✓' : ''}
                 </div>
               </div>
-              
+
               {selectedMails.size > 0 && (labelName || "").toLowerCase() !== "trash" && (
-                <button 
+                <button
                   onClick={moveSelectedMailsToTrash}
                   disabled={isBulkOperationInProgress}
                   style={{
@@ -1018,7 +1018,7 @@ const LabelPage = () => {
                   {isBulkOperationInProgress ? 'Moving...' : `Move to Trash (${selectedMails.size})`}
                 </button>
               )}
-              
+
               <button className="gmail-refresh-btn" onClick={() => window.location.reload()}>
                 ↻
               </button>
@@ -1026,13 +1026,13 @@ const LabelPage = () => {
             <div className="gmail-toolbar-right">
               <div className="gmail-pagination">
                 <span>
-                  {allFilteredMails.length > 0 
+                  {allFilteredMails.length > 0
                     ? `${startIndex + 1}-${Math.min(endIndex, allFilteredMails.length)} of ${allFilteredMails.length}`
                     : "No mails"
                   }
                   {selectedMails.size > 0 && ` (${selectedMails.size} selected)`}
                 </span>
-                <button 
+                <button
                   onClick={goToPreviousPage}
                   disabled={currentPage <= 1}
                   title="Previous page"
@@ -1042,7 +1042,7 @@ const LabelPage = () => {
                 <span className="gmail-page-info">
                   Page {currentPage} of {totalPages || 1}
                 </span>
-                <button 
+                <button
                   onClick={goToNextPage}
                   disabled={currentPage >= totalPages}
                   title="Next page"
@@ -1068,7 +1068,7 @@ const LabelPage = () => {
                   const isRead = readMails.has(mail.id);
                   const isStarred = isMailStarred(mail);
                   const mailLabels = getMailLabels(mail);
-                  
+
                   const senderInfo = (() => {
                     const sender = mail.sender || mail.otherParty;
                     if (!sender) return "(unknown)";
@@ -1081,23 +1081,23 @@ const LabelPage = () => {
                       key={mail.id}
                       className={`gmail-mail-item ${draft ? 'is-draft' : ''} ${isSelected ? 'selected' : ''} ${isRead ? 'read' : 'unread'} ${isStarred ? 'starred' : ''}`}
                       style={{
-                        backgroundColor: isSelected 
-                          ? 'var(--accent-weak, #fce8e6)' 
-                          : isRead 
-                            ? 'var(--surface, #f2f6fc)' 
+                        backgroundColor: isSelected
+                          ? 'var(--accent-weak, #fce8e6)'
+                          : isRead
+                            ? 'var(--surface, #f2f6fc)'
                             : '#ffffff',
                         fontWeight: isRead ? 'normal' : 'bold',
                         borderLeft: isSelected ? '3px solid var(--accent, #1a73e8)' : 'none'
                       }}
                     >
-                      <div 
+                      <div
                         className="gmail-mail-item-content"
                         onClick={(e) => handleMailItemClick(mail, e)}
                         style={{ cursor: 'pointer' }}
                       >
                         {/* Checkbox */}
                         <div className="gmail-mail-checkbox">
-                          <div 
+                          <div
                             onClick={(e) => toggleMailSelection(mail.id, e)}
                             title={isSelected ? `Deselect mail from ${senderInfo}` : `Select mail from ${senderInfo}`}
                             style={{
@@ -1121,10 +1121,10 @@ const LabelPage = () => {
                         </div>
 
                         {/* Star */}
-                        <div 
+                        <div
                           className="gmail-mail-star"
                           onClick={(e) => toggleStarred(mail.id, e)}
-                          style={{ 
+                          style={{
                             color: isStarred ? '#fbbc04' : '#5f6368',
                             cursor: 'pointer',
                             userSelect: 'none'
@@ -1158,8 +1158,8 @@ const LabelPage = () => {
                         {/* Labels */}
                         <div className="gmail-mail-labels">
                           {mailLabels.map((label) => (
-                            <span 
-                              key={label.id} 
+                            <span
+                              key={label.id}
                               className={`gmail-label-chip ${label.name.toLowerCase()}`}
                             >
                               {label.name}
@@ -1192,13 +1192,15 @@ const LabelPage = () => {
                             >
                               <FaTag />
                             </button>
-                            
+
                             {openLabelManagement[mail.id] && (
                               <div className="gmail-label-management-popup">
                                 {allLabels
-                                  .filter((label) => 
+                                  .filter((label) =>
                                     (label.name || "").toLowerCase() !== "trash" &&
-                                    (label.name || "").toLowerCase() !== "starred"
+                                    (label.name || "").toLowerCase() !== "starred" &&
+                                    (label.name || "").toLowerCase() !== "drafts" &&
+                                    (label.name || "").toLowerCase() !== "inbox"
                                   )
                                   .map((label) => {
                                     const isPendingSelection = (
@@ -1206,45 +1208,45 @@ const LabelPage = () => {
                                     ).includes(label.id);
 
                                     return (
-                                      <div 
-                                          key={label.id} 
-                                          className="gmail-label-checkbox-item"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setPendingLabelChanges((prev) => {
-                                              const base = prev[mail.id] || currentMailLabels[mail.id] || [];
-                                              const pending = new Set(base);
-                                              if (!isPendingSelection) {
-                                                pending.add(label.id);
-                                              } else {
-                                                pending.delete(label.id);
-                                              }
-                                              return {
-                                                ...prev,
-                                                [mail.id]: Array.from(pending),
-                                              };
-                                            });
-                                          }}
-                                          style={{ cursor: 'pointer' }}
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            onChange={() => {}}
-                                            checked={isPendingSelection}
-                                            readOnly
-                                          />
-                                          <span>{label.name}</span>
-                                        </div>
+                                      <div
+                                        key={label.id}
+                                        className="gmail-label-checkbox-item"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setPendingLabelChanges((prev) => {
+                                            const base = prev[mail.id] || currentMailLabels[mail.id] || [];
+                                            const pending = new Set(base);
+                                            if (!isPendingSelection) {
+                                              pending.add(label.id);
+                                            } else {
+                                              pending.delete(label.id);
+                                            }
+                                            return {
+                                              ...prev,
+                                              [mail.id]: Array.from(pending),
+                                            };
+                                          });
+                                        }}
+                                        style={{ cursor: 'pointer' }}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          onChange={() => { }}
+                                          checked={isPendingSelection}
+                                          readOnly
+                                        />
+                                        <span>{label.name}</span>
+                                      </div>
                                     );
                                   })}
-                                
+
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleMoveToLabels(mail.id);
                                   }}
-                                  style={{ 
-                                    marginTop: '8px', 
+                                  style={{
+                                    marginTop: '8px',
                                     width: '100%',
                                     padding: '6px',
                                     background: 'var(--accent)',

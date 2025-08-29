@@ -52,6 +52,32 @@ export default function SendMailComponent({
     try {
       const token = localStorage.getItem("token");
       const sender = localStorage.getItem("email");
+      // get or create the drafts label
+      const labelsResponse = await fetch("/api/labels", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const allLabels = await labelsResponse.json();
+      
+      let draftsLabel = allLabels.find(l => (l.name || "").toLowerCase() === "drafts");
+
+      // if drafts label doesn't exist, create it
+      if (!draftsLabel) {
+        const createResponse = await fetch("/api/labels", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ name: "Drafts" })
+        });
+        if (!createResponse.ok) {
+          const err = await createResponse.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to create Drafts label");
+        }
+        draftsLabel = await createResponse.json();
+      }
+
+    const labelsToSend = draftsLabel ? [draftsLabel.id] : [];
       
       const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email);
       
@@ -139,7 +165,7 @@ export default function SendMailComponent({
           subject,
           content,
           isDraft: true,
-          labels: ["drafts"],
+          labels: labelsToSend,
         }),
       });
 

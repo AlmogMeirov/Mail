@@ -33,15 +33,15 @@ const Register = () => {
         if (password.length < 8) {
             return "Password must be at least 8 characters long";
         }
-        
+
         // Check if password contains at least one letter and one number
         const hasLetter = /[a-zA-Z]/.test(password);
         const hasNumber = /[0-9]/.test(password);
-        
+
         if (!hasLetter || !hasNumber) {
             return "Password must contain both letters and numbers";
         }
-        
+
         return null; // Valid password
     };
 
@@ -65,7 +65,12 @@ const Register = () => {
         clearFieldErrors(); // Clear previous errors
         
         const nameRegex = /^[A-Za-z\u0590-\u05FF\s'-]+$/; // Includes Hebrew, spaces, hyphens
-        
+        if (!nameRegex.test(firstName) || !nameRegex.test(lastName)) {
+            setErrorMessage("Names can only contain letters");
+            return false;
+        }
+
+
         // Check if required fields are filled
         if (!firstName || !lastName || !email || !password || !confirmPassword) {
             if (!firstName) {
@@ -89,7 +94,7 @@ const Register = () => {
                 return false;
             }
         }
-        
+
         if (!firstName.trim() || !lastName.trim() || !email.trim()) {
             if (!firstName.trim()) {
                 setFieldError('firstName', "First name cannot be empty or spaces only");
@@ -137,10 +142,14 @@ const Register = () => {
             setFieldError('confirmPassword', "Passwords do not match");
             return false;
         }
-        
+
         if (birthDate && new Date(birthDate) > new Date()) {
             setFieldError('birthDate', "Birth date cannot be in the future");
             return false;
+        }
+      
+        if (email.includes(" ")) {
+            setErrorMessage("Email cannot contain spaces");
         }
 
         // If phone number is provided, validate it contains digits only
@@ -197,6 +206,7 @@ const Register = () => {
         if (!validateForm()) return;
 
         setIsLoading(true);
+
         clearFieldErrors();
         
         const payload = {
@@ -220,6 +230,9 @@ const Register = () => {
 
             if (response.status === 201) {
                 navigate('/login');
+            } else if (response.status === 413) {
+                // Handle payload too large error specifically
+                setErrorMessage("Profile picture is too large. Please choose a smaller image.");
             } else {
                 const data = await response.json();
                 const errorMsg = data?.error || "Registration failed";
@@ -250,42 +263,43 @@ const Register = () => {
                 <form onSubmit={handleSubmit}>
                     <div className="input-group">
                         <label>First name*</label>
-                        <input 
-                            placeholder='First name can contain letters only' 
-                            type="text" 
-                            value={firstName} 
-                            onChange={(e) => setFirstName(e.target.value)} 
-                            required 
+                        <input
+                            placeholder='First name can contain letters only'
+                            type="text"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            required
                         />
                         {fieldErrors.firstName && <div className="field-error">{fieldErrors.firstName}</div>}
                     </div>
 
                     <div className="input-group">
                         <label>Last name*</label>
-                        <input 
-                            placeholder='Last name can contain letters only' 
-                            type="text" 
-                            value={lastName} 
-                            onChange={(e) => setLastName(e.target.value)} 
-                            required 
+                        <input
+                            placeholder='Last name can contain letters only'
+                            type="text"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            required
                         />
                         {fieldErrors.lastName && <div className="field-error">{fieldErrors.lastName}</div>}
                     </div>
 
                     <div className="input-group">
                         <label>Email*</label>
-                        <input 
-                            placeholder='Email' 
-                            type="email" 
-                            value={email} 
-                            onChange={(e) => setEmail(e.target.value)} 
-                            required 
+                        <input
+                            placeholder='Email'
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
                         />
                         {fieldErrors.email && <div className="field-error">{fieldErrors.email}</div>}
                     </div>
 
                     <div className="input-group">
                         <label>Password*</label>
+
                         <div className="password-input-container">
                             <input 
                                 placeholder='Password at least 8 characters with letters and numbers' 
@@ -331,10 +345,10 @@ const Register = () => {
 
                     <div className="input-group">
                         <label>Birth Date</label>
-                        <input 
-                            type="date" 
-                            value={birthDate} 
-                            onChange={(e) => setBirthDate(e.target.value)} 
+                        <input
+                            type="date"
+                            value={birthDate}
+                            onChange={(e) => setBirthDate(e.target.value)}
                         />
                         {fieldErrors.birthDate && <div className="field-error">{fieldErrors.birthDate}</div>}
                     </div>
@@ -366,10 +380,10 @@ const Register = () => {
 
                     <div className="input-group">
                         <label>Profile Picture</label>
-                        <input 
-                            type="file" 
-                            accept="image/*" 
-                            onChange={handleImageChange} 
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageChange}
                         />
                     </div>
 

@@ -23,12 +23,37 @@ const createMail = async (req, res) => {
             ? [recipient]
             : [];
     
+    // ---------- NEW: normalize labels to *IDs* in the SENDER's namespace ----------
+    // Runs before the draft branch, so drafts get the correct label id(s) too.
+    const userLabels = getAllLabels(sender) || [];
+    const resolveLabelId = (val) => {
+      if (!val) return null;
+      const asStr = String(val);
+      // by id
+      const byId = userLabels.find(l => l.id === asStr);
+      if (byId) return byId.id;
+      // by name (case-insensitive)
+      const byName = userLabels.find(
+        l => (l.name || "").toLowerCase() === asStr.toLowerCase()
+      );
+      if (byName) return byName.id;
+      // create label if missing (e.g., "Drafts")
+      try {
+        return labelModel.createLabel(sender, asStr).id;
+      } catch {
+        return null;
+      }
+    };
+    const finalLabelIds = (labels || []).map(resolveLabelId).filter(Boolean); // Meir draft issue
+    // ------------------------------------------------------------------------------
+
+
     console.log("[createMail:init]", {
         authUser: req.user?.email,
         sender,
         recipientsList,
         isDraft,
-        labels,
+        labels: finalLabelIds, // Meir draft issue
         groupId
     });
 
@@ -36,7 +61,7 @@ const createMail = async (req, res) => {
 
     /* Edited by Meir to allow empty subject and content. The old code was:
     if (recipientsList.length === 0 || !subject || !content) {*/
-    if (recipientsList.length === 0) {
+    if (!isDraft && recipientsList.length === 0) {
         return res.status(400).json({ error: "Missing required fields" });
     }
     if (!inboxMap.has(sender)) {
@@ -65,7 +90,7 @@ const createMail = async (req, res) => {
             recipients: recipientsList,
             subject,
             content,
-            labels,
+            labels: finalLabelIds, // Meir draft issue
             groupId,
             timestamp: new Date().toISOString(),
             isDraft: true // Explicitly mark as draft
@@ -75,21 +100,21 @@ const createMail = async (req, res) => {
         inboxMap.get(sender).push(mail);
         
         // Assign labels to the mail
-        labels.forEach(labelId => {
+        finalLabelIds.forEach(labelId => { // Meir draft issue
             labelModel.addLabelToMail(sender, mail.id, labelId);
         });
 
         console.log("[createMail:draft] saved draft", {
             sender,
             groupId,
-            labels
+            labels: finalLabelIds // Meir draft issue
         });
 
         return res.status(201).json({ message: "Draft saved successfully", draft: mail });
     }
 
     // ----- blacklist check (once for whole message and only for actual sending, not drafts) -----
-    let finalLabels = labels;
+    let finalLabels = finalLabelIds; // Meir draft issue
     try {
         const urls = extractUrls(`${subject} ${content}`);
         const results = await Promise.all(urls.map(checkUrlBlacklist));
@@ -185,7 +210,7 @@ const createMail = async (req, res) => {
             recipients: recipientsList, // Added by Meir to keep track of all recipients
             subject,
             content,
-            labels,
+            labels: finalLabels, // Meir draft issue
             groupId, // Added by Tomer in exercises 4
             timestamp: new Date().toISOString(),
         };
@@ -196,7 +221,7 @@ const createMail = async (req, res) => {
         console.log("[DELIVER push:after] inbox[%s].len=%d sent.len=%d",
             r, (inboxMap.get(r) || []).length, sent.length);
         // Add in exercises 4, assign labels to the mail
-        labels.forEach(labelId => {
+        finalLabels.forEach(labelId => { // Meir draft issue
             labelModel.addLabelToMail(sender, mail.id, labelId);
         });
     }
