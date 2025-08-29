@@ -25,23 +25,30 @@ services:
       - "3000:3000"
     depends_on:
       - blacklist-server
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
 
   # React client
   client:
-    image: node:20
+    build:
+      context: ./client
+      dockerfile: Dockerfile
     container_name: mail-client
-    working_dir: /app
+    ports:
+      - "3001:3000"
     volumes:
       - ./client:/app
-      # To avoid issues with node_modules in the host and container
       - /app/node_modules
     environment:
-      # CRA knows to listen on this port – prevents conflicts with the Node server
-      - PORT=3001
-      # Sometimes needed in Docker to detect changes from the host
       - CHOKIDAR_USEPOLLING=true
-    command: sh -c "npm ci && npm start"
-    ports:
-      - "3001:3001"
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true
+      - WDS_SOCKET_HOST=localhost
+      - WDS_SOCKET_PORT=3001
     depends_on:
-      - mail-server
+      mail-server:
+        condition: service_healthy
+    restart: unless-stopped
