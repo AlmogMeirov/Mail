@@ -29,11 +29,6 @@ public interface EmailAPI {
     @GET("mails/{id}")
     Call<Email> getEmailById(@Path("id") String emailId);
 
-    // *** תיקון: הוסף authentication לחיפוש ***
-    @GET("mails/search")
-    Call<List<Email>> searchEmails(@Header("Authorization") String authToken, @Query("q") String query);
-
-    // גם ניתן להוסיף גרסה בלי auth כ-fallback
     @GET("mails/search")
     Call<List<Email>> searchEmails(@Query("q") String query);
 

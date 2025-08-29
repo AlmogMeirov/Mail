@@ -33,8 +33,21 @@ public class Email {
     }
 
     public boolean isInbox() {
-        return labels != null && labels.stream()
-                .anyMatch(label -> label.name != null && label.name.toLowerCase().contains("inbox"));
+        if (labels == null || labels.isEmpty()) {
+            return false;
+        }
+
+        return labels.stream()
+                .anyMatch(label -> {
+                    if (label == null || label.name == null) {
+                        return false;
+                    }
+                    String labelName = label.name.toLowerCase().trim();
+                    // בדיקה מדויקת יותר לתווית INBOX
+                    return labelName.equals("inbox") ||
+                            labelName.equals("דואר נכנס") ||
+                            labelName.equals("received");
+                });
     }
 
     public boolean isSent() {

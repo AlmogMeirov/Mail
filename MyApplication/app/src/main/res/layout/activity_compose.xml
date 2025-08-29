@@ -13,67 +13,7 @@
         android:layout_height="?attr/actionBarSize"
         android:background="@android:color/holo_blue_dark"
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
-        app:navigationIcon="@drawable/arrow_back" />
-
-    <!-- Action Bar with Send and Options -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:orientation="horizontal"
-        android:background="#f1f3f4"
-        android:gravity="center_vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp">
-
-        <!-- Send Button -->
-        <Button
-            android:id="@+id/btnSend"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:text="שלח"
-            android:textColor="@android:color/white"
-            android:background="@android:color/holo_blue_dark"
-            android:drawableStart="@drawable/send"
-            android:drawableTint="@android:color/white"
-            android:drawablePadding="8dp"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:minWidth="80dp" />
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
-
-        <!-- More Options -->
-        <ImageView
-            android:id="@+id/ivMoreOptions"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/more_vert"
-            android:tint="#5f6368"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:padding="4dp"
-            android:contentDescription="אפשרויות נוספות" />
-
-        <!-- Drafts -->
-        <ImageView
-            android:id="@+id/ivSaveDraft"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/drafts"
-            android:tint="#5f6368"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:padding="4dp"
-            android:layout_marginStart="8dp"
-            android:contentDescription="שמור כטיוטה" />
-
-    </LinearLayout>
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
 
     <!-- Content -->
     <ScrollView
@@ -93,29 +33,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 android:hint="אל"
-                app:startIconDrawable="@drawable/person">
+                app:startIconDrawable="@android:drawable/ic_dialog_email">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etTo"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="textEmailAddress"
-                    android:textDirection="ltr" />
-
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- CC Field -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/tilCC"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:hint="עותק"
-                android:visibility="gone"
-                app:startIconDrawable="@drawable/emoji_people">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etCC"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:inputType="textEmailAddress"
@@ -128,8 +49,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:hint="נושא"
-                app:startIconDrawable="@drawable/label">
+                android:hint="נושא">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etSubject"
@@ -138,44 +58,6 @@
                     android:inputType="textCapSentences" />
 
             </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- Formatting Toolbar -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:orientation="horizontal"
-                android:background="#f8f9fa"
-                android:gravity="center_vertical"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp"
-                android:layout_marginBottom="8dp">
-
-                <ImageView
-                    android:id="@+id/ivBold"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:src="@drawable/edit"
-                    android:tint="#5f6368"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:padding="6dp"
-                    android:contentDescription="הדגשה" />
-
-                <ImageView
-                    android:id="@+id/ivAttach"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:src="@drawable/add"
-                    android:tint="#5f6368"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:padding="6dp"
-                    android:layout_marginStart="8dp"
-                    android:contentDescription="קובץ מצורף" />
-
-            </LinearLayout>
 
             <!-- Divider -->
             <View
@@ -218,30 +100,15 @@
             </LinearLayout>
 
             <!-- Info Text -->
-            <LinearLayout
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:background="@android:color/background_light"
-                android:padding="12dp"
+                android:text="💡 טיפ: מיילים עם קישורים חשודים יועברו אוטומטית לדואר זבל"
+                android:textSize="12sp"
+                android:textColor="@android:color/darker_gray"
                 android:layout_marginTop="16dp"
-                android:gravity="center_vertical">
-
-                <ImageView
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:src="@drawable/help"
-                    android:layout_marginEnd="8dp"
-                    app:tint="@android:color/darker_gray" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="טיפ: מיילים עם קישורים חשודים יועברו אוטומטית לדואר זבל"
-                    android:textSize="12sp"
-                    android:textColor="@android:color/darker_gray" />
-
-            </LinearLayout>
+                android:background="@android:color/background_light"
+                android:padding="12dp" />
 
         </LinearLayout>
 

@@ -13,6 +13,8 @@ public final class EmailMapper {
     private static final Gson gson = new Gson();
 
     // Convert Email (network model) to EmailEntity (database model)
+    // החלף את הפונקציה toEntity ב-EmailMapper:
+
     public static EmailEntity toEntity(Email email) {
         if (email == null) return null;
 
@@ -23,10 +25,31 @@ public final class EmailMapper {
         entity.subject = email.subject;
         entity.content = email.content;
         entity.timestamp = email.timestamp;
-        entity.labels = email.labels;
+
+        // *** תיקון labels ***
+        if (email.labels != null) {
+            entity.labels = new ArrayList<>();
+            for (Object labelObj : email.labels) {
+                if (labelObj instanceof String) {
+                    // אם זה String, צור Label חדש
+                    entity.labels.add(new Label((String) labelObj));
+                } else if (labelObj instanceof Label) {
+                    // אם זה כבר Label, השתמש בו
+                    entity.labels.add((Label) labelObj);
+                }
+            }
+        }
+
         entity.groupId = email.groupId;
         entity.direction = email.direction != null ? email.direction : "received";
         entity.preview = email.preview;
+
+        // *** שדות ברירת מחדל ***
+        entity.isRead = false;          // ברירת מחדל
+        entity.isStarred = false;       // ברירת מחדל
+        entity.isArchived = false;      // ברירת מחדל
+        entity.isDeleted = false;       // ברירת מחדל
+
         entity.needsSync = false;
         entity.syncStatus = "synced";
 

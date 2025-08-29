@@ -20,7 +20,10 @@ public interface EmailDao {
     @Query("SELECT * FROM emails WHERE isDeleted = 0 ORDER BY timestamp DESC")
     LiveData<List<EmailEntity>> observeAllEmails();
 
-    @Query("SELECT * FROM emails WHERE isDeleted = 0 AND direction = 'received' ORDER BY timestamp DESC")
+    @Query("SELECT * FROM emails WHERE isDeleted = 0 AND " +
+            "(direction = 'received' OR " +
+            "(direction = 'sent' AND sender = recipient)) " +
+            "ORDER BY timestamp DESC")
     LiveData<List<EmailEntity>> observeInboxEmails();
 
     @Query("SELECT * FROM emails WHERE isDeleted = 0 AND direction = 'sent' ORDER BY timestamp DESC")
@@ -153,4 +156,12 @@ public interface EmailDao {
 
     @Query("UPDATE emails SET isDraft = 0, draftId = NULL WHERE id = :emailId")
     void convertDraftToSent(String emailId);
+
+    // הוסף את השורות האלה ל-EmailDao.java:
+
+    @Query("DELETE FROM emails WHERE direction = 'received'")
+    void clearInboxEmails();
+
+    @Query("DELETE FROM emails WHERE direction = 'sent'")
+    void clearSentEmails();
 }

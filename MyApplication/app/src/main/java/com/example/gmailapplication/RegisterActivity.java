@@ -1,3 +1,4 @@
+// NOTE: comments in English only
 package com.example.gmailapplication;
 import android.app.DatePickerDialog;
 import android.content.Intent;
@@ -15,13 +16,13 @@ import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.DatePicker;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.UserAPI;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import android.widget.Toast; // for success toast
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -47,9 +48,8 @@ public class RegisterActivity extends AppCompatActivity {
     private TextInputLayout tilFirstName, tilLastName, tilEmail, tilPassword, tilConfirm, tilGender, tilBirth, tilPhone;
     private TextInputEditText etFirstName, etLastName, etEmail, etPassword, etConfirm, etBirth, etPhone;
     private AutoCompleteTextView etGender;
-    private LinearLayout btnPickImage, llLoginLink; // שינוי: LinearLayout במקום Button ו-TextView
-    private Button btnSubmit;
-    private TextView tvResult;
+    private Button btnPickImage, btnSubmit;
+    private TextView tvResult, tvLoginLink;
 
     private String avatarBase64; // holds base64 of selected image (no header)
     private String avatarMime = "image/png"; // default, will try to infer
@@ -67,10 +67,6 @@ public class RegisterActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_LOCALE);
-        }
 
         bindViews();
         wireGenderDropdown();
@@ -99,7 +95,7 @@ public class RegisterActivity extends AppCompatActivity {
         avatarBase64 = savedInstanceState.getString("avatarBase64");
         avatarMime = savedInstanceState.getString("avatarMime", "image/png");
         if (!TextUtils.isEmpty(avatarBase64)) {
-            updatePickImageText("תמונה נבחרה");
+            btnPickImage.setText("תמונה נבחרה");
         }
     }
 
@@ -123,15 +119,15 @@ public class RegisterActivity extends AppCompatActivity {
         etBirth     = findViewById(R.id.etBirth);
         etPhone     = findViewById(R.id.etPhone);
 
-        btnPickImage = findViewById(R.id.btnPickImage); // LinearLayout
+        btnPickImage = findViewById(R.id.btnPickImage);
         btnSubmit    = findViewById(R.id.btnSubmit);
         tvResult     = findViewById(R.id.tvResult);
-        llLoginLink  = findViewById(R.id.llLoginLink); // LinearLayout
+        tvLoginLink  = findViewById(R.id.tvLoginLink);
     }
 
     // --- Gender dropdown with both Hebrew and English values ---
     private void wireGenderDropdown() {
-        String[] genders = new String[]{"זכר", "נקבה", "אחר"};
+        String[] genders = new String[]{"זכר", "נקבה", "אחר", "male", "female", "other"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_dropdown_item_1line, genders);
         etGender.setAdapter(adapter);
@@ -196,8 +192,7 @@ public class RegisterActivity extends AppCompatActivity {
 
         // Show loading state
         btnPickImage.setEnabled(false);
-        // Update the text inside the LinearLayout (need to find the TextView inside it)
-        updatePickImageText("טוען תמונה...");
+        btnPickImage.setText("טוען תמונה...");
 
         // Process image in background thread
         new Thread(() -> {
@@ -209,32 +204,21 @@ public class RegisterActivity extends AppCompatActivity {
 
                     if (imageBytes != null) {
                         avatarBase64 = Base64.encodeToString(imageBytes, Base64.NO_WRAP);
-                        updatePickImageText("תמונה נבחרה");
+                        btnPickImage.setText("תמונה נבחרה");
                         showToast("תמונת פרופיל נבחרה בהצלחה");
                     } else {
-                        updatePickImageText("בחר תמונת פרופיל");
+                        btnPickImage.setText("בחר תמונת פרופיל");
                         showToast("שגיאה בקריאת התמונה");
                     }
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     btnPickImage.setEnabled(true);
-                    updatePickImageText("בחר תמונת פרופיל");
+                    btnPickImage.setText("בחר תמונת פרופיל");
                     showToast("שגיאה בעיבוד התמונה: " + e.getMessage());
                 });
             }
         }).start();
-    }
-
-    // Helper method to update the text inside btnPickImage LinearLayout
-    private void updatePickImageText(String text) {
-        for (int i = 0; i < btnPickImage.getChildCount(); i++) {
-            View child = btnPickImage.getChildAt(i);
-            if (child instanceof TextView) {
-                ((TextView) child).setText(text);
-                break;
-            }
-        }
     }
 
     // --- Helper method to read image bytes ---
@@ -276,7 +260,6 @@ public class RegisterActivity extends AppCompatActivity {
 
             btnSubmit.setEnabled(false);
             tvResult.setText("מבצע רישום...");
-            tvResult.setVisibility(View.VISIBLE);
 
             try {
                 RegisterRequest request = buildRegisterRequest();
@@ -289,18 +272,25 @@ public class RegisterActivity extends AppCompatActivity {
                         btnSubmit.setEnabled(true);
 
                         if (response.isSuccessful()) {
+                            // comments in English only
                             UserDto user = response.body();
-                            tvResult.setText("הרישום הושלם בהצלחה!\nברוך הבא " + user.firstName + "!");
-                            tvResult.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
 
-                            // שינוי: הוספת ניווט למסך הכניסה אחרי הרשמה מוצלחת
-                            new android.os.Handler(getMainLooper()).postDelayed(() -> {
-                                Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
-                                intent.putExtra("registration_success", true);
-                                intent.putExtra("email", textOf(etEmail).trim().toLowerCase(Locale.US));
-                                startActivity(intent);
-                                finish(); // סגירת מסך ההרשמה
-                            }, 2000); // המתנה של 2 שניות להצגת הודעת ההצלחה
+// Local fallback from the form, in case server does not return firstName
+                            String localFirst = textOf(etFirstName).trim();
+                            String displayName =
+                                    (user != null && !TextUtils.isEmpty(user.firstName)) ? user.firstName :
+                                            (!TextUtils.isEmpty(localFirst)) ? localFirst :
+                                                    (user != null && !TextUtils.isEmpty(user.email)) ? user.email :
+                                                            "חבר";
+
+                            tvResult.setText("הרישום הושלם בהצלחה!\nברוך הבא " + displayName + "!");
+                            // Navigate straight to Login and prefill the email field
+                            Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
+                            intent.putExtra("prefill_email", textOf(etEmail).trim().toLowerCase(Locale.US));
+                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+                            finish(); // remove Register from back stack
+                            return;
 
                         } else {
                             handleServerError(response);
@@ -311,8 +301,6 @@ public class RegisterActivity extends AppCompatActivity {
                     public void onFailure(Call<UserDto> call, Throwable t) {
                         btnSubmit.setEnabled(true);
                         tvResult.setText("הרישום נכשל: " + t.getMessage());
-                        tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
-                        tvResult.setVisibility(View.VISIBLE);
                         System.err.println("Registration error: " + t.getMessage());
                     }
                 });
@@ -320,8 +308,6 @@ public class RegisterActivity extends AppCompatActivity {
             } catch (Exception e) {
                 btnSubmit.setEnabled(true);
                 tvResult.setText("שגיאה ביצירת הבקשה: " + e.getMessage());
-                tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
-                tvResult.setVisibility(View.VISIBLE);
             }
         });
     }
@@ -380,10 +366,11 @@ public class RegisterActivity extends AppCompatActivity {
 
     // --- Wire login link click ---
     private void wireLoginLink() {
-        llLoginLink.setOnClickListener(v -> {
+        tvLoginLink.setText("כבר יש לך חשבון? התחבר כאן");
+        tvLoginLink.setOnClickListener(v -> {
             Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
             startActivity(intent);
-            finish();
+            finish(); // Optional: remove this activity from stack
         });
     }
 
@@ -398,8 +385,6 @@ public class RegisterActivity extends AppCompatActivity {
                 JSONObject errorJson = new JSONObject(errorBody);
                 String message = errorJson.optString("message", "הרישום נכשל");
                 tvResult.setText(message);
-                tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
-                tvResult.setVisibility(View.VISIBLE);
                 return;
             } catch (JSONException e) {
                 // Fall back to HTTP status codes
@@ -422,18 +407,23 @@ public class RegisterActivity extends AppCompatActivity {
                 default:
                     tvResult.setText("הרישום נכשל (שגיאה " + response.code() + ")");
             }
-            tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
-            tvResult.setVisibility(View.VISIBLE);
         } catch (Exception e) {
             tvResult.setText("הרישום נכשל - אנא נסה שוב");
-            tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
-            tvResult.setVisibility(View.VISIBLE);
         }
     }
 
     // --- Enhanced validation with Hebrew messages and stronger password rules ---
     private boolean validateAll() {
         boolean ok = true;
+
+        // Debug: print all values
+        System.out.println("=== DEBUG VALIDATION ===");
+        System.out.println("First name: '" + textOf(etFirstName).trim() + "'");
+        System.out.println("Last name: '" + textOf(etLastName).trim() + "'");
+        System.out.println("Email: '" + textOf(etEmail).toLowerCase(Locale.US).trim() + "'");
+        System.out.println("Gender: '" + textOf(etGender) + "'");
+        System.out.println("Birth: '" + textOf(etBirth) + "'");
+        System.out.println("Phone: '" + textOf(etPhone) + "'");
 
         String first = textOf(etFirstName).trim();
         if (first.length() < 2) {
@@ -490,6 +480,7 @@ public class RegisterActivity extends AppCompatActivity {
             }
         }
 
+        System.out.println("Validation result: " + ok);
         return ok;
     }
 

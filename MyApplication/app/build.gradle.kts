@@ -14,9 +14,6 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // *** הוסף תמיכה בשפות ***
-        resourceConfigurations += listOf("en", "he", "iw")
     }
 
     buildTypes {
@@ -28,19 +25,9 @@ android {
             )
         }
     }
-
     compileOptions {
-        // *** הוסף encoding ***
-        encoding = "UTF-8"
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    // *** הוסף הגדרות packaging ***
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
     }
 }
 
@@ -71,7 +58,9 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.9.3")
 
-    // (Optional) Java 8+ desugaring
+
+    // (Optional) Java 8+ desugaring – מומלץ אם אתה משתמש ב-Streams/Time API
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }

@@ -16,7 +16,7 @@ public interface LabelAPI {
 
     // קבלת כל התוויות
     @GET("labels")
-    Call<List<Label>> getAllLabels(String authToken);
+    Call<List<Label>> getAllLabels();
 
     // קבלת תווית לפי ID
     @GET("labels/{id}")
@@ -24,7 +24,7 @@ public interface LabelAPI {
 
     // יצירת תווית חדשה
     @POST("labels")
-    Call<Label> createLabel(String authToken, @Body CreateLabelRequest request);
+    Call<Label> createLabel(@Body CreateLabelRequest request);
 
     // עדכון תווית
     @PATCH("labels/{id}")
@@ -32,7 +32,7 @@ public interface LabelAPI {
 
     // מחיקת תווית
     @DELETE("labels/{id}")
-    Call<Void> deleteLabel(@Path("id") String labelId, String id);
+    Call<Void> deleteLabel(@Path("id") String labelId);
 
     // חיפוש תוויות
     @GET("labels/search/{query}")
@@ -40,7 +40,7 @@ public interface LabelAPI {
 
     // הוספת תווית למייל
     @POST("labels/tag")
-    Call<TagResponse> tagMail(String authToken, @Body TagMailRequest request);
+    Call<TagResponse> tagMail(@Body TagMailRequest request);
 
     // הסרת תווית ממייל
     @POST("labels/untag")

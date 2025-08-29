@@ -3,7 +3,8 @@ package com.example.gmailapplication.repository;
 
 import android.content.Context;
 import android.util.Log;
-
+import android.content.SharedPreferences;
+import java.util.ArrayList;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MediatorLiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -66,7 +67,6 @@ public class EmailRepository {
         this.refreshManager = EmailRefreshManager.getInstance();
 
         setupLiveDataSources();
-        setupAutoSync();
     }
 
     private void setupLiveDataSources() {
@@ -88,27 +88,6 @@ public class EmailRepository {
         });
     }
 
-    private void setupAutoSync() {
-        refreshManager.addRefreshListener(new EmailRefreshManager.RefreshListener() {
-            @Override
-            public void onRefreshRequested() {
-                fetchEmailsFromServer();
-            }
-
-            @Override
-            public void onRefreshStarted() {
-                isLoading.postValue(true);
-            }
-
-            @Override
-            public void onRefreshCompleted(boolean success) {
-                isLoading.postValue(false);
-                if (success) {
-                    lastSyncTime.postValue(System.currentTimeMillis());
-                }
-            }
-        });
-    }
 
     // ===== Public API =====
 
@@ -384,32 +363,148 @@ public class EmailRepository {
 
     // ===== Helper Methods =====
 
+    // החלף את הפונקציה processEmailResponse ב-EmailRepository עם זו:
+
     private void processEmailResponse(EmailResponse response) {
         backgroundExecutor.execute(() -> {
-            // Convert network emails to entities and save
+            Log.d(TAG, "=== PROCESSING EMAIL RESPONSE ===");
+
+            // שימוש ב-Map כדי למנוע מיילים כפולים
+            java.util.Map<String, EmailEntity> emailMap = new java.util.HashMap<>();
+
+            String currentUserEmail = getCurrentUserEmail();
+            Log.d(TAG, "Current user email: " + currentUserEmail);
+
+            // עבד inbox emails
             if (response.inbox != null) {
-                List<EmailEntity> inboxEntities = EmailMapper.toEntities(response.inbox);
-                // Mark as inbox direction
-                for (EmailEntity entity : inboxEntities) {
-                    entity.direction = "received";
+                Log.d(TAG, "Processing " + response.inbox.size() + " inbox emails");
+                for (Email email : response.inbox) {
+                    EmailEntity entity = EmailMapper.toEntity(email);
+                    if (entity != null) {
+                        entity.direction = "received";
+                        ensureInboxLabel(entity);
+                        emailMap.put(entity.id, entity);
+                        Log.d(TAG, "Added inbox email: " + entity.id + " from " + entity.sender);
+                    }
                 }
-                dao.insertEmails(inboxEntities);
             }
 
+            // עבד sent emails - רק אם לא קיימים כבר
             if (response.sent != null) {
-                List<EmailEntity> sentEntities = EmailMapper.toEntities(response.sent);
-                // Mark as sent direction
-                for (EmailEntity entity : sentEntities) {
-                    entity.direction = "sent";
+                Log.d(TAG, "Processing " + response.sent.size() + " sent emails");
+                for (Email email : response.sent) {
+                    if (!emailMap.containsKey(email.id)) {
+                        EmailEntity entity = EmailMapper.toEntity(email);
+                        if (entity != null) {
+                            entity.direction = "sent";
+                            ensureSentLabel(entity);
+                            emailMap.put(entity.id, entity);
+                            Log.d(TAG, "Added sent email: " + entity.id);
+                        }
+                    }
                 }
-                dao.insertEmails(sentEntities);
             }
 
+            // עבד recent_mails - רק אם לא קיימים כבר
             if (response.recent_mails != null) {
-                List<EmailEntity> recentEntities = EmailMapper.toEntities(response.recent_mails);
-                dao.insertEmails(recentEntities);
+                Log.d(TAG, "Processing " + response.recent_mails.size() + " recent emails");
+                for (Email email : response.recent_mails) {
+                    if (!emailMap.containsKey(email.id)) {
+                        EmailEntity entity = EmailMapper.toEntity(email);
+                        if (entity != null) {
+                            // קבע direction לפי הנתונים
+                            if (email.direction != null && !email.direction.isEmpty()) {
+                                entity.direction = email.direction;
+                            } else {
+                                entity.direction = determineEmailDirection(entity);
+                            }
+
+                            // הוסף תוויות מתאימות
+                            if ("sent".equals(entity.direction)) {
+                                ensureSentLabel(entity);
+                            } else {
+                                ensureInboxLabel(entity);
+                            }
+
+                            emailMap.put(entity.id, entity);
+                            Log.d(TAG, "Added recent email: " + entity.id + " direction: " + entity.direction);
+                        }
+                    }
+                }
             }
+
+            // הכנס את כל המיילים למסד הנתונים
+            List<EmailEntity> allEntities = new ArrayList<>(emailMap.values());
+            Log.d(TAG, "Total unique emails to save: " + allEntities.size());
+
+            // מחק קודם מיילים ישנים כדי למנוע התנגשות
+            dao.clearInboxEmails();
+            dao.clearSentEmails();
+
+            // הכנס את המיילים החדשים
+            dao.insertEmails(allEntities);
+
+            Log.d(TAG, "=== FINISHED PROCESSING EMAIL RESPONSE ===");
+
+            lastSyncTime.postValue(System.currentTimeMillis());
         });
+    }
+    // פונקציה עזר לקביעת כיוון המייל
+    private String determineEmailDirection(EmailEntity entity) {
+        // כאן תצטרך להוסיף את כתובת המייל של המשתמש הנוכחי
+        String currentUserEmail = getCurrentUserEmail();
+
+        if (currentUserEmail != null && currentUserEmail.equals(entity.sender)) {
+            return "sent";
+        } else {
+            return "received";
+        }
+    }
+
+    // פונקציה עזר לקבלת המייל של המשתמש הנוכחי
+    private String getCurrentUserEmail() {
+        SharedPreferences prefs = appCtx.getSharedPreferences("user_prefs", Context.MODE_PRIVATE);
+        return prefs.getString("user_email", "");
+    }
+
+    // פונקציה עזר להוספת תווית INBOX
+    private void ensureInboxLabel(EmailEntity entity) {
+        if (entity.labels == null) {
+            entity.labels = new ArrayList<>();
+        }
+
+        // בדוק אם כבר יש תווית INBOX
+        boolean hasInboxLabel = entity.labels.stream()
+                .anyMatch(label -> "inbox".equalsIgnoreCase(label.name) ||
+                        "דואר נכנס".equals(label.name));
+
+        if (!hasInboxLabel) {
+            entity.labels.add(new Label("inbox"));
+        }
+
+        // הסר תווית SENT אם קיימת (למניעת התנגשות)
+        entity.labels.removeIf(label -> "sent".equalsIgnoreCase(label.name) ||
+                "נשלח".equals(label.name));
+    }
+
+    // פונקציה עזר להוספת תווית SENT
+    private void ensureSentLabel(EmailEntity entity) {
+        if (entity.labels == null) {
+            entity.labels = new ArrayList<>();
+        }
+
+        // בדוק אם כבר יש תווית SENT
+        boolean hasSentLabel = entity.labels.stream()
+                .anyMatch(label -> "sent".equalsIgnoreCase(label.name) ||
+                        "נשלח".equals(label.name));
+
+        if (!hasSentLabel) {
+            entity.labels.add(new Label("sent"));
+        }
+
+        // הסר תווית INBOX אם קיימת (למניעת התנגשות)
+        entity.labels.removeIf(label -> "inbox".equalsIgnoreCase(label.name) ||
+                "דואר נכנס".equals(label.name));
     }
 
     private EmailEntity createDraftEntity(SendEmailRequest request) {
