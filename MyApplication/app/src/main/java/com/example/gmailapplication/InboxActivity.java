@@ -46,9 +46,17 @@ public class InboxActivity extends AppCompatActivity {
     private void setupRecyclerView() {
         String currentUserEmail = TokenManager.getCurrentUserEmail(this);
         System.out.println("Current user email from token: " + currentUserEmail);
+
         adapter = new EmailAdapter(email -> {
-            Toast.makeText(this, "נלחץ מייל: " + email.subject, Toast.LENGTH_SHORT).show();
-        }, currentUserEmail != null ? currentUserEmail : "tomer@gmail.com");
+            // העבר למסך פרטי המייל
+            Intent intent = new Intent(this, EmailDetailActivity.class);
+            intent.putExtra("email_id", email.id);
+            intent.putExtra("sender", email.sender);
+            intent.putExtra("subject", email.subject);
+            intent.putExtra("content", email.content);
+            intent.putExtra("timestamp", email.timestamp);
+            startActivity(intent);
+        }, currentUserEmail);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);

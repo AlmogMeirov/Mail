@@ -48,6 +48,18 @@
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
                         android:layout_marginBottom="8dp">
+                        <!-- Reply Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnReply"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:text="הגב"
+                            android:textColor="@android:color/white"
+                            app:backgroundTint="@android:color/holo_blue_dark"
+                            app:cornerRadius="8dp"
+                            app:icon="@android:drawable/ic_menu_revert"
+                            app:iconTint="@android:color/white" />
 
                         <TextView
                             android:id="@+id/tvSubject"
