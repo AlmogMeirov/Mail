@@ -3,20 +3,38 @@ const { Label, MailLabel } = require("../models/labels");
 const { extractUrls } = require("../utils/extractUrls");
 const { addUrlToBlacklist } = require("../utils/blacklistClient");
 const Mail = require("../models/Mail");
+// תוויות מערכת שלא ניתן ליצור/לערוך/למחוק
+const SYSTEM_LABELS = ['inbox', 'sent', 'spam', 'drafts', 'starred', 'trash', 'important'];
 
-// Get all labels for the current user
 async function getAll(req, res) {
   try {
+    console.log("=== getAll function called ===");
+    console.log("SYSTEM_LABELS:", SYSTEM_LABELS);
+    
     const userId = req.user.email;
-    const labels = await Label.getAllLabelsForUser(userId);
+    const userLabels = await Label.getAllLabelsForUser(userId);
+    
+    console.log("userLabels from DB:", userLabels);
 
-    // Convert to format expected by frontend
-    const formattedLabels = labels.map(label => ({
+    // תוויות מערכת (תמיד זמינות)
+    const systemLabels = SYSTEM_LABELS.map(name => ({
+      id: name,
+      name: name,
+      isSystem: true
+    }));
+    
+    console.log("systemLabels:", systemLabels);
+
+    // תוויות מותאמות אישית  
+    const customLabels = userLabels.map(label => ({
       id: label.labelId,
-      name: label.name
+      name: label.name,
+      isSystem: false
     }));
 
-    res.json(formattedLabels);
+    console.log("Final result:", [...systemLabels, ...customLabels]);
+    
+    res.json([...systemLabels, ...customLabels]);
   } catch (err) {
     console.error("Error fetching labels:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -43,7 +61,16 @@ async function getById(req, res) {
   }
 }
 
-// Create a new label for the current user
+// הוסף בתחילת labelsController.js:
+
+
+
+// פונקציה לבדיקה אם זו תווית מערכת
+function isSystemLabel(labelName) {
+    return SYSTEM_LABELS.includes(labelName.toLowerCase());
+}
+
+// עדכן את פונקציה create:
 async function create(req, res) {
   try {
     const userId = req.user.email;
@@ -51,6 +78,13 @@ async function create(req, res) {
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: "Name is required" });
+    }
+
+    // בדוק אם זו תווית מערכת
+    if (isSystemLabel(name.trim())) {
+      return res.status(400).json({ 
+        error: "Cannot create system label. System labels are: " + SYSTEM_LABELS.join(", ") 
+      });
     }
 
     // Check if label with this name already exists for user
@@ -78,17 +112,32 @@ async function create(req, res) {
   }
 }
 
-// Update a label by ID for the current user
 async function update(req, res) {
   try {
     const userId = req.user.email;
+    const labelId = req.params.id;
     const { name } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: "Name is required" });
     }
 
-    const updated = await Label.updateLabelForUser(userId, req.params.id, name);
+    // בדוק אם מנסים לערוך תווית מערכת (לפני חיפוש במסד)
+    if (SYSTEM_LABELS.includes(labelId)) {
+      return res.status(403).json({ 
+        error: "Cannot edit system labels" 
+      });
+    }
+
+    // בדוק אם השם החדש הוא תווית מערכת
+    if (isSystemLabel(name.trim())) {
+      return res.status(400).json({ 
+        error: "Cannot use system label name. System labels are: " + SYSTEM_LABELS.join(", ") 
+      });
+    }
+
+    // עכשיו חפש במסד לתוויות מותאמות
+    const updated = await Label.updateLabelForUser(userId, labelId, name);
 
     if (!updated) {
       return res.status(404).json({ error: "Label not found" });
@@ -100,35 +149,39 @@ async function update(req, res) {
     });
   } catch (err) {
     console.error("Error updating label:", err);
-    if (err.code === 11000) { // Duplicate key error
+    if (err.code === 11000) {
       return res.status(409).json({ error: "Label with this name already exists" });
     }
     res.status(500).json({ error: "Internal server error" });
   }
 }
 
-// Delete a label by ID for the current user
 async function remove(req, res) {
   try {
     const userId = req.user.email;
     const labelId = req.params.id;
 
+    // בדוק אם זו תווית מערכת קודם (לפני חיפוש במסד)
+    if (SYSTEM_LABELS.includes(labelId)) {
+      return res.status(403).json({ 
+        error: "Cannot delete system labels. System labels are: " + SYSTEM_LABELS.join(", ") 
+      });
+    }
+
+    // עכשיו חפש במסד לתוויות מותאמות
     const deleted = await Label.deleteLabelForUser(userId, labelId);
 
     if (!deleted) {
       return res.status(404).json({ error: "Label not found" });
     }
 
-    // Also remove all mail-label associations for this label
     await MailLabel.deleteMany({ userId, labelId });
-
     res.status(204).end();
   } catch (err) {
     console.error("Error deleting label:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 }
-
 // Search labels by substring in name
 async function search(req, res) {
   try {
