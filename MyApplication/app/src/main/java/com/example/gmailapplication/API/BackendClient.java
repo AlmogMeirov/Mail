@@ -1,6 +1,7 @@
 package com.example.gmailapplication.API;
 
 import android.content.Context;
+import android.os.Build;
 
 import com.example.gmailapplication.shared.Label;
 import com.example.gmailapplication.shared.LabelDeserializer;
@@ -21,6 +22,51 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public final class BackendClient {
     private static volatile Retrofit INSTANCE;
+
+    /**
+     * זיהוי אוטומטי של כתובת השרת
+     * תמיד משתמש ב-10.0.2.2 לאמולטור - הכתובת הסטנדרטית שעובדת
+     */
+    private static String getServerUrl() {
+        // בדיקה מחוזקת אם זה אמולטור
+        boolean isEmulator = Build.FINGERPRINT.startsWith("generic")
+                || Build.FINGERPRINT.startsWith("unknown")
+                || Build.FINGERPRINT.contains("test-keys")
+                || Build.MODEL.contains("google_sdk")
+                || Build.MODEL.contains("Emulator")
+                || Build.MODEL.contains("Android SDK built for x86")
+                || Build.MANUFACTURER.contains("Genymotion")
+                || Build.MANUFACTURER.equals("Google")
+                || Build.BRAND.startsWith("generic")
+                || Build.DEVICE.startsWith("generic")
+                || Build.PRODUCT.contains("sdk")
+                || Build.PRODUCT.contains("emulator")
+                || Build.HARDWARE.contains("goldfish")
+                || Build.HARDWARE.contains("ranchu")
+                || "google_sdk".equals(Build.PRODUCT)
+                || "sdk_gphone_x86".equals(Build.PRODUCT);
+
+        String url;
+        if (isEmulator) {
+            // אמולטור: כתובת סטנדרטית שתמיד עובדת
+            url = "http://10.0.2.2:3000/api/";
+        } else {
+            // מכשיר אמיתי: localhost עם adb forward
+            url = "http://localhost:3000/api/";
+        }
+
+        System.out.println("=== AUTO SERVER CONFIG ===");
+        System.out.println("Device: " + Build.MODEL);
+        System.out.println("Manufacturer: " + Build.MANUFACTURER);
+        System.out.println("Product: " + Build.PRODUCT);
+        System.out.println("Hardware: " + Build.HARDWARE);
+        System.out.println("Fingerprint: " + Build.FINGERPRINT);
+        System.out.println("Is Emulator: " + isEmulator);
+        System.out.println("Server URL: " + url);
+        System.out.println("=========================");
+
+        return url;
+    }
 
     public static Retrofit get(Context ctx) {
         if (INSTANCE == null) {
@@ -106,14 +152,13 @@ public final class BackendClient {
                                 }
                             }).build();
 
-                    // יצירת Gson מותאם אישית עם תמיכה ב-Labels
+                    // יצירת Gson פשוט ללא deserializers מותאמים
                     Gson gson = new GsonBuilder()
-                            .registerTypeAdapter(Label.class, new LabelDeserializer())
                             .setLenient() // מאפשר JSON לא מושלם
                             .create();
 
                     INSTANCE = new Retrofit.Builder()
-                            .baseUrl("http://192.168.7.15:3000/api/")
+                            .baseUrl(getServerUrl())
                             .client(ok)
                             .addConverterFactory(GsonConverterFactory.create(gson))
                             .build();

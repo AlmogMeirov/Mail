@@ -17,6 +17,24 @@ public class TokenManager {
         return prefs.getString(KEY_TOKEN, null);
     }
 
+    public static String getCurrentUserEmail(Context context) {
+        String token = load(context);
+        if (token == null) return null;
+
+        try {
+
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) return null;
+            String payload = new String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE));
+            int start = payload.indexOf("\"email\":\"") + 9;
+            int end = payload.indexOf("\"", start);
+
+            return payload.substring(start, end);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public static String get(Context context) {  // Keep both for compatibility
         return load(context);
     }
