@@ -36,8 +36,8 @@ The system integrates three main components:
 * Web browser
 
 
-#### Step 1: Build & Start the Services
-### Open terminal:
+### Step 1: Build & Start the Services
+#### Open terminal:
 
   In the root project directory (*Mail* folder), run:
 
