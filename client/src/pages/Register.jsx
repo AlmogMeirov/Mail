@@ -235,7 +235,7 @@ const Register = () => {
                 navigate('/login');
             } else if (response.status === 413) {
                 // Handle payload too large error specifically
-                setFieldError('profilePicture', "Profile picture is too large. Please choose a smaller image.");
+                setErrorMessage("Profile picture is too large. Please choose a smaller image.");
             } else {
                 const data = await response.json();
                 const errorMsg = data?.error || "Registration failed";
