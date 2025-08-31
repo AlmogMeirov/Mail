@@ -14,11 +14,25 @@ public class EmailRepository {
         this.api = BackendClient.get(context).create(EmailAPI.class);
     }
 
+    // פונקציות קיימות
     public Call<EmailAPI.EmailListResponse> getEmails() {
         return api.getEmails();
     }
 
     public Call<Void> sendEmail(SendEmailRequest request) {
         return api.sendEmail(request);
+    }
+
+    // פונקציות חדשות לסינון לפי תוויות
+    public Call<EmailAPI.MailsByLabelResponse> getEmailsByLabel(String labelName) {
+        return api.getMailsByLabel(labelName);
+    }
+
+    public Call<EmailAPI.MailsByLabelResponse> getStarredEmails() {
+        return api.getStarredMails();
+    }
+
+    public Call<EmailAPI.MailsByLabelResponse> getSpamEmails() {
+        return api.getSpamMails();
     }
 }

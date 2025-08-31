@@ -1,18 +1,45 @@
 package com.example.gmailapplication.shared;
 
+import com.google.gson.annotations.SerializedName;
+
 public class Label {
-    public String id;     // UUID מהשרת
-    public String name;   // שם התווית
+    public String id;          // UUID עבור תוויות מותאמות, או שם עבור תוויות מערכת
+    public String name;        // שם התווית
+    @SerializedName("isSystem")
+    public boolean isSystem;   // האם זו תווית מערכת
 
     public Label() {}
 
     public Label(String name) {
         this.name = name;
+        this.id = name; // עבור תוויות מערכת, ID = name
+        this.isSystem = isSystemLabel(name);
     }
 
     public Label(String id, String name) {
         this.id = id;
         this.name = name;
+        this.isSystem = isSystemLabel(name);
+    }
+
+    public Label(String id, String name, boolean isSystem) {
+        this.id = id;
+        this.name = name;
+        this.isSystem = isSystem;
+    }
+
+    // בדיקה אם זו תווית מערכת לפי השם
+    private boolean isSystemLabel(String labelName) {
+        if (labelName == null) return false;
+        String lower = labelName.toLowerCase();
+        return lower.equals("inbox") || lower.equals("sent") || lower.equals("spam") ||
+                lower.equals("drafts") || lower.equals("starred") || lower.equals("trash") ||
+                lower.equals("important");
+    }
+
+    // שיטה לבדיקה אם ניתן למחוק/לערוך
+    public boolean canModify() {
+        return !isSystem;
     }
 
     @Override

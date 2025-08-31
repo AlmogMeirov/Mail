@@ -38,6 +38,7 @@
         <activity android:name=".InboxActivity" />
         <activity android:name=".EmailDetailActivity" />
         <activity android:name=".ComposeActivity" />
+        <activity android:name=".ManageLabelsActivity" />
 
     </application>
 

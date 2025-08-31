@@ -14,7 +14,7 @@ import retrofit2.http.Path;
 
 public interface LabelAPI {
 
-    // קבלת כל התוויות
+    // קבלת כל התוויות (מערכת + מותאמות)
     @GET("labels")
     Call<List<Label>> getAllLabels();
 
@@ -22,15 +22,15 @@ public interface LabelAPI {
     @GET("labels/{id}")
     Call<Label> getLabelById(@Path("id") String labelId);
 
-    // יצירת תווית חדשה
+    // יצירת תווית חדשה (רק מותאמות)
     @POST("labels")
     Call<Label> createLabel(@Body CreateLabelRequest request);
 
-    // עדכון תווית
+    // עדכון תווית (רק מותאמות)
     @PATCH("labels/{id}")
-    Call<Void> updateLabel(@Path("id") String labelId, @Body UpdateLabelRequest request);
+    Call<Label> updateLabel(@Path("id") String labelId, @Body UpdateLabelRequest request);
 
-    // מחיקת תווית
+    // מחיקת תווית (רק מותאמות)
     @DELETE("labels/{id}")
     Call<Void> deleteLabel(@Path("id") String labelId);
 
@@ -50,7 +50,7 @@ public interface LabelAPI {
     @GET("labels/mail/{mailId}")
     Call<List<String>> getLabelsForMail(@Path("mailId") String mailId);
 
-    // קבלת מיילים לפי תווית
+    // קבלת מיילים לפי תווית (משתמש ב-labelId)
     @GET("labels/by-label/{labelId}")
     Call<List<String>> getMailsByLabel(@Path("labelId") String labelId);
 }

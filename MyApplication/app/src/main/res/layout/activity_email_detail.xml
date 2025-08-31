@@ -18,7 +18,8 @@
     <!-- Content -->
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:fillViewport="true">
 
         <LinearLayout
@@ -48,18 +49,6 @@
                         android:orientation="horizontal"
                         android:gravity="center_vertical"
                         android:layout_marginBottom="8dp">
-                        <!-- Reply Button -->
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnReply"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:text="הגב"
-                            android:textColor="@android:color/white"
-                            app:backgroundTint="@android:color/holo_blue_dark"
-                            app:cornerRadius="8dp"
-                            app:icon="@android:drawable/ic_menu_revert"
-                            app:iconTint="@android:color/white" />
 
                         <TextView
                             android:id="@+id/tvSubject"
@@ -110,6 +99,31 @@
                         android:textSize="12sp"
                         android:textColor="@android:color/darker_gray" />
 
+                    <!-- Labels Display -->
+                    <LinearLayout
+                        android:id="@+id/layoutLabels"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="8dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="תוויות: "
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvLabels"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textSize="12sp"
+                            android:textColor="@android:color/holo_blue_dark" />
+
+                    </LinearLayout>
+
                 </LinearLayout>
 
             </androidx.cardview.widget.CardView>
@@ -118,6 +132,7 @@
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
                 app:cardCornerRadius="8dp"
                 app:cardElevation="4dp">
 
@@ -153,5 +168,42 @@
         </LinearLayout>
 
     </ScrollView>
+
+    <!-- Action Buttons at Bottom -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="@android:color/white"
+        android:elevation="4dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnReply"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="הגב"
+            android:textColor="@android:color/white"
+            app:backgroundTint="@android:color/holo_blue_dark"
+            app:cornerRadius="8dp"
+            app:icon="@android:drawable/ic_menu_revert"
+            app:iconTint="@android:color/white" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnManageLabels"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="נהל תוויות"
+            android:textColor="@android:color/holo_blue_dark"
+            app:backgroundTint="@android:color/transparent"
+            app:cornerRadius="8dp"
+            app:strokeColor="@android:color/holo_blue_dark"
+            app:strokeWidth="2dp" />
+
+    </LinearLayout>
 
 </LinearLayout>
