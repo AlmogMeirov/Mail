@@ -244,7 +244,38 @@ public class EmailDetailActivity extends AppCompatActivity {
         displayLabels(currentLabels);
 
         // בדוק אם יש ספאם
-        checkForSpamIndicator(currentLabels);
+
+        boolean isInTrash = email.labels != null && email.labels.contains("trash");
+        boolean isDraft = email.labels != null && email.labels.contains("drafts");
+
+        Button btnReply = findViewById(R.id.btnReply);
+        Button btnManageLabels = findViewById(R.id.btnManageLabels);
+        if (isInTrash) {
+            // מייל באשפה - הסתר תגובה וניהול תוויות
+            btnReply.setVisibility(View.GONE);
+            btnManageLabels.setVisibility(View.GONE);
+
+            // הצג הודעה למשתמש
+            TextView tvTrashNotice = findViewById(R.id.tvTrashNotice); // צריך להוסיף ל-XML
+            if (tvTrashNotice != null) {
+                tvTrashNotice.setVisibility(View.VISIBLE);
+                tvTrashNotice.setText("מייל זה נמצא באשפה - פעולות מוגבלות");
+            }
+
+        } else if(isDraft){
+            // מייל רגיל - הצג תגובה
+            btnReply.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void editDraft(Email email) {
+        Intent intent = new Intent(this, ComposeActivity.class);
+        intent.putExtra("is_draft", true);
+        intent.putExtra("draft_id", email.id);
+        intent.putExtra("draft_to", email.recipients != null ? String.join(", ", email.recipients) : "");
+        intent.putExtra("draft_subject", email.subject);
+        intent.putExtra("draft_content", email.content);
+        startActivity(intent);
     }
 
     private void displayLabels(List<String> labels) {

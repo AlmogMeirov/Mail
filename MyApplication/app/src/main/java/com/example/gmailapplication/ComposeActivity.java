@@ -139,16 +139,44 @@ public class ComposeActivity extends AppCompatActivity {
     }
 
     private void saveDraft() {
-        SharedPreferences draftPrefs = getSharedPreferences("drafts", MODE_PRIVATE);
-        SharedPreferences.Editor editor = draftPrefs.edit();
+        // במקום לשמור ב-SharedPreferences, שלח לשרת
+        String to = etTo.getText().toString().trim();
+        String subject = etSubject.getText().toString().trim();
+        String content = etContent.getText().toString().trim();
 
-        String timestamp = String.valueOf(System.currentTimeMillis());
-        editor.putString("draft_" + timestamp + "_to", etTo.getText().toString().trim());
-        editor.putString("draft_" + timestamp + "_subject", etSubject.getText().toString().trim());
-        editor.putString("draft_" + timestamp + "_content", etContent.getText().toString().trim());
-        editor.apply();
+        // צור בקשת טיוטה
+        SendEmailRequest draftRequest = new SendEmailRequest();
+        draftRequest.sender = currentUserEmail;
 
-        Toast.makeText(this, "טיוטה נשמרה בהצלחה", Toast.LENGTH_SHORT).show();
+        // אם יש נמען, הוסף אותו
+        if (!TextUtils.isEmpty(to)) {
+            List<String> recipientsList = parseRecipients(to);
+            if (!recipientsList.isEmpty()) {
+                draftRequest.recipient = recipientsList.get(0);
+                draftRequest.recipients = recipientsList;
+            }
+        }
+
+        draftRequest.subject = subject;
+        draftRequest.content = content;
+        // טיוטות לא צריכות labels נוספות - השרת יוסיף "drafts" אוטומטית
+
+        emailAPI.createDraft(draftRequest).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    Toast.makeText(ComposeActivity.this, "טיוטה נשמרה בהצלחה", Toast.LENGTH_SHORT).show();
+                    finish();
+                } else {
+                    Toast.makeText(ComposeActivity.this, "שגיאה בשמירת טיוטה", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                Toast.makeText(ComposeActivity.this, "שגיאה בחיבור לשרת", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void finishActivity() {
@@ -172,6 +200,31 @@ public class ComposeActivity extends AppCompatActivity {
             etContent.setText(replyContent);
             etContent.setSelection(0);
         }
+
+        boolean isDraft = getIntent().getBooleanExtra("is_draft", false);
+        if (isDraft) {
+            String draftTo = getIntent().getStringExtra("draft_to");
+            String draftSubject = getIntent().getStringExtra("draft_subject");
+            String draftContent = getIntent().getStringExtra("draft_content");
+
+            if (!TextUtils.isEmpty(draftTo)) {
+                etTo.setText(draftTo);
+            }
+
+            if (!TextUtils.isEmpty(draftSubject)) {
+                etSubject.setText(draftSubject);
+            }
+
+            if (!TextUtils.isEmpty(draftContent)) {
+                etContent.setText(draftContent);
+                etContent.setSelection(0);
+            }
+
+            // שנה כותרת
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setTitle("עריכת טיוטה");
+            }
+        }
     }
 
     @Override
@@ -192,12 +245,56 @@ public class ComposeActivity extends AppCompatActivity {
             getOnBackPressedDispatcher().onBackPressed();
             return true;
         } else if (itemId == R.id.action_send) {
-            sendEmail();
+            sendDraftOrEmail(); // שינוי כאן
+            return true;
+        } else if (itemId == R.id.action_save_draft) {
+            saveDraft();
             return true;
         } else {
             return super.onOptionsItemSelected(item);
         }
     }
+
+    private void sendDraftOrEmail() {
+        String draftId = getIntent().getStringExtra("draft_id");
+        boolean isDraft = getIntent().getBooleanExtra("is_draft", false);
+
+        if (isDraft && !TextUtils.isEmpty(draftId)) {
+            // שלח טיוטה קיימת
+            if (isSending) return;
+
+            isSending = true;
+            invalidateOptionsMenu();
+
+            emailAPI.sendDraft(draftId).enqueue(new Callback<Void>() {
+                @Override
+                public void onResponse(Call<Void> call, Response<Void> response) {
+                    isSending = false;
+                    invalidateOptionsMenu();
+
+                    if (response.isSuccessful()) {
+                        Toast.makeText(ComposeActivity.this, "הטיוטה נשלחה בהצלחה!", Toast.LENGTH_SHORT).show();
+                        setResult(RESULT_OK);
+                        finish();
+                    } else {
+                        Toast.makeText(ComposeActivity.this, "שגיאה בשליחת הטיוטה", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<Void> call, Throwable t) {
+                    isSending = false;
+                    invalidateOptionsMenu();
+                    Toast.makeText(ComposeActivity.this, "שגיאה בחיבור לשרת", Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            // שלח כמייל חדש (הפונקציה הקיימת)
+            sendEmail();
+        }
+    }
+
+
 
     private void sendEmail() {
         if (isSending) return;
@@ -207,15 +304,26 @@ public class ComposeActivity extends AppCompatActivity {
         String content = etContent.getText().toString().trim();
 
         if (TextUtils.isEmpty(to)) {
-            etTo.setError("יש להזין כתובת נמען");
+            etTo.setError("יש להזין לפחות כתובת נמען אחת");
             etTo.requestFocus();
             return;
         }
 
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(to).matches()) {
-            etTo.setError("כתובת מייל לא תקינה");
+        // וולידציה של כל הנמענים
+        List<String> recipientsList = parseRecipients(to);
+        if (recipientsList.isEmpty()) {
+            etTo.setError("לא נמצאו כתובות מייל תקינות");
             etTo.requestFocus();
             return;
+        }
+
+        // בדיקה שכל הכתובות תקינות
+        for (String recipient : recipientsList) {
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(recipient).matches()) {
+                etTo.setError("כתובת מייל לא תקינה: " + recipient);
+                etTo.requestFocus();
+                return;
+            }
         }
 
         isSending = true;
@@ -223,8 +331,6 @@ public class ComposeActivity extends AppCompatActivity {
 
         SendEmailRequest request = new SendEmailRequest();
         request.sender = currentUserEmail;
-
-        List<String> recipientsList = parseRecipients(to);
 
         if (!recipientsList.isEmpty()) {
             request.recipient = recipientsList.get(0);

@@ -85,11 +85,11 @@ public interface EmailAPI {
 
     // יצירת טיוטה
     @POST("mails/drafts")
-    Call<DraftResponse> createDraft(@Body CreateDraftRequest request);
+    Call<Void> createDraft(@Body SendEmailRequest request);
 
     // שליחת טיוטה
     @POST("mails/drafts/{id}/send")
-    Call<SendEmailResponse> sendDraft(@Path("id") String draftId);
+    Call<Void> sendDraft(@Path("id") String draftId);
 
     // קבלת טיוטות
     @GET("mails/drafts")

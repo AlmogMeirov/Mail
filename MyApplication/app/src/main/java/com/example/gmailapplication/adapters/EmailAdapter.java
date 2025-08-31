@@ -18,6 +18,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
     private List<Email> emails = new ArrayList<>();
     private OnEmailClickListener listener;
     private OnEmailDeleteListener deleteListener;
+    private OnStarClickListener starListener;
     private String currentUserEmail;
 
     public interface OnEmailClickListener {
@@ -28,6 +29,10 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
         void onEmailDelete(Email email);
     }
 
+    public interface OnStarClickListener {
+        void onStar(Email email);
+    }
+
     public EmailAdapter(OnEmailClickListener listener, String currentUserEmail) {
         this.listener = listener;
         this.currentUserEmail = currentUserEmail;
@@ -35,6 +40,10 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
     public void setDeleteListener(OnEmailDeleteListener deleteListener) {
         this.deleteListener = deleteListener;
+    }
+
+    public void setStarListener(OnStarClickListener starListener) {
+        this.starListener = starListener;
     }
 
     public void updateEmails(List<Email> newEmails) {
@@ -72,7 +81,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
     class EmailViewHolder extends RecyclerView.ViewHolder {
         private TextView tvSender, tvSubject, tvPreview, tvTime;
         private TextView tvLabels;
-        private ImageView ivDelete;
+        private ImageView ivDelete, ivStar;
 
         public EmailViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -82,6 +91,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
             tvTime = itemView.findViewById(R.id.tvTime);
             tvLabels = itemView.findViewById(R.id.tvLabels);
             ivDelete = itemView.findViewById(R.id.ivDelete);
+            ivStar = itemView.findViewById(R.id.ivStar);
 
             // לחיצה על המייל עצמו
             itemView.setOnClickListener(v -> {
@@ -93,12 +103,22 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
                 }
             });
 
-            // לחיצה על כפתור המחיקה - פשוט
+            // לחיצה על כפתור המחיקה
             ivDelete.setOnClickListener(v -> {
                 if (deleteListener != null) {
                     int position = getAdapterPosition();
                     if (position != RecyclerView.NO_POSITION) {
                         deleteListener.onEmailDelete(emails.get(position));
+                    }
+                }
+            });
+
+            // לחיצה על הכוכב
+            ivStar.setOnClickListener(v -> {
+                if (starListener != null) {
+                    int position = getAdapterPosition();
+                    if (position != RecyclerView.NO_POSITION) {
+                        starListener.onStar(emails.get(position));
                     }
                 }
             });
@@ -123,6 +143,9 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
             // Labels
             displayLabels(email);
+
+            // Star button
+            updateStarButton(email);
         }
 
         private void displayLabels(Email email) {
@@ -145,6 +168,18 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
                 // Debug
                 System.out.println("Email " + email.id + " has no labels");
+            }
+        }
+
+        private void updateStarButton(Email email) {
+            boolean isStarred = email.labels != null && email.labels.contains("starred");
+
+            if (isStarred) {
+                ivStar.setImageResource(android.R.drawable.btn_star_big_on);
+                ivStar.setColorFilter(android.graphics.Color.rgb(255, 193, 7)); // צהוב זהב
+            } else {
+                ivStar.setImageResource(android.R.drawable.btn_star_big_off);
+                ivStar.setColorFilter(android.graphics.Color.GRAY);
             }
         }
     }

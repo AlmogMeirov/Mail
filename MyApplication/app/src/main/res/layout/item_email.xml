@@ -85,7 +85,21 @@
 
         </LinearLayout>
 
-        <!-- כפתור מחיקה פשוט -->
+        <!-- כוכב -->
+        <ImageView
+            android:id="@+id/ivStar"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/btn_star_big_off"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="6dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="סמן בכוכב"
+            android:tint="@android:color/darker_gray" />
+
+        <!-- כפתור מחיקה -->
         <ImageView
             android:id="@+id/ivDelete"
             android:layout_width="32dp"

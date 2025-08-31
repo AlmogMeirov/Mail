@@ -406,6 +406,9 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         // הוסף listener למחיקה - פשוט
         adapter.setDeleteListener(this::handleEmailDelete);
 
+        // הוסף listener לכוכב
+        adapter.setStarListener(this::handleEmailStar);
+
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
     }
@@ -479,6 +482,20 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             System.out.println("Current filter changed to: " + currentFilter);
         });
 
+        // הוסף בתוך setupObservers()
+        viewModel.getSearchResults().observe(this, searchResults -> {
+            if (searchResults != null) {
+                adapter.updateEmails(searchResults);
+                System.out.println("Search results: " + searchResults.size() + " emails found");
+            }
+        });
+
+        viewModel.getIsSearching().observe(this, isSearching -> {
+            if (isSearching != null && isSearching) {
+                Toast.makeText(this, "מחפש...", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         System.out.println("Observer setup complete");
     }
 
@@ -510,6 +527,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         });
 
         ivLogout.setOnClickListener(v -> showLogoutConfirmation());
+        ivSearch.setOnClickListener(v -> showSearchDialog());
 
         ivRefresh.setOnClickListener(v -> {
             viewModel.refreshCurrentFilter();
@@ -517,6 +535,49 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         });
 
         // ivSearch - לעתיד
+    }
+
+
+    private void showSearchDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("חיפוש מיילים");
+
+        final EditText input = new EditText(this);
+        input.setHint("הזן מילות חיפוש...");
+        input.setPadding(32, 32, 32, 32);
+        builder.setView(input);
+
+        builder.setPositiveButton("חפש", (dialog, which) -> {
+            String query = input.getText().toString().trim();
+            if (!query.isEmpty()) {
+                performSearch(query);
+            } else {
+                Toast.makeText(this, "יש להזין מילות חיפוש", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("ביטול", null);
+
+        builder.setNeutralButton("נקה", (dialog, which) -> {
+            clearSearch();
+        });
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        input.requestFocus();
+    }
+
+    private void performSearch(String query) {
+        viewModel.searchEmails(query);
+        currentFilter = "search"; // עדכן מצב
+        TextView tvWelcome = findViewById(R.id.tvWelcome);
+        tvWelcome.setText("תוצאות חיפוש: " + query);
+    }
+
+    private void clearSearch() {
+        viewModel.clearSearch();
+        viewModel.refreshCurrentFilter(); // חזור למצב הקודם
+        Toast.makeText(this, "החיפוש נוקה", Toast.LENGTH_SHORT).show();
     }
 
     private void showCreateLabelDialog() {
@@ -613,6 +674,24 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
 
         Toast.makeText(this, "התנתקת בהצלחה", Toast.LENGTH_SHORT).show();
         System.out.println("=== LOGOUT COMPLETED ===");
+    }
+
+
+    private void handleEmailStar(Email email) {
+        boolean isCurrentlyStarred = email.labels != null && email.labels.contains("starred");
+
+        viewModel.toggleStar(email.id, success -> {
+            if (success) {
+                if (isCurrentlyStarred) {
+                    Toast.makeText(this, "הכוכב הוסר", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "נוסף כוכב", Toast.LENGTH_SHORT).show();
+                }
+                viewModel.refreshCurrentFilter(); // רענן רשימה
+            } else {
+                Toast.makeText(this, "שגיאה בעדכון הכוכב", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
 }

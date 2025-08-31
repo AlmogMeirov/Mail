@@ -23,6 +23,13 @@ public class InboxViewModel extends AndroidViewModel {
     private MutableLiveData<String> currentFilter = new MutableLiveData<>("inbox");
     private MutableLiveData<String> currentFilterDisplayName = new MutableLiveData<>("דואר נכנס");
 
+    private MutableLiveData<List<Email>> searchResults = new MutableLiveData<>();
+    private MutableLiveData<Boolean> isSearching = new MutableLiveData<>(false);
+
+    // הוסף getters
+    public MutableLiveData<List<Email>> getSearchResults() { return searchResults; }
+    public MutableLiveData<Boolean> getIsSearching() { return isSearching; }
+
     public InboxViewModel(Application app) {
         super(app);
         repository = new EmailRepository(app);
@@ -258,5 +265,74 @@ public class InboxViewModel extends AndroidViewModel {
                 System.err.println("=====================================");
             }
         });
+    }
+
+    /**
+     * Toggle כוכב למייל - משתמש בAPI הנכון מהשרת
+     * POST /api/mails/{id}/star
+     */
+    public void toggleStar(String emailId, SimpleCallback callback) {
+        System.out.println("=== TOGGLING STAR ===");
+        System.out.println("Email ID: " + emailId);
+
+        emailAPI.toggleStarEmail(emailId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                System.out.println("=== TOGGLE STAR RESPONSE ===");
+                System.out.println("Response code: " + response.code());
+                System.out.println("Response successful: " + response.isSuccessful());
+
+                boolean success = response.isSuccessful();
+                if (callback != null) {
+                    callback.onResult(success);
+                }
+                System.out.println("===========================");
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                System.err.println("=== TOGGLE STAR FAILURE ===");
+                System.err.println("Error: " + t.getMessage());
+                if (callback != null) {
+                    callback.onResult(false);
+                }
+                System.err.println("==========================");
+            }
+        });
+    }
+
+    public void searchEmails(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            searchResults.setValue(null);
+            return;
+        }
+
+        isSearching.setValue(true);
+        error.setValue(null);
+
+        emailAPI.searchEmails(query.trim()).enqueue(new Callback<List<Email>>() {
+            @Override
+            public void onResponse(Call<List<Email>> call, Response<List<Email>> response) {
+                isSearching.setValue(false);
+                if (response.isSuccessful() && response.body() != null) {
+                    searchResults.setValue(response.body());
+                } else {
+                    error.setValue("שגיאה בחיפוש");
+                    searchResults.setValue(null);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Email>> call, Throwable t) {
+                isSearching.setValue(false);
+                error.setValue("שגיאת רשת בחיפוש");
+                searchResults.setValue(null);
+            }
+        });
+    }
+
+    // פונקציה לניקוי החיפוש
+    public void clearSearch() {
+        searchResults.setValue(null);
     }
 }

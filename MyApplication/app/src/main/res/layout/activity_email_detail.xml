@@ -191,6 +191,25 @@
             app:icon="@android:drawable/ic_menu_revert"
             app:iconTint="@android:color/white" />
 
+        <Button
+            android:id="@+id/btnEdit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ערוך טיוטה"
+            android:visibility="gone"
+            android:backgroundTint="@android:color/holo_orange_dark" />
+
+        <TextView
+            android:id="@+id/tvTrashNotice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="מייל זה נמצא באשפה - פעולות מוגבלות"
+            android:textColor="@android:color/holo_red_dark"
+            android:background="@android:color/background_light"
+            android:padding="12dp"
+            android:gravity="center"
+            android:visibility="gone" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnManageLabels"
             android:layout_width="0dp"

@@ -141,6 +141,12 @@ public class ManageLabelsActivity extends AppCompatActivity {
                 continue;
             }
 
+            // דלג על תווית important - היא מנוהלת דרך כפתור הכוכב בלבד
+            if ("important".equals(label.name.toLowerCase())) {
+                System.out.println("Skipping important label - managed by star button");
+                continue;
+            }
+
             CheckBox checkBox = new CheckBox(this);
             checkBox.setText(label.name);
             checkBox.setTag(label);
