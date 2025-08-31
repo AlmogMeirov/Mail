@@ -142,6 +142,7 @@ You're all set! **Welcome to FooMail!**
 5. **Filter by Label:**
    - Click on label names in the sidebar
    - You will see all the mails from this label and from this label only.
+   - 
        ![Labels](data/example_running/tagged.png)
 ##
   **Drafts**
