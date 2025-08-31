@@ -28,6 +28,7 @@ import com.example.gmailapplication.shared.CreateLabelRequest;
 import com.example.gmailapplication.shared.Email;
 import com.example.gmailapplication.shared.Label;
 import com.example.gmailapplication.shared.TokenManager;
+import com.example.gmailapplication.shared.UpdateLabelRequest;
 import com.example.gmailapplication.viewmodels.InboxViewModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
@@ -133,8 +134,10 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         });
     }
 
+    // החלף את המתודה addCustomLabelsToMenu הקיימת בזו:
+
     private void addCustomLabelsToMenu(List<Label> allLabels) {
-        // מסנן רק תוויות מותאמות (לא מערכת)
+        // סנן רק תוויות מותאמות (לא מערכת)
         List<Label> customLabels = new ArrayList<>();
         for (Label label : allLabels) {
             if (!label.isSystem) {
@@ -162,9 +165,224 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             MenuItem item = menu.add(R.id.group_custom_labels,
                     View.generateViewId(), i + 1, label.name);
             item.setIcon(android.R.drawable.ic_menu_mylocation);
+
+            // ** החדש: הוסף long-click listener **
+            setupLongClickForCustomLabel(item, label);
         }
     }
 
+    // מתודה חדשה לטיפול ב-long click על תוויות מותאמות
+    private void setupLongClickForCustomLabel(MenuItem menuItem, Label label) {
+        // למצער Android לא תומך ב-long click ישירות על MenuItem
+        // נשתמש בפתרון חלופי - נוסיף ContextMenu בלחיצה רגילה אם זה תווית מותאמת
+
+        // נשמור את ה-label במקום נגיש כדי לטפל בו בonNavigationItemSelected
+        menuItem.getIntent(); // ניצור Intent חדש לשמירה
+        if (menuItem.getIntent() == null) {
+            menuItem.setIntent(new android.content.Intent());
+        }
+        menuItem.getIntent().putExtra("custom_label_id", label.id);
+        menuItem.getIntent().putExtra("custom_label_name", label.name);
+    }
+
+    // עדכון onNavigationItemSelected לטיפול בתוויות מותאמות:
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        drawerLayout.closeDrawer(GravityCompat.START);
+
+        int itemId = item.getItemId();
+        int groupId = item.getGroupId();
+
+        // תוויות מערכת (הקוד הקיים)
+        if (itemId == R.id.nav_inbox) {
+            viewModel.loadEmails();
+            return true;
+        } else if (itemId == R.id.nav_sent) {
+            viewModel.loadEmailsByLabel("sent", "נשלח");
+            return true;
+        } else if (itemId == R.id.nav_drafts) {
+            viewModel.loadEmailsByLabel("drafts", "טיוטות");
+            return true;
+        } else if (itemId == R.id.nav_starred) {
+            viewModel.loadStarredEmails();
+            return true;
+        } else if (itemId == R.id.nav_spam) {
+            viewModel.loadSpamEmails();
+            return true;
+        } else if (itemId == R.id.nav_trash) {
+            viewModel.loadEmailsByLabel("trash", "אשפה");
+            return true;
+        }
+
+        // תוויות מותאמות אישית
+        else if (groupId == R.id.group_custom_labels) {
+            String labelName = item.getTitle().toString();
+
+            // דלג על הכותרת "תוויות אישיות"
+            if (labelName.equals("תוויות אישיות")) {
+                return true;
+            }
+
+            // בדוק אם יש מידע על תווית מותאמת
+            if (item.getIntent() != null &&
+                    item.getIntent().hasExtra("custom_label_id")) {
+
+                String labelId = item.getIntent().getStringExtra("custom_label_id");
+
+                // הצג תפריט אפשרויות לתווית מותאמת
+                showCustomLabelOptions(labelId, labelName);
+                return true;
+            } else {
+                // תווית רגילה - פתח אותה
+                viewModel.loadEmailsByLabel(labelName, labelName);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // מתודה חדשה להצגת אפשרויות לתווית מותאמת
+    private void showCustomLabelOptions(String labelId, String labelName) {
+        String[] options = {"הצג מיילים", "ערוך תווית", "מחק תווית"};
+
+        new AlertDialog.Builder(this)
+                .setTitle("'" + labelName + "'")
+                .setItems(options, (dialog, which) -> {
+                    switch (which) {
+                        case 0: // הצג מיילים
+                            viewModel.loadEmailsByLabel(labelName, labelName);
+                            break;
+                        case 1: // ערוך תווית
+                            showEditLabelDialog(labelId, labelName);
+                            break;
+                        case 2: // מחק תווית
+                            showDeleteLabelDialog(labelId, labelName);
+                            break;
+                    }
+                })
+                .setNegativeButton("ביטול", null)
+                .show();
+    }
+
+    // מתודה לעריכת תווית
+    private void showEditLabelDialog(String labelId, String currentName) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("עריכת תווית");
+
+        final EditText input = new EditText(this);
+        input.setText(currentName);
+        input.setSelection(currentName.length());
+        input.setPadding(32, 32, 32, 32);
+        builder.setView(input);
+
+        builder.setPositiveButton("עדכן", (dialog, which) -> {
+            String newName = input.getText().toString().trim();
+            if (!newName.isEmpty()) {
+                if (!newName.equals(currentName)) {
+                    updateLabel(labelId, newName);
+                } else {
+                    Toast.makeText(this, "לא בוצעו שינויים", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(this, "יש להזין שם תווית", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton("ביטול", null);
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        input.requestFocus();
+    }
+
+    // מתודה למחיקת תווית
+    private void showDeleteLabelDialog(String labelId, String labelName) {
+        new AlertDialog.Builder(this)
+                .setTitle("מחיקת תווית")
+                .setMessage("האם אתה בטוח שברצונך למחוק את התווית '" + labelName + "'?\n\nהתווית תוסר מכל המיילים הקיימים.")
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setPositiveButton("מחק", (dialog, which) -> deleteLabel(labelId, labelName))
+                .setNegativeButton("ביטול", null)
+                .show();
+    }
+
+    // מתודה לעדכון תווית בשרת
+    private void updateLabel(String labelId, String newName) {
+        LabelAPI labelAPI = BackendClient.get(this).create(LabelAPI.class);
+        UpdateLabelRequest request = new UpdateLabelRequest(newName);
+
+        labelAPI.updateLabel(labelId, request).enqueue(new Callback<Label>() {
+            @Override
+            public void onResponse(Call<Label> call, Response<Label> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Toast.makeText(InboxActivity.this,
+                            "תווית עודכנה ל-'" + response.body().name + "'", Toast.LENGTH_SHORT).show();
+                    refreshNavigationMenu(); // רענן תפריט
+                } else {
+                    handleLabelError("עדכון", response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Label> call, Throwable t) {
+                Toast.makeText(InboxActivity.this,
+                        "שגיאה בחיבור לשרת: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // מתודה למחיקת תווית בשרת
+    private void deleteLabel(String labelId, String labelName) {
+        LabelAPI labelAPI = BackendClient.get(this).create(LabelAPI.class);
+
+        labelAPI.deleteLabel(labelId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    Toast.makeText(InboxActivity.this,
+                            "תווית '" + labelName + "' נמחקה בהצלחה", Toast.LENGTH_SHORT).show();
+
+                    String currentFilter = viewModel.getCurrentFilter().getValue();
+                    // השווה גם במקרה המקורי וגם בלווארקייס
+                    if (labelName.equalsIgnoreCase(currentFilter) ||
+                            labelName.toLowerCase().equals(currentFilter)) {
+                        viewModel.loadEmails(); // חזור לדואר נכנס
+                        Toast.makeText(InboxActivity.this,
+                                "התווית נמחקה - מעבר לדואר נכנס", Toast.LENGTH_SHORT).show();
+                    }
+
+                    refreshNavigationMenu(); // רענן תפריט
+                } else {
+                    handleLabelError("מחיקה", response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                Toast.makeText(InboxActivity.this,
+                        "שגיאה בחיבור לשרת: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // מתודה לטיפול בשגיאות תוויות
+    private void handleLabelError(String action, int responseCode) {
+        String message;
+        switch (responseCode) {
+            case 404:
+                message = "התווית לא נמצאה";
+                break;
+            case 409:
+                message = "תווית עם שם זה כבר קיימת";
+                break;
+            case 403:
+                message = "אין הרשאה לבצע פעולה זו";
+                break;
+            default:
+                message = "שגיאה ב" + action + " תווית (קוד " + responseCode + ")";
+        }
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
     private void refreshNavigationMenu() {
         // רענון תוויות אחרי יצירת תווית חדשה
         loadCustomLabels();
@@ -358,47 +576,6 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         });
     }
 
-    @Override
-    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        // Close drawer
-        drawerLayout.closeDrawer(GravityCompat.START);
-
-        int itemId = item.getItemId();
-        int groupId = item.getGroupId();
-
-        // תוויות מערכת (הקוד הקיים + trash)
-        if (itemId == R.id.nav_inbox) {
-            viewModel.loadEmails();
-            return true;
-        } else if (itemId == R.id.nav_sent) {
-            viewModel.loadEmailsByLabel("sent", "נשלח");
-            return true;
-        } else if (itemId == R.id.nav_drafts) {
-            viewModel.loadEmailsByLabel("drafts", "טיוטות");
-            return true;
-        } else if (itemId == R.id.nav_starred) {
-            viewModel.loadStarredEmails();
-            return true;
-        } else if (itemId == R.id.nav_spam) {
-            viewModel.loadSpamEmails();
-            return true;
-        } else if (itemId == R.id.nav_trash) {  // הוספנו חזרה
-            viewModel.loadEmailsByLabel("trash", "אשפה");
-            return true;
-        }
-
-        // תוויות מותאמות אישית
-        else if (groupId == R.id.group_custom_labels) {
-            String labelName = item.getTitle().toString();
-            // דילוג על הכותרת "תוויות אישיות"
-            if (!labelName.equals("תוויות אישיות")) {
-                viewModel.loadEmailsByLabel(labelName.toLowerCase(), labelName);
-            }
-            return true;
-        }
-
-        return false;
-    }
 
     @Override
     public void onBackPressed() {
@@ -417,7 +594,6 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                 .setNegativeButton("ביטול", null)
                 .show();
     }
-
     private void logout() {
         System.out.println("=== LOGOUT PROCESS STARTED ===");
 

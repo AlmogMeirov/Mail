@@ -229,28 +229,33 @@ public class InboxViewModel extends AndroidViewModel {
         System.out.println("=== DELETING EMAIL PERMANENTLY ===");
         System.out.println("Email ID: " + emailId);
 
-        emailAPI.deleteEmail(emailId).enqueue(new Callback<Void>() {
+        emailAPI.deleteEmailPermanently(emailId).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
-                System.out.println("=== DELETE EMAIL RESPONSE ===");
+                System.out.println("=== DELETE EMAIL PERMANENTLY RESPONSE ===");
                 System.out.println("Response code: " + response.code());
                 System.out.println("Response successful: " + response.isSuccessful());
 
                 boolean success = response.isSuccessful();
+                if (success) {
+                    // רענן את הרשימה כדי שהמייל יעלם
+                    refreshCurrentFilter();
+                }
+
                 if (callback != null) {
                     callback.onResult(success);
                 }
-                System.out.println("=============================");
+                System.out.println("=====================================");
             }
 
             @Override
             public void onFailure(Call<Void> call, Throwable t) {
-                System.err.println("=== DELETE EMAIL FAILURE ===");
+                System.err.println("=== DELETE EMAIL PERMANENTLY FAILURE ===");
                 System.err.println("Error: " + t.getMessage());
                 if (callback != null) {
                     callback.onResult(false);
                 }
-                System.err.println("=============================");
+                System.err.println("=====================================");
             }
         });
     }

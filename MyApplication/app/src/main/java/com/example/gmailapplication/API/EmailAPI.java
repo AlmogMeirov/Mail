@@ -95,6 +95,9 @@ public interface EmailAPI {
     @GET("mails/drafts")
     Call<DraftsResponse> getDrafts();
 
+    @DELETE("mails/{id}/permanent")
+    Call<Void> deleteEmailPermanently(@Path("id") String emailId);
+
     // === Request/Response classes ===
 
     class AddLabelRequest {

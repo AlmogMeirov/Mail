@@ -897,6 +897,41 @@ const getDrafts = async (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
+
+// Delete mail permanently (hard delete)
+const deleteMailByIdPermanently = async (req, res) => {
+    try {
+        const userEmail = req.user.email;
+        const mailId = req.params.id;
+
+        if (!mailId) {
+            return res.status(400).json({ error: "Missing mail ID" });
+        }
+
+        console.log(`Attempting to permanently delete mail ${mailId} by user ${userEmail}`);
+
+        // מצא ומחק את המייל לצמיתות - ללא .lean() כדי שנוכל להשתמש ב-methods
+        const result = await Mail.findOneAndDelete({ 
+            mailId,
+            $or: [
+                { sender: userEmail },
+                { recipient: userEmail },
+                { recipients: userEmail }
+            ]
+        });
+
+        if (!result) {
+            return res.status(404).json({ error: "Mail not found or not authorized" });
+        }
+
+        console.log(`Mail ${mailId} permanently deleted by ${userEmail}`);
+        return res.status(200).json({ message: "Mail permanently deleted" });
+
+    } catch (err) {
+        console.error("Error permanently deleting mail:", err);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
 module.exports = {
     createMail,
     getMails,
@@ -905,6 +940,7 @@ module.exports = {
     deleteMailById,
     searchMails,
     updateMailLabelsForUser,
+    deleteMailByIdPermanently,
     // APIs חדשים:
     archiveMail,
     toggleStarMail,

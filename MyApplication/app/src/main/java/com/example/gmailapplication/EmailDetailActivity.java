@@ -55,6 +55,12 @@ public class EmailDetailActivity extends AppCompatActivity {
         loadFullEmailFromServer(); // טען את המייל המלא כולל תוויות
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadFullEmailFromServer();
+    }
+
     private void initViews() {
         toolbar = findViewById(R.id.toolbar);
         tvSender = findViewById(R.id.tvSender);
