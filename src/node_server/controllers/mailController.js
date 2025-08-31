@@ -260,21 +260,22 @@ const getMails = (req, res) => {
         const sent = [];
         console.log(`=== Computing sent mails for ${userEmail} ===`);
         for (const [recipient, mails] of inboxMap.entries()) {
-            if (recipient !== userEmail) {
-                console.log(`Checking inbox of ${recipient} (${mails.length} mails)`);
-                mails.forEach(mail => {
-                    const isSentByUser = mail.sender === userEmail && mail?.isDraft !== true;
-                    console.log(`  Mail "${mail.subject}" - sender: ${mail.sender}, isDraft: ${mail.isDraft}, isSentByUser: ${isSentByUser}`);
-                    if (isSentByUser) {
+            console.log(`Checking inbox of ${recipient} (${mails.length} mails)`);
+            mails.forEach(mail => {
+                const isSentByUser = mail.sender === userEmail && mail?.isDraft !== true;
+                console.log(`  Mail "${mail.subject}" - sender: ${mail.sender}, isDraft: ${mail.isDraft}, isSentByUser: ${isSentByUser}`);
+                if (isSentByUser) {
+                    // to prevent duplicates, check if mail is already in sent
+                    if (!sent.some(existingMail => existingMail.id === mail.id)) {
                         sent.push(mail);
                         console.log(`    -> Added to sent!`);
+                    } else {
+                        console.log(`    -> Already exists in sent, skipping`);
                     }
-                });
-            } else {
-                console.log(`Skipping ${recipient}'s own inbox`);
-            }
+                }
+            });
         }
-        console.log(`Final sent array: ${sent.length} mails`);
+console.log(`Final sent array: ${sent.length} mails`);
         /*Edited by Meir. previous code was:*/
         /*const sent = [];
         for (const [recipient, mails] of inboxMap.entries()) {
