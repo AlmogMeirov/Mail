@@ -65,8 +65,11 @@ const Register = () => {
         clearFieldErrors(); // Clear previous errors
         
         const nameRegex = /^[A-Za-z\u0590-\u05FF\s'-]+$/; // Includes Hebrew, spaces, hyphens
-        if (!nameRegex.test(firstName) || !nameRegex.test(lastName)) {
-            setErrorMessage("Names can only contain letters");
+        if (!nameRegex.test(firstName)) {
+            setFieldError('firstName', "First name can only contain letters");
+            return false;
+        } if (!nameRegex.test(lastName)) {
+            setFieldError('lastName', "Last name can only contain letters");
             return false;
         }
 
@@ -149,7 +152,7 @@ const Register = () => {
         }
       
         if (email.includes(" ")) {
-            setErrorMessage("Email cannot contain spaces");
+            setFieldError('email', "Email cannot contain spaces");
         }
 
         // If phone number is provided, validate it contains digits only
@@ -232,7 +235,7 @@ const Register = () => {
                 navigate('/login');
             } else if (response.status === 413) {
                 // Handle payload too large error specifically
-                setErrorMessage("Profile picture is too large. Please choose a smaller image.");
+                setFieldError('profilePicture', "Profile picture is too large. Please choose a smaller image.");
             } else {
                 const data = await response.json();
                 const errorMsg = data?.error || "Registration failed";
