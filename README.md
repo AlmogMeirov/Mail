@@ -73,16 +73,17 @@ As designed for this exercise, all data is stored **in-memory only** (no databas
   
   **Login Screen**   
    
-![Login Screen](data/example_running/login.png) 
+![Login Screen](data/running_examples/login.png) 
 
   **Registration**
 
 Create a new account with email, password, and personal details. Mandatoty fields are marked with a star (*).
-![Registration Screen](data/example_running/register.png)
+
+![Registration Screen](data/running_examples/register.png)
 
 > **Registration Tip:** If registration fails due to server issues (e.g., email already exists, image file too large), error messages appear at the top of the registration form. **Scroll up** to view the error details.
 
-![Registration Failure Screen](data/example_running/imageTooLarge.png)
+![Registration Failure Screen](data/running_examples/imageTooLarge.png)
 
   **Signing In**
 
@@ -90,7 +91,7 @@ After a successfull registration, toy will be directed to the login screen again
 
 You're all set! **Welcome to FooMail!**
 
-![FooMail Inbox](data/example_running/emptyInbox.png)
+![FooMail Inbox](data/running_examples/emptyInbox.png)
 
 
   ### Email Operations
@@ -99,24 +100,24 @@ You're all set! **Welcome to FooMail!**
 2. Fill in recipients (To, CC, BCC), subject, and content
 3. Send immediately or Save as Draft for later
    
-   ![Compose](data/example_running/Compose.png)
+   ![Compose](data/running_examples/compose.png)
    > **Note:** Sending an email or saving as a draft will close the composing box, but you can also close the composing box by clicking the x button on the top right, or by clicking anywhere in the darked area outside the box.
 5. Once the email is sent, you can see it in the *sent* label.
    
-   ![Sent](data/example_running/Sent.png)
+   ![Sent](data/running_examples/sent.png)
 7. The recipient can see the mail in their *inbox*.
    
-   ![Alice got an email from Bob](data/example_running/inboxWithOneMail.png)
+   ![Alice got an email from Bob](data/running_examples/inboxWithOneMail.png)
 9. By clicking on it, from either *sent label* or *inbox label*, you can read the full email, reply or send it forward.
     
-   ![Reading an email](data/example_running/MailViewPage.png)
+   ![Reading an email](data/running_examples/MailViewPage.png)
 ##
    **Managing Labels**
 1. **Create Labels:**
    - Use the "+" button in the Labels section
    - Type the new label name in the small text box
      
-     ![create label](data/example_running/createLabel.png)
+     ![create label](data/running_examples/createLabel.png)
    - When your'e done, click on the *Create Label* button or press *Enter*
    - As long as the new label name is valid, the new label is shown now on the sidebar!
    - If the new label name is invaild, the label will not be created   
@@ -124,7 +125,7 @@ You're all set! **Welcome to FooMail!**
    - Hover with your mouse on the label in the sidebar
    - Click on the three dots button that appears nest to the label's name
      
-     ![label edit](data/example_running/hoverLabel.png)
+     ![label edit](data/running_examples/labelHover.png)
    - In the small menu that was just opened, choose weather you wnat to rename the label, or delete it.
    - As long as the new label name is valid, the new label name is shown now on the sidebar!
    - If the new label name is invaild, the label will not be renamed.  
@@ -132,10 +133,10 @@ You're all set! **Welcome to FooMail!**
    - Click the circled arrow button below the top bar to sync the inbox
    - Hover with your mouse on the mail you want to tag
 
-     ![Hover Mail](data/example_running/hoverMail.png)
+     ![Hover Mail](data/running_examples/mailHover.png)
    - Click on the left button to open the labels list
   
-      ![Labels list](data/example_running/labelsList.png)
+      ![Labels list](data/running_examples/labelsList.png)
    - Click on the chosen label. You can choose as many labels as you want.
      > **Note:** You can tag your selected email as *Spam*. In this case, every URL address in the title and the content of this specific email will be added to the blacklist. from now on, any new email that contains these blacklisted URLs will be delivered directly to *Spam*.
      > **Note:** The starred feature works like Gmail - clicking the star icon toggles the "Starred" label on emails. This creates a quick way to organize high-priority messages.
@@ -143,33 +144,33 @@ You're all set! **Welcome to FooMail!**
    - Click on label names in the sidebar
    - You will see all the mails from this label and from this label only.
    - 
-       ![Labels](data/example_running/tagged.png)
+       ![Labels](data/running_examples/tagged.png)
 ##
   **Drafts**
 1. **Create a draft:**
    - Open the composing box by either clicking on the "Compose" button in the sidebar, or the *Reply* or *Forward* buttons inside a specific mail.
    - Fill in recipients (To, CC, BCC), and click on *Save Draft*.
    
-   ![Compose](data/example_running/Compose.png)
+   ![Compose](data/running_examples/compose.png)
 3. **Edit Draft:**
    - Click on the *Drafts* label on the sidebar. You'll be directed to the drafts page.
      
-    ![Drafts page](data/example_running/draftPage.png)
+    ![Drafts page](data/running_examples/draftPage.png)
    - Click on the draft that you want to edit, and edit the chosen draft in the *draft editor*.
 
-     ![Draft Editor](data/example_running/draftEditor.png)
+     ![Draft Editor](data/running_examples/draftEditor.png)
 ##
   **Delete Mails**
   1. Hover with your mouse on the mail you want to delete
 
-     ![Hover Mail](data/example_running/hoverMail.png)
+     ![Hover Mail](data/running_examples/mailHover.png)
   2. Click on the right button to move the mail to *Trash*
   3. The deleted mail is still available in the *Trash* label. Click on *Trash* on the sodebar to see the deleted mails
 
-     ![Trash Label](data/example_running/trashLabel.png)
+     ![Trash Label](data/running_examples/trashLabel.png)
   4. To **permanently delete** emails, first move them to *Trash*, then hover over the email and click the x icon that appears.
 
-     ![Delete Forever](data/example_running/deleteForever.png)
+     ![Delete Forever](data/running_examples/deleteForever.png)
 ##
   **Search Mails By Query**
   1. Use the search bar in the top navigation
@@ -177,29 +178,29 @@ You're all set! **Welcome to FooMail!**
   3. Press *Enter* to seardh
   4. The search results will be shown below.
 
-     ![Search](data/example_running/search.png)
+     ![Search](data/running_examples/search.png)
 ##
   **Theme Customization - Dark And Light Mode**
   * Wherever you are on *Foomail*, click the 🌙/☀️ icon in the top bar to switch themes
 
-    ![theme button](data/example_running/hovermoon.png)
+    ![theme button](data/running_examples/hovermoon.png)
 
-    ![darked theme button](data/example_running/hoversun.png)
+    ![darked theme button](data/running_examples/hoversun.png)
   * Your preference is automatically saved and persists across sessions
   * All interface elements adapt to the selected theme
 
-    ![dark mode](data/example_running/darkmode1.png)
+    ![dark mode](data/running_examples/darkmode1.png)
 
-    ![dark mode](data/example_running/darkmode2.png)
+    ![dark mode](data/running_examples/darkmode2.png)
 
-    ![dark mode](data/example_running/darkmode3.png)
+    ![dark mode](data/running_examples/darkmode3.png)
 
-    ![dark mode](data/example_running/darkmode4.png)
+    ![dark mode](data/running_examples/darkmode4.png)
   * Only registered users can switch between themes, but if you log out when dark mode is activated - the registration screen ang login screen will be darked as well.
 
-    ![dark mode](data/example_running/darkmode5.png)
+    ![dark mode](data/running_examples/darkmode5.png)
 
-    ![dark mode](data/example_running/darkmode6.png)
+    ![dark mode](data/running_examples/darkmode6.png)
     
 
 ##  Implementation Notes
@@ -265,32 +266,59 @@ MAIL/
 │   └── controllers/
 
 │       └── mailController.js        → Legacy controller (can be migrated under src/)
+
 client/
+
 ├── public/                     # Static assets
+
 ├── src/
+
 │   ├── components/            # Reusable UI components
+
 │   │   ├── Layout.jsx         # Main app layout
+
 │   │   ├── Sidebar.jsx        # Navigation sidebar
+
 │   │   ├── Topbar.jsx         # Header with search
-│   │   ├── SendMailComponent.jsx  # Compose modal
+
+│   │   ├── SendMailComponent.jsx  # Compose box
+
 │   │   └── ThemeToggle.jsx    # Dark mode toggle
+
 │   ├── pages/                 # Page components
+
 │   │   ├── Login.jsx          # Authentication
+
 │   │   ├── Register.jsx       # User registration
+
 │   │   ├── LabelPage.jsx      # Email list view
+
 │   │   ├── MailViewPage.jsx   # Individual email view
+
 │   │   └── SearchResultsPage.jsx  # Search results
+
 │   ├── context/               # React Context providers
+
 │   │   ├── SearchContext.js   # Global search state
+
 │   │   └── SendMailContext.jsx  # Compose modal state
+
 │   ├── theme/                 # Theme system
+
 │   │   └── ThemeProvider.jsx  # Dark mode provider
+
 │   ├── styles/                # CSS styling
+
 │   │   ├── theme.css          # CSS variables for theming
+
 │   │   ├── Login.css          # Authentication styles
+
 │   │   └── MailViewPage.css   # Email view styles
+
 │   └── utils/                 # Utility functions
+
 │       ├── api.js             # API communication
+
 │       └── waitForServer.js   # Server readiness check
 
 ├── src/
@@ -374,4 +402,4 @@ client/
 *A modern, feature-rich email client with React frontend*
 Version: 4.0
 
-#Enjoy!!
+# Enjoy!!
