@@ -64,7 +64,7 @@ public class ManageLabelsActivity extends AppCompatActivity {
         btnSave = findViewById(R.id.btnSave);
         labelCheckboxes = new ArrayList<>();
 
-        // רק כפתור שמור - כפתור יצירת תווית הוסר
+        // רק כפתור שמור
         btnSave.setOnClickListener(v -> saveLabels());
     }
 
@@ -72,6 +72,18 @@ public class ManageLabelsActivity extends AppCompatActivity {
         mailId = getIntent().getStringExtra(EXTRA_MAIL_ID);
         originalLabels = getIntent().getStringArrayListExtra(EXTRA_CURRENT_LABELS);
         if (originalLabels == null) originalLabels = new ArrayList<>();
+
+        System.out.println("=== MANAGE LABELS INIT DEBUG ===");
+        System.out.println("Mail ID received: '" + mailId + "'");
+        System.out.println("Original labels received: " + originalLabels);
+        System.out.println("Original labels size: " + (originalLabels != null ? originalLabels.size() : "null"));
+
+        if (originalLabels != null) {
+            for (int i = 0; i < originalLabels.size(); i++) {
+                System.out.println("  OriginalLabel[" + i + "]: '" + originalLabels.get(i) + "'");
+            }
+        }
+        System.out.println("===============================");
 
         emailAPI = BackendClient.get(this).create(EmailAPI.class);
         labelAPI = BackendClient.get(this).create(LabelAPI.class);
@@ -118,15 +130,38 @@ public class ManageLabelsActivity extends AppCompatActivity {
         layoutLabels.removeAllViews();
         labelCheckboxes.clear();
 
+        System.out.println("=== DISPLAY LABELS DEBUG ===");
+        System.out.println("Original labels: " + originalLabels);
+        System.out.println("All labels count: " + allLabels.size());
+
         for (Label label : allLabels) {
+            // דלג על תווית trash - היא מנוהלת דרך כפתור המחיקה בלבד
+            if ("trash".equals(label.name.toLowerCase())) {
+                System.out.println("Skipping trash label - managed by delete button");
+                continue;
+            }
+
             CheckBox checkBox = new CheckBox(this);
             checkBox.setText(label.name);
             checkBox.setTag(label);
 
-            boolean isChecked = originalLabels.contains(label.name) || originalLabels.contains(label.id);
+            // בדוק name בלבד (case insensitive)
+            boolean isChecked = false;
+            if (originalLabels != null) {
+                for (String originalLabel : originalLabels) {
+                    if (originalLabel != null && label.name != null &&
+                            originalLabel.trim().equalsIgnoreCase(label.name.trim())) {
+                        isChecked = true;
+                        break;
+                    }
+                }
+            }
+
             checkBox.setChecked(isChecked);
 
-            // תוויות מערכת מסויימות לא ניתנות לשינוי ידני
+            System.out.println("Label: " + label.name + " (id: " + label.id + ") - Checked: " + isChecked);
+
+            // תוויות מערכת מסוימות לא ניתנות לשינוי ידני
             if (label.isSystem && (label.name.equals("sent") || label.name.equals("drafts"))) {
                 checkBox.setEnabled(false);
             }
@@ -134,6 +169,8 @@ public class ManageLabelsActivity extends AppCompatActivity {
             layoutLabels.addView(checkBox);
             labelCheckboxes.add(checkBox);
         }
+
+        System.out.println("===========================");
     }
 
     private void saveLabels() {

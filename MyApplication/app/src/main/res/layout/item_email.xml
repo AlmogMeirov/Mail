@@ -1,127 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:padding="16dp"
+    android:background="?android:attr/selectableItemBackground"
     android:clickable="true"
-    android:focusable="true"
-    android:background="?android:attr/selectableItemBackground">
+    android:focusable="true">
 
-    <!-- Unread indicator (קו כחול משמאל) -->
-    <View
-        android:id="@+id/unreadIndicator"
-        android:layout_width="3dp"
-        android:layout_height="match_parent"
-        android:background="@android:color/holo_blue_bright"
-        android:layout_marginEnd="8dp"
-        android:visibility="gone" />
-
-    <!-- Avatar placeholder -->
-    <View
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginEnd="12dp"
-        android:background="@android:drawable/sym_def_app_icon" />
-
-    <!-- Content -->
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
-        <!-- Sender and Time -->
+        <!-- תוכן המייל -->
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tvSender"
-                android:layout_width="0dp"
+            <!-- שורה ראשונה: שולח + זמן -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="sender@example.com"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvSender"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="sender@example.com"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@android:color/black" />
+
+                <TextView
+                    android:id="@+id/tvTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="12:34"
+                    android:textSize="12sp"
+                    android:textColor="@android:color/darker_gray"
+                    android:layout_marginStart="8dp" />
+
+            </LinearLayout>
+
+            <!-- נושא -->
+            <TextView
+                android:id="@+id/tvSubject"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="נושא המייל"
                 android:textSize="14sp"
-                android:textStyle="bold"
                 android:textColor="@android:color/black"
-                android:singleLine="true"
+                android:layout_marginTop="4dp"
+                android:maxLines="1"
                 android:ellipsize="end" />
 
-            <!-- Read/Unread status icon -->
-            <ImageView
-                android:id="@+id/ivRead"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_marginEnd="4dp"
-                android:src="@android:drawable/ic_menu_view"
-                android:visibility="visible" />
-
+            <!-- תצוגה מקדימה -->
             <TextView
-                android:id="@+id/tvTime"
-                android:layout_width="wrap_content"
+                android:id="@+id/tvPreview"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="10:30"
+                android:text="תצוגה מקדימה של תוכן המייל..."
                 android:textSize="12sp"
-                android:textColor="@android:color/darker_gray" />
+                android:textColor="@android:color/darker_gray"
+                android:layout_marginTop="4dp"
+                android:maxLines="2"
+                android:ellipsize="end" />
+
+            <!-- תוויות -->
+            <TextView
+                android:id="@+id/tvLabels"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="10sp"
+                android:textColor="@android:color/holo_blue_dark"
+                android:layout_marginTop="4dp"
+                android:visibility="gone" />
 
         </LinearLayout>
 
-        <!-- Subject -->
-        <TextView
-            android:id="@+id/tvSubject"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="נושא המייל"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/black"
-            android:layout_marginTop="2dp"
-            android:singleLine="true"
-            android:ellipsize="end" />
-
-        <!-- Preview -->
-        <TextView
-            android:id="@+id/tvPreview"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="תוכן המייל..."
-            android:textSize="13sp"
-            android:textColor="@android:color/darker_gray"
-            android:layout_marginTop="2dp"
-            android:maxLines="2"
-            android:ellipsize="end" />
-
-    </LinearLayout>
-
-    <!-- Right side indicators -->
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_gravity="center_vertical"
-        android:layout_marginStart="8dp">
-
-        <!-- Star indicator -->
+        <!-- כפתור מחיקה פשוט -->
         <ImageView
-            android:id="@+id/ivStar"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@android:drawable/btn_star_big_on"
-            android:layout_gravity="center_horizontal"
-            android:visibility="gone" />
-
-        <!-- Spam indicator -->
-        <View
-            android:id="@+id/spamIndicator"
-            android:layout_width="8dp"
-            android:layout_height="8dp"
-            android:layout_marginTop="4dp"
-            android:layout_gravity="center_horizontal"
-            android:background="@android:drawable/presence_busy"
-            android:visibility="gone" />
+            android:id="@+id/ivDelete"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_menu_delete"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="6dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="מחק מייל"
+            android:tint="@android:color/darker_gray" />
 
     </LinearLayout>
+
+    <!-- קו מפריד -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@android:color/darker_gray"
+        android:layout_marginTop="12dp"
+        android:alpha="0.3" />
 
 </LinearLayout>

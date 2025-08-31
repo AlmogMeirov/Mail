@@ -3,6 +3,7 @@ package com.example.gmailapplication.viewmodels;
 import android.app.Application;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.MutableLiveData;
+import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.EmailAPI;
 import com.example.gmailapplication.repository.EmailRepository;
 import com.example.gmailapplication.shared.Email;
@@ -13,6 +14,7 @@ import retrofit2.Response;
 
 public class InboxViewModel extends AndroidViewModel {
     private EmailRepository repository;
+    private EmailAPI emailAPI;
     private MutableLiveData<List<Email>> emails = new MutableLiveData<>();
     private MutableLiveData<Boolean> isLoading = new MutableLiveData<>(false);
     private MutableLiveData<String> error = new MutableLiveData<>();
@@ -24,6 +26,7 @@ public class InboxViewModel extends AndroidViewModel {
     public InboxViewModel(Application app) {
         super(app);
         repository = new EmailRepository(app);
+        emailAPI = BackendClient.get(app).create(EmailAPI.class);
     }
 
     // Getters קיימים
@@ -31,9 +34,14 @@ public class InboxViewModel extends AndroidViewModel {
     public MutableLiveData<Boolean> getIsLoading() { return isLoading; }
     public MutableLiveData<String> getError() { return error; }
 
-    // Getters חדשים לסינון
+    // Getters לסינון
     public MutableLiveData<String> getCurrentFilter() { return currentFilter; }
     public MutableLiveData<String> getCurrentFilterDisplayName() { return currentFilterDisplayName; }
+
+    // ממשק פשוט לטיפול בפעולות
+    public interface SimpleCallback {
+        void onResult(boolean success);
+    }
 
     // הפונקציה המקורית - נשארת ללא שינוי
     public void loadEmails() {
@@ -67,7 +75,7 @@ public class InboxViewModel extends AndroidViewModel {
         });
     }
 
-    // פונקציה חדשה לטעינת מיילים לפי תווית
+    // פונקציה לטעינת מיילים לפי תווית
     public void loadEmailsByLabel(String labelName, String displayName) {
         isLoading.setValue(true);
         error.setValue(null);
@@ -107,7 +115,7 @@ public class InboxViewModel extends AndroidViewModel {
         });
     }
 
-    // פונקציה נוחות לסינונים מיוחדים
+    // פונקציות נוחות לסינונים מיוחדים
     public void loadStarredEmails() {
         isLoading.setValue(true);
         error.setValue(null);
@@ -170,5 +178,80 @@ public class InboxViewModel extends AndroidViewModel {
         } else {
             loadEmailsByLabel(filter, currentFilterDisplayName.getValue());
         }
+    }
+
+    // === פונקציות מחיקה פשוטות על פי השרת ===
+
+    /**
+     * העברה לאשפה - החלפת כל התוויות ב-"trash" בלבד
+     * PATCH /api/mails/{id}/labels
+     */
+    public void moveToTrash(String emailId, SimpleCallback callback) {
+        System.out.println("=== MOVING EMAIL TO TRASH ===");
+        System.out.println("Email ID: " + emailId);
+
+        // החלף את כל התוויות ב-"trash" בלבד (כמו Gmail)
+        com.example.gmailapplication.shared.UpdateLabelsRequest request =
+                new com.example.gmailapplication.shared.UpdateLabelsRequest(
+                        java.util.Arrays.asList("trash"));
+
+        emailAPI.updateEmailLabels(emailId, request).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                System.out.println("=== MOVE TO TRASH RESPONSE ===");
+                System.out.println("Response code: " + response.code());
+                System.out.println("Response successful: " + response.isSuccessful());
+
+                boolean success = response.isSuccessful();
+                if (callback != null) {
+                    callback.onResult(success);
+                }
+                System.out.println("=============================");
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                System.err.println("=== MOVE TO TRASH FAILURE ===");
+                System.err.println("Error: " + t.getMessage());
+                if (callback != null) {
+                    callback.onResult(false);
+                }
+                System.err.println("=============================");
+            }
+        });
+    }
+
+    /**
+     * מחיקת מייל סופית (soft delete בשרת)
+     * DELETE /api/mails/{id}
+     */
+    public void deleteEmail(String emailId, SimpleCallback callback) {
+        System.out.println("=== DELETING EMAIL PERMANENTLY ===");
+        System.out.println("Email ID: " + emailId);
+
+        emailAPI.deleteEmail(emailId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                System.out.println("=== DELETE EMAIL RESPONSE ===");
+                System.out.println("Response code: " + response.code());
+                System.out.println("Response successful: " + response.isSuccessful());
+
+                boolean success = response.isSuccessful();
+                if (callback != null) {
+                    callback.onResult(success);
+                }
+                System.out.println("=============================");
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                System.err.println("=== DELETE EMAIL FAILURE ===");
+                System.err.println("Error: " + t.getMessage());
+                if (callback != null) {
+                    callback.onResult(false);
+                }
+                System.err.println("=============================");
+            }
+        });
     }
 }

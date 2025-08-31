@@ -25,6 +25,7 @@ import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.LabelAPI;
 import com.example.gmailapplication.adapters.EmailAdapter;
 import com.example.gmailapplication.shared.CreateLabelRequest;
+import com.example.gmailapplication.shared.Email;
 import com.example.gmailapplication.shared.Label;
 import com.example.gmailapplication.shared.TokenManager;
 import com.example.gmailapplication.viewmodels.InboxViewModel;
@@ -47,6 +48,9 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
     // Navigation Drawer components
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
+
+    // מצב נוכחי פשוט
+    private String currentFilter = "inbox";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -162,7 +166,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
     }
 
     private void refreshNavigationMenu() {
-        // עכשיו מממש את הפונקציה - רענון תוויות אחרי יצירת תווית חדשה
+        // רענון תוויות אחרי יצירת תווית חדשה
         loadCustomLabels();
     }
 
@@ -181,8 +185,52 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             startActivity(intent);
         }, currentUserEmail);
 
+        // הוסף listener למחיקה - פשוט
+        adapter.setDeleteListener(this::handleEmailDelete);
+
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
+    }
+
+    private void handleEmailDelete(Email email) {
+        // לוגיקה פשוטה על פי השרת:
+        // אם אנחנו בתווית trash → מחיקה סופית (DELETE API)
+        // אחרת → החלפת כל התוויות ב-"trash" בלבד
+
+        if ("trash".equals(currentFilter)) {
+            // באשפה - אשר מחיקה סופית
+            showPermanentDeleteConfirmation(email);
+        } else {
+            // במצב רגיל - העבר לאשפה (החלף את כל התוויות ב-trash)
+            viewModel.moveToTrash(email.id, success -> {
+                if (success) {
+                    Toast.makeText(this, "המייל הועבר לאשפה", Toast.LENGTH_SHORT).show();
+                    viewModel.refreshCurrentFilter(); // רענן רשימה
+                } else {
+                    Toast.makeText(this, "שגיאה בהעברת המייל לאשפה", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+
+    private void showPermanentDeleteConfirmation(Email email) {
+        new AlertDialog.Builder(this)
+                .setTitle("מחיקה סופית")
+                .setMessage("האם אתה בטוח שברצונך למחוק את המייל לצמיתות?\nפעולה זו לא ניתנת לביטול!")
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setPositiveButton("מחק לצמיתות", (dialog, which) -> {
+                    // השתמש ב-DELETE API
+                    viewModel.deleteEmail(email.id, success -> {
+                        if (success) {
+                            Toast.makeText(InboxActivity.this, "המייל נמחק לצמיתות", Toast.LENGTH_SHORT).show();
+                            viewModel.refreshCurrentFilter(); // רענן רשימה
+                        } else {
+                            Toast.makeText(InboxActivity.this, "שגיאה במחיקת המייל", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                })
+                .setNegativeButton("ביטול", null)
+                .show();
     }
 
     private void setupObservers() {
@@ -199,12 +247,18 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             System.out.println("==================");
         });
 
-        // Observer חדש לעדכון כותרת המסך
+        // Observer לעדכון כותרת המסך
         viewModel.getCurrentFilterDisplayName().observe(this, displayName -> {
             TextView tvWelcome = findViewById(R.id.tvWelcome);
             if (tvWelcome != null && displayName != null) {
                 tvWelcome.setText(displayName);
             }
+        });
+
+        // Observer למעקב אחר הפילטר הנוכחי
+        viewModel.getCurrentFilter().observe(this, filter -> {
+            currentFilter = filter != null ? filter : "inbox";
+            System.out.println("Current filter changed to: " + currentFilter);
         });
 
         System.out.println("Observer setup complete");
@@ -213,7 +267,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
     @Override
     protected void onResume() {
         super.onResume();
-        viewModel.refreshCurrentFilter(); // רענון הסינון הנוכחי במקום loadEmails()
+        viewModel.refreshCurrentFilter();
     }
 
     private void setupFab(FloatingActionButton fab) {
@@ -240,7 +294,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         ivLogout.setOnClickListener(v -> showLogoutConfirmation());
 
         ivRefresh.setOnClickListener(v -> {
-            viewModel.refreshCurrentFilter(); // רענון הסינון הנוכחי
+            viewModel.refreshCurrentFilter();
             Toast.makeText(this, "מרענן...", Toast.LENGTH_SHORT).show();
         });
 
@@ -312,7 +366,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         int itemId = item.getItemId();
         int groupId = item.getGroupId();
 
-        // תוויות מערכת (הקוד הקיים)
+        // תוויות מערכת (הקוד הקיים + trash)
         if (itemId == R.id.nav_inbox) {
             viewModel.loadEmails();
             return true;
@@ -328,7 +382,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         } else if (itemId == R.id.nav_spam) {
             viewModel.loadSpamEmails();
             return true;
-        } else if (itemId == R.id.nav_trash) {
+        } else if (itemId == R.id.nav_trash) {  // הוספנו חזרה
             viewModel.loadEmailsByLabel("trash", "אשפה");
             return true;
         }

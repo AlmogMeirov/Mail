@@ -87,6 +87,11 @@ public class EmailDetailActivity extends AppCompatActivity {
 
     private void openManageLabels() {
         if (emailId != null && !emailId.isEmpty()) {
+            System.out.println("=== OPENING MANAGE LABELS ===");
+            System.out.println("Current labels to pass: " + currentLabels);
+            System.out.println("Email ID: " + emailId);
+            System.out.println("=============================");
+
             ManageLabelsActivity.start(this, emailId, currentLabels);
         } else {
             Toast.makeText(this, "לא ניתן לנהל תוויות - חסר מזהה מייל", Toast.LENGTH_SHORT).show();
@@ -126,29 +131,56 @@ public class EmailDetailActivity extends AppCompatActivity {
             return;
         }
 
+        System.out.println("=== LOADING FULL EMAIL FROM SERVER ===");
+        System.out.println("Email ID: " + emailId);
+
         emailAPI.getEmailById(emailId).enqueue(new Callback<Email>() {
             @Override
             public void onResponse(Call<Email> call, Response<Email> response) {
+                System.out.println("=== SERVER RESPONSE DEBUG ===");
+                System.out.println("Response code: " + response.code());
+                System.out.println("Response successful: " + response.isSuccessful());
+
                 if (response.isSuccessful() && response.body() != null) {
                     Email fullEmail = response.body();
-                    currentLabels = fullEmail.labels != null ? fullEmail.labels : new ArrayList<>();
 
-                    System.out.println("=== LOADED FULL EMAIL DATA ===");
-                    System.out.println("Labels: " + currentLabels);
-                    System.out.println("==============================");
+                    System.out.println("Full email received:");
+                    System.out.println("- ID: " + fullEmail.id);
+                    System.out.println("- Subject: " + fullEmail.subject);
+                    System.out.println("- Sender: " + fullEmail.sender);
+                    System.out.println("- Labels (raw): " + fullEmail.labels);
+                    System.out.println("- Labels type: " + (fullEmail.labels != null ? fullEmail.labels.getClass() : "null"));
+                    System.out.println("- Labels size: " + (fullEmail.labels != null ? fullEmail.labels.size() : "null"));
 
-                    // עדכן את התצוגה עם הנתונים המלאים
+                    if (fullEmail.labels != null) {
+                        for (int i = 0; i < fullEmail.labels.size(); i++) {
+                            System.out.println("  Label[" + i + "]: '" + fullEmail.labels.get(i) + "' (type: " + fullEmail.labels.get(i).getClass() + ")");
+                        }
+                    }
+
+                    currentLabels = fullEmail.labels != null ? new ArrayList<>(fullEmail.labels) : new ArrayList<>();
+                    System.out.println("currentLabels set to: " + currentLabels);
+
                     displayFullEmailData(fullEmail);
                 } else {
                     System.err.println("Failed to load full email data: " + response.code());
-                    // המשך עם הנתונים הבסיסיים שכבר יש
+                    try {
+                        if (response.errorBody() != null) {
+                            System.err.println("Error body: " + response.errorBody().string());
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Could not read error body: " + e.getMessage());
+                    }
                 }
+                System.out.println("=============================");
             }
 
             @Override
             public void onFailure(Call<Email> call, Throwable t) {
+                System.err.println("=== SERVER FAILURE ===");
                 System.err.println("Error loading full email data: " + t.getMessage());
-                // המשך עם הנתונים הבסיסיים שכבר יש
+                t.printStackTrace();
+                System.err.println("=====================");
             }
         });
     }
@@ -180,6 +212,14 @@ public class EmailDetailActivity extends AppCompatActivity {
         if (email.sender != null) {
             tvSender.setText("מאת: " + email.sender);
         }
+
+        // קריטי: עדכן את currentLabels
+        currentLabels = email.labels != null ? new ArrayList<>(email.labels) : new ArrayList<>();
+
+        System.out.println("=== UPDATED CURRENT LABELS ===");
+        System.out.println("Labels from server: " + email.labels);
+        System.out.println("Current labels set to: " + currentLabels);
+        System.out.println("==============================");
 
         // הצג recipients אם יש
         if (email.recipients != null && !email.recipients.isEmpty()) {
