@@ -1,127 +1,97 @@
-const net = require("net");
+// utils/blacklistClient.js - MongoDB-based blacklist client
+// NOTE: comments in English only
 
+const Blacklist = require("../models/Blacklist");
 
-function checkUrlBlacklist(url) {
-  return new Promise((resolve, reject) => {
-    console.log("[BlacklistClient] Connecting to TCP server...");
+// Check if URL is blacklisted using MongoDB
+async function checkUrlBlacklist(url) {
+    try {
+        console.log("[BlacklistClient] Checking URL in MongoDB:", url);
+        
+        const isBlacklisted = await Blacklist.isBlacklisted(url);
+        
+        console.log("[BlacklistClient] URL check result:", isBlacklisted);
+        return isBlacklisted;
+        
+    } catch (error) {
+        console.error("[BlacklistClient] Error checking URL:", error.message);
+        // In case of error, assume URL is safe (don't block legitimate emails)
+        return false;
+    }
+}
 
-    const client = net.createConnection({ host: "blacklist-server", port: 5555 }, () => {
-      client.write(`GET ${url}\n`);
-    });
-
-    let buffer = "";
-    client.setEncoding("utf8");
-
-    client.on("data", (data) => {
-      buffer += data;
-      const lines = buffer.trim().split("\n").map(line => line.trim()).filter(line => line !== "");
-
-      console.log("[BlacklistClient] Accumulated lines:", lines);
-
-      if (lines.length >= 2) {
-        const statusLine = lines[0];
-        const resultLine = lines[1];
-
-        if (statusLine !== "200 OK") {
-          client.end();
-          return reject(new Error(`Unexpected status from blacklist server: ${statusLine}`));
+// Add URL to blacklist using MongoDB
+async function addUrlToBlacklist(url, reason = "Spam detection") {
+    try {
+        console.log("[BlacklistClient] Adding URL to MongoDB:", url);
+        
+        // Check if URL already exists
+        const exists = await Blacklist.isBlacklisted(url);
+        if (exists) {
+            console.log("[BlacklistClient] URL already exists in blacklist:", url);
+            return { status: 200, alreadyExists: true, data: { url } };
         }
-
-        // block only if result is "true true"
-        const isBlacklisted = resultLine === "true true";
-
-        console.log("[BlacklistClient] result line:", resultLine);
-        console.log("[BlacklistClient] isBlacklisted =", isBlacklisted);
-
-        resolve(isBlacklisted);
-        client.end();
-      }
-    });
-
-    client.on("error", (err) => {
-      console.error("[BlacklistClient] Connection error:", err);
-      reject(err);
-    });
-  });
-}
-// add to map in memory every url that is added to blacklist
-const blacklist = new Map(); // id -> url
-let nextId = 1;
-
-function addUrlToBlacklist(url) {
-  // check if URL already exists
-  for (const [id, savedUrl] of blacklist.entries()) {
-    if (savedUrl === url) {
-      //return Promise.resolve({ id, url }); // prevent duplicates
-      return resolve({ status: 200, alreadyExists: true, id, url });
+        
+        // Add new URL to blacklist
+        const blacklistEntry = await Blacklist.addUrl(url, null, reason);
+        
+        console.log("[BlacklistClient] URL added successfully:", url);
+        return { 
+            status: 201, 
+            data: {
+                url: blacklistEntry.url, 
+                id: blacklistEntry._id.toString(),
+                createdAt: blacklistEntry.createdAt
+            }
+        };
+        
+    } catch (error) {
+        console.error("[BlacklistClient] Error adding URL:", error.message);
+        throw new Error(`Failed to add URL to blacklist: ${error.message}`);
     }
-  }
-
-  return new Promise((resolve, reject) => {
-    const client = net.createConnection({ host: "blacklist-server", port: 5555 }, () => {
-      client.write(`POST ${url}\n`);
-      client.end();
-    });
-
-
-    let buffer = "";
-    client.setEncoding("utf8");
-
-    client.on("data", (data) => { buffer += data; });
-
-    client.on("end", () => {
-      if (buffer.includes("201 Created")) {
-        const id = nextId++;
-        blacklist.set(id, url);
-        resolve({ id, url });
-      } else {
-        reject(new Error(`Unexpected response: ${buffer.trim()}`));
-      }
-    });
-
-    client.on("error", reject);
-  });
 }
 
-function deleteUrlFromBlacklist(id) {
-  return new Promise((resolve, reject) => {
-    if (!blacklist.has(id)) {
-      return resolve({ status: 404 }); // id doesn't exist
+// Remove URL from blacklist using MongoDB
+async function deleteUrlFromBlacklist(identifier) {
+    try {
+        console.log("[BlacklistClient] Removing from MongoDB, identifier:", identifier);
+        
+        // Try to remove by URL (identifier is the URL itself)
+        const wasRemoved = await Blacklist.removeUrl(identifier);
+        
+        if (wasRemoved) {
+            console.log("[BlacklistClient] URL removed successfully:", identifier);
+            return { status: 204 };
+        } else {
+            console.log("[BlacklistClient] URL not found for removal:", identifier);
+            return { status: 404 };
+        }
+        
+    } catch (error) {
+        console.error("[BlacklistClient] Error removing URL:", error.message);
+        throw new Error(`Failed to remove URL from blacklist: ${error.message}`);
     }
-    const url = blacklist.get(id);
-    if (!url) {
-      return resolve({ status: 404 }); // id doesn't exist
-    }
-
-    const client = net.createConnection({ host: "blacklist-server", port: 5555 }, () => {
-      client.write(`DELETE ${url}\n`);
-      client.end();
-    });
-
-    let buffer = "";
-    client.setEncoding("utf8");
-
-    console.log("Removing URL from blacklist:", url);
-
-    client.on("data", (data) => { buffer += data; });
-    client.on("end", () => {
-      const response = buffer.trim();
-      console.log("📡 TCP response:", response); // debug log
-      if (response.includes("204")) {
-        blacklist.delete(id) // remove from in-memory map
-        return resolve({ status: 204 });
-      }
-      if (response.includes("404")) return resolve({ status: 404 });
-      reject(new Error(`Unexpected response: '${response}'`));
-    });
-
-    client.on("error", reject);
-  });
 }
 
+// Get all blacklisted URLs using MongoDB
+async function getAllBlacklistedUrls() {
+    try {
+        console.log("[BlacklistClient] Fetching all blacklisted URLs from MongoDB");
+        
+        const urls = await Blacklist.getAllUrls();
+        
+        console.log("[BlacklistClient] Found", urls.length, "blacklisted URLs");
+        return urls;
+        
+    } catch (error) {
+        console.error("[BlacklistClient] Error fetching URLs:", error.message);
+        throw new Error(`Failed to fetch blacklisted URLs: ${error.message}`);
+    }
+}
 
 module.exports = {
-  checkUrlBlacklist,
-  addUrlToBlacklist,
-  deleteUrlFromBlacklist,
+    checkUrlBlacklist,
+    addUrlToBlacklist,
+    deleteUrlFromBlacklist,
+    getAllBlacklistedUrls
 };

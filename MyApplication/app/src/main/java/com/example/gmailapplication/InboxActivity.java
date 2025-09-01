@@ -388,26 +388,43 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         loadCustomLabels();
     }
 
+    private void handleEditDraft(Email email) {
+        Intent intent = new Intent(this, ComposeActivity.class);
+        intent.putExtra("is_draft", true);
+        intent.putExtra("draft_id", email.id);
+        intent.putExtra("draft_to", email.recipients != null ? String.join(", ", email.recipients) : "");
+        intent.putExtra("draft_subject", email.subject);
+        intent.putExtra("draft_content", email.content);
+        startActivity(intent);
+    }
+
     private void setupRecyclerView() {
         String currentUserEmail = TokenManager.getCurrentUserEmail(this);
         System.out.println("Current user email from token: " + currentUserEmail);
 
         adapter = new EmailAdapter(email -> {
-            // העבר למסך פרטי המייל
-            Intent intent = new Intent(this, EmailDetailActivity.class);
-            intent.putExtra("email_id", email.id);
-            intent.putExtra("sender", email.sender);
-            intent.putExtra("subject", email.subject);
-            intent.putExtra("content", email.content);
-            intent.putExtra("timestamp", email.timestamp);
-            startActivity(intent);
+            // בדוק אם זה טיוטה
+            boolean isDraft = (email.labels != null && email.labels.contains("drafts"));
+
+            if (isDraft) {
+                // טיוטה - פתח עריכה
+                handleEditDraft(email);
+            } else {
+                // מייל רגיל - הצג פרטים
+                Intent intent = new Intent(this, EmailDetailActivity.class);
+                intent.putExtra("email_id", email.id);
+                intent.putExtra("sender", email.sender);
+                intent.putExtra("subject", email.subject);
+                intent.putExtra("content", email.content);
+                intent.putExtra("timestamp", email.timestamp);
+                startActivity(intent);
+            }
         }, currentUserEmail);
 
-        // הוסף listener למחיקה - פשוט
+// שאר הlisteners
         adapter.setDeleteListener(this::handleEmailDelete);
-
-        // הוסף listener לכוכב
         adapter.setStarListener(this::handleEmailStar);
+        adapter.setEditDraftListener(this::handleEditDraft);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);

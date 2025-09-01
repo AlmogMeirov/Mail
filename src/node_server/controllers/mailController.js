@@ -471,17 +471,38 @@ const deleteMailById = async (req, res) => {
 const searchMails = async (req, res) => {
     try {
         const userEmail = req.user.email;
-        const query = req.query.q;
+        const searchQuery = req.query.q; // פרמטר החיפוש מה-URL
 
-        if (!query) {
+        if (!searchQuery) {
             return res.status(400).json({ error: "Missing search query" });
         }
 
-        const q = query.toLowerCase();
+        const q = searchQuery.toLowerCase(); // התוכן לחיפוש
 
-        // Search in both inbox and sent mails
-        const mails = await Mail.findByUser(userEmail).lean();
+        // MongoDB query - מגביל טיוטות רק למי ששלח אותן
+        const mongoQuery = {
+            $and: [
+                {
+                    $or: [
+                        { sender: userEmail },
+                        { recipient: userEmail },
+                        { recipients: userEmail }
+                    ]
+                },
+                {
+                    $or: [
+                        { isDraft: { $ne: true } }, // לא טיוטה
+                        { isDraft: true, sender: userEmail } // טיוטה רק של השולח
+                    ]
+                }
+            ],
+            deletedBy: { $ne: userEmail }
+        };
 
+        // חיפוש במסד הנתונים
+        const mails = await Mail.find(mongoQuery).lean();
+
+        // סינון לפי תוכן החיפוש
         const results = mails.filter(mail => {
             const subject = mail.subject?.toLowerCase() || "";
             const content = mail.content?.toLowerCase() || "";
@@ -500,7 +521,7 @@ const searchMails = async (req, res) => {
             return res.status(404).json({ error: "No matching mails found" });
         }
 
-        // Remove duplicates by groupId
+        // הסרת כפילויות לפי groupId
         const seenGroups = new Set();
         const uniqueResults = results.filter(mail => {
             if (mail.groupId && seenGroups.has(mail.groupId)) return false;

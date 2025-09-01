@@ -7,15 +7,24 @@ import com.google.gson.JsonDeserializationContext;
 import java.lang.reflect.Type;
 import java.util.List;
 
-public class Email {
-    public String id;
+import androidx.room.Entity;
+import androidx.room.PrimaryKey;
+import androidx.room.TypeConverters;
+import com.example.gmailapplication.data.converters.StringListConverter;
 
+import androidx.annotation.NonNull; // השתמש בזה
+
+@Entity(tableName = "emails")
+@TypeConverters({StringListConverter.class})
+
+public class Email {
+    @PrimaryKey
+    @NonNull
+    public String id;
     @JsonAdapter(FlexibleStringDeserializer.class)
     public String sender;
-
     @JsonAdapter(FlexibleStringDeserializer.class)
     public String recipient;
-
     public List<String> recipients;
     public String subject;
     public String content;

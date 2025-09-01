@@ -190,6 +190,12 @@
             app:cornerRadius="8dp"
             app:icon="@android:drawable/ic_menu_revert"
             app:iconTint="@android:color/white" />
+        <Button
+            android:id="@+id/btnReportSpam"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Test Blacklist"
+            android:layout_margin="8dp" />
 
         <Button
             android:id="@+id/btnEdit"
@@ -198,6 +204,12 @@
             android:text="ערוך טיוטה"
             android:visibility="gone"
             android:backgroundTint="@android:color/holo_orange_dark" />
+        <Button
+            android:id="@+id/btnEditDraft"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ערוך טיוטה"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/tvTrashNotice"

@@ -63,4 +63,7 @@ dependencies {
 
     // (Optional) Java 8+ desugaring – מומלץ אם אתה משתמש ב-Streams/Time API
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+
+    implementation("androidx.room:room-runtime:2.5.0")
+
 }

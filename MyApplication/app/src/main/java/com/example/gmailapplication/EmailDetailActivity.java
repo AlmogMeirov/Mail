@@ -1,5 +1,6 @@
 package com.example.gmailapplication;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
@@ -75,8 +76,130 @@ public class EmailDetailActivity extends AppCompatActivity {
         Button btnReply = findViewById(R.id.btnReply);
         btnReply.setOnClickListener(v -> openReply());
 
+        Button btnReportSpam = findViewById(R.id.btnReportSpam);
+        btnReportSpam.setText("Report as Spam");
+        btnReportSpam.setOnClickListener(v -> reportAsSpam());
+
         Button btnManageLabels = findViewById(R.id.btnManageLabels);
         btnManageLabels.setOnClickListener(v -> openManageLabels());
+
+
+    }
+    // החלף את btnReportSpam
+
+    private void reportAsSpam() {
+        System.out.println("=== REPORT AS SPAM CLICKED ===");
+        new AlertDialog.Builder(this)
+                .setTitle("Report spam")
+                .setMessage("Move this message to Spam and block future emails from " + sender + "?")
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setPositiveButton("Report spam", (dialog, which) -> {
+                    // שלב 1: העבר מייל לספאם
+                    moveEmailToSpam();
+
+                    // שלב 2: חלץ URLs והוסף לblacklist
+                    extractAndBlockUrls();
+
+                    Toast.makeText(this, "Message reported as spam", Toast.LENGTH_SHORT).show();
+                    finish(); // חזור לרשימת המיילים
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void moveEmailToSpam() {
+        EmailAPI emailAPI = BackendClient.get(this).create(EmailAPI.class);
+
+        // הוסף תווית spam למייל
+        EmailAPI.AddLabelRequest request = new EmailAPI.AddLabelRequest("spam");
+
+        emailAPI.addLabelToEmail(emailId, request).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                System.out.println("Move to spam result: " + response.isSuccessful());
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                System.out.println("Failed to move to spam: " + t.getMessage());
+            }
+        });
+    }
+
+    private void extractAndBlockUrls() {
+        System.out.println("=== EXTRACT AND BLOCK URLS ===");
+
+        // שלב את הכותרת והתוכן לבדיקה
+        String fullText = "";
+        if (subject != null) {
+            fullText += subject + " ";
+        }
+        if (content != null) {
+            fullText += content;
+        }
+
+        System.out.println("Full text to check: " + fullText);
+
+        if (fullText.isEmpty()) return;
+
+        // חלץ URLs מהטקסט המלא
+        String urlPattern = "https?://[^\\s]+";
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(urlPattern);
+        java.util.regex.Matcher matcher = pattern.matcher(fullText);
+
+        EmailAPI emailAPI = BackendClient.get(this).create(EmailAPI.class);
+
+        while (matcher.find()) {
+            String url = matcher.group();
+            System.out.println("Found URL: " + url);
+
+            EmailAPI.BlacklistRequest request = new EmailAPI.BlacklistRequest(
+                    url,
+                    "Reported as spam from email: " + subject
+            );
+
+            emailAPI.addToBlacklist(request).enqueue(new Callback<Void>() {
+                @Override
+                public void onResponse(Call<Void> call, Response<Void> response) {
+                    System.out.println("URL blocked: " + url);
+                }
+
+                @Override
+                public void onFailure(Call<Void> call, Throwable t) {
+                    System.out.println("Failed to block URL: " + url);
+                }
+            });
+        }
+    }
+
+
+    private void testBlacklistAPI() {
+        EmailAPI emailAPI = BackendClient.get(this).create(EmailAPI.class);
+
+        // בדיקה פשוטה - הוסף URL לblacklist
+        EmailAPI.BlacklistRequest request = new EmailAPI.BlacklistRequest(
+                "http://test-spam.com",
+                "Test from Android app"
+        );
+
+        emailAPI.addToBlacklist(request).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    Toast.makeText(EmailDetailActivity.this,
+                            "URL added to blacklist", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(EmailDetailActivity.this,
+                            "Error: " + response.code(), Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                Toast.makeText(EmailDetailActivity.this,
+                        "Network error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void initAPI() {

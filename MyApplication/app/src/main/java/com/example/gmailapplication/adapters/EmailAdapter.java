@@ -19,6 +19,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
     private OnEmailClickListener listener;
     private OnEmailDeleteListener deleteListener;
     private OnStarClickListener starListener;
+    private OnEditDraftListener editDraftListener; // חדש
     private String currentUserEmail;
 
     public interface OnEmailClickListener {
@@ -33,6 +34,11 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
         void onStar(Email email);
     }
 
+    // חדש: ממשק לעריכת טיוטות
+    public interface OnEditDraftListener {
+        void onEditDraft(Email email);
+    }
+
     public EmailAdapter(OnEmailClickListener listener, String currentUserEmail) {
         this.listener = listener;
         this.currentUserEmail = currentUserEmail;
@@ -44,6 +50,11 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
     public void setStarListener(OnStarClickListener starListener) {
         this.starListener = starListener;
+    }
+
+    // חדש
+    public void setEditDraftListener(OnEditDraftListener editDraftListener) {
+        this.editDraftListener = editDraftListener;
     }
 
     public void updateEmails(List<Email> newEmails) {
@@ -81,7 +92,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
     class EmailViewHolder extends RecyclerView.ViewHolder {
         private TextView tvSender, tvSubject, tvPreview, tvTime;
         private TextView tvLabels;
-        private ImageView ivDelete, ivStar;
+        private ImageView ivDelete, ivStar, ivEdit; // הוסף ivEdit
 
         public EmailViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -92,6 +103,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
             tvLabels = itemView.findViewById(R.id.tvLabels);
             ivDelete = itemView.findViewById(R.id.ivDelete);
             ivStar = itemView.findViewById(R.id.ivStar);
+            ivEdit = itemView.findViewById(R.id.ivEdit); // הוסף אם קיים בlayout
 
             // לחיצה על המייל עצמו
             itemView.setOnClickListener(v -> {
@@ -122,14 +134,35 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
                     }
                 }
             });
+
+            // לחיצה על כפתור העריכה (טיוטות)
+            if (ivEdit != null) {
+                ivEdit.setOnClickListener(v -> {
+                    if (editDraftListener != null) {
+                        int position = getAdapterPosition();
+                        if (position != RecyclerView.NO_POSITION) {
+                            editDraftListener.onEditDraft(emails.get(position));
+                        }
+                    }
+                });
+            }
         }
 
         public void bind(Email email) {
+            boolean isDraft = isDraft(email);
+
             // Sender
             tvSender.setText(email.sender != null ? email.sender : "לא ידוע");
 
-            // Subject
-            tvSubject.setText(email.subject != null ? email.subject : "(ללא נושא)");
+            // Subject - הוסף אינדיקציה לטיוטה
+            String subject = email.subject != null ? email.subject : "(ללא נושא)";
+            if (isDraft) {
+                subject = "[טיוטה] " + subject;
+                tvSubject.setTextColor(android.graphics.Color.rgb(255, 152, 0)); // כתום
+            } else {
+                tvSubject.setTextColor(android.graphics.Color.BLACK); // צבע רגיל
+            }
+            tvSubject.setText(subject);
 
             // Preview
             String preview = email.content;
@@ -138,14 +171,39 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
             }
             tvPreview.setText(preview != null ? preview : "(ללא תוכן)");
 
-            // Time - just show timestamp as-is for now
+            // Time
             tvTime.setText(email.timestamp != null ? email.timestamp.substring(11, 16) : "");
 
             // Labels
             displayLabels(email);
 
-            // Star button
-            updateStarButton(email);
+            // הגדר כפתורים לפי סוג המייל
+            configureButtonsForEmailType(email, isDraft);
+        }
+
+        private void configureButtonsForEmailType(Email email, boolean isDraft) {
+            if (isDraft) {
+                // טיוטה: הסתר כוכב, הצג עריכה
+                ivStar.setVisibility(View.GONE);
+                if (ivEdit != null) {
+                    ivEdit.setVisibility(View.VISIBLE);
+                }
+                // מחיקה נשארת זמינה
+                ivDelete.setVisibility(View.VISIBLE);
+            } else {
+                // מייל רגיל: הצג כוכב, הסתר עריכה
+                ivStar.setVisibility(View.VISIBLE);
+                if (ivEdit != null) {
+                    ivEdit.setVisibility(View.GONE);
+                }
+                ivDelete.setVisibility(View.VISIBLE);
+                // עדכן כוכב
+                updateStarButton(email);
+            }
+        }
+
+        private boolean isDraft(Email email) {
+            return (email.labels != null && email.labels.contains("drafts"));
         }
 
         private void displayLabels(Email email) {

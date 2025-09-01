@@ -1,8 +1,15 @@
 package com.example.gmailapplication.shared;
 
 import com.google.gson.annotations.SerializedName;
+import androidx.room.Entity;
+import androidx.room.PrimaryKey;
 
+import androidx.annotation.NonNull; // השתמש בזה
+
+@Entity(tableName = "labels")
 public class Label {
+    @PrimaryKey
+    @NonNull
     public String id;          // UUID עבור תוויות מותאמות, או שם עבור תוויות מערכת
     public String name;        // שם התווית
     @SerializedName("isSystem")

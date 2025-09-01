@@ -7,6 +7,8 @@ import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.EmailAPI;
 import com.example.gmailapplication.repository.EmailRepository;
 import com.example.gmailapplication.shared.Email;
+
+import java.util.ArrayList;
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -314,8 +316,26 @@ public class InboxViewModel extends AndroidViewModel {
             @Override
             public void onResponse(Call<List<Email>> call, Response<List<Email>> response) {
                 isSearching.setValue(false);
-                if (response.isSuccessful() && response.body() != null) {
-                    searchResults.setValue(response.body());
+
+                System.out.println("=== SEARCH DEBUG ===");
+                System.out.println("Response code: " + response.code());
+                System.out.println("Response successful: " + response.isSuccessful());
+                System.out.println("Response body null: " + (response.body() == null));
+                if (response.body() != null) {
+                    System.out.println("Response body size: " + response.body().size());
+                }
+                System.out.println("===================");
+                if (response.isSuccessful()) {
+                    if (response.body() != null && !response.body().isEmpty()) {
+                        searchResults.setValue(response.body());
+                    } else {
+                        error.setValue("אין התאמות לתוצאות החיפוש שלך");
+                        searchResults.setValue(new ArrayList<>());
+                    }
+                } else if (response.code() == 404) {
+                    // השרת מחזיר 404 כשאין תוצאות
+                    error.setValue("אין התאמות לתוצאות החיפוש שלך");
+                    searchResults.setValue(new ArrayList<>());
                 } else {
                     error.setValue("שגיאה בחיפוש");
                     searchResults.setValue(null);

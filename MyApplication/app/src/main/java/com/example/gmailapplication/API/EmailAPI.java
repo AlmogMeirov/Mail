@@ -98,6 +98,16 @@ public interface EmailAPI {
     @DELETE("mails/{id}/permanent")
     Call<Void> deleteEmailPermanently(@Path("id") String emailId);
 
+    // === Blacklist Management ===
+    @GET("blacklist")
+    Call<BlacklistResponse> getBlacklist();
+
+    @POST("blacklist")
+    Call<Void> addToBlacklist(@Body BlacklistRequest request);
+
+    @DELETE("blacklist/{encodedUrl}")
+    Call<Void> removeFromBlacklist(@Path("encodedUrl") String encodedUrl);
+
     // === Request/Response classes ===
 
     class AddLabelRequest {
@@ -145,5 +155,30 @@ public interface EmailAPI {
     class DraftsResponse {
         public String message;
         public List<Email> drafts;
+    }
+
+
+
+    // Request/Response classes for Blacklist
+    class BlacklistRequest {
+        public String url;
+        public String reason;
+
+        public BlacklistRequest(String url, String reason) {
+            this.url = url;
+            this.reason = reason;
+        }
+    }
+
+    class BlacklistResponse {
+        public String message;
+        public int count;
+        public List<BlacklistEntry> data;
+    }
+
+    class BlacklistEntry {
+        public String url;
+        public String reason;
+        public String createdAt;
     }
 }

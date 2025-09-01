@@ -144,6 +144,14 @@ public class ComposeActivity extends AppCompatActivity {
         String subject = etSubject.getText().toString().trim();
         String content = etContent.getText().toString().trim();
 
+        String existingDraftId = getIntent().getStringExtra("draft_id");
+
+        if (!TextUtils.isEmpty(existingDraftId)) {
+            // זו טיוטה קיימת - אל תשמור שוב, רק הודע למשתמש
+            Toast.makeText(this, "הטיוטה כבר שמורה", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         // צור בקשת טיוטה
         SendEmailRequest draftRequest = new SendEmailRequest();
         draftRequest.sender = currentUserEmail;

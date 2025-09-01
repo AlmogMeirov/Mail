@@ -3,10 +3,13 @@ package com.example.gmailapplication.repository;
 import android.content.Context;
 import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.EmailAPI;
+import com.example.gmailapplication.data.dao.EmailDao;
+
 import retrofit2.Call;
 
 public class EmailRepository {
     private EmailAPI emailAPI;
+    private EmailDao emailDao;
 
     public EmailRepository(Context context) {
         emailAPI = BackendClient.get(context).create(EmailAPI.class);

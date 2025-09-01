@@ -85,6 +85,21 @@
 
         </LinearLayout>
 
+        <!-- כפתור עריכה (טיוטות) -->
+        <ImageView
+            android:id="@+id/ivEdit"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@android:drawable/ic_menu_edit"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="6dp"
+            android:layout_marginStart="8dp"
+            android:contentDescription="ערוך טיוטה"
+            android:tint="@android:color/holo_orange_dark"
+            android:visibility="gone" />
+
         <!-- כוכב -->
         <ImageView
             android:id="@+id/ivStar"
