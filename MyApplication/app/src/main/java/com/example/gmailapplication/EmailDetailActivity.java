@@ -41,6 +41,10 @@ public class EmailDetailActivity extends AppCompatActivity {
     private List<String> currentLabels = new ArrayList<>();
 
     private EmailAPI emailAPI;
+    private TextView tvSenderAvatar;
+
+// בתוך initViews(), הוסף:
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +76,7 @@ public class EmailDetailActivity extends AppCompatActivity {
         tvLabels = findViewById(R.id.tvLabels);
         layoutLabels = findViewById(R.id.layoutLabels);
         ivSpamIndicator = findViewById(R.id.ivSpamIndicator);
+        tvSenderAvatar = findViewById(R.id.tvSenderAvatar);
 
         Button btnReply = findViewById(R.id.btnReply);
         btnReply.setOnClickListener(v -> openReply());
@@ -340,6 +345,8 @@ public class EmailDetailActivity extends AppCompatActivity {
         }
         if (email.sender != null) {
             tvSender.setText("מאת: " + email.sender);
+            // הוסף לוגיקה לאווטאר
+            setupSenderAvatar(email.sender);
         }
 
         // קריטי: עדכן את currentLabels
@@ -367,30 +374,60 @@ public class EmailDetailActivity extends AppCompatActivity {
         displayLabels(currentLabels);
 
         // בדוק אם יש ספאם
+        checkForSpamIndicator(currentLabels);
 
+        // בדוק מצב המייל (trash/draft)
         boolean isInTrash = email.labels != null && email.labels.contains("trash");
         boolean isDraft = email.labels != null && email.labels.contains("drafts");
 
+        configureUIForEmailState(isInTrash, isDraft, email);
+    }
+
+    // הוסף method חדש לsetup של האווטאר:
+    private void setupSenderAvatar(String senderEmail) {
+        if (senderEmail != null && !senderEmail.isEmpty()) {
+            String firstLetter = senderEmail.substring(0, 1).toUpperCase();
+            tvSenderAvatar.setText(firstLetter);
+
+            // צבע רקע דינמי לפי האות הראשונה (אותה לוגיקה כמו ב-EmailAdapter)
+            int[] colors = {
+                    android.graphics.Color.parseColor("#1a73e8"), // כחול
+                    android.graphics.Color.parseColor("#34a853"), // ירוק
+                    android.graphics.Color.parseColor("#fbbc04"), // צהוב
+                    android.graphics.Color.parseColor("#ea4335"), // אדום
+                    android.graphics.Color.parseColor("#9c27b0"), // סגול
+                    android.graphics.Color.parseColor("#ff6f00"), // כתום
+            };
+
+            int colorIndex = Math.abs(firstLetter.hashCode()) % colors.length;
+            tvSenderAvatar.setBackgroundColor(colors[colorIndex]);
+        }
+    }
+
+    // הוסף method חדש לניהול מצב ה-UI:
+    private void configureUIForEmailState(boolean isInTrash, boolean isDraft, Email email) {
         Button btnReply = findViewById(R.id.btnReply);
         Button btnManageLabels = findViewById(R.id.btnManageLabels);
+        View cardTrashNotice = findViewById(R.id.cardTrashNotice);
+
         if (isInTrash) {
             // מייל באשפה - הסתר תגובה וניהול תוויות
             btnReply.setVisibility(View.GONE);
             btnManageLabels.setVisibility(View.GONE);
-
-            // הצג הודעה למשתמש
-            TextView tvTrashNotice = findViewById(R.id.tvTrashNotice); // צריך להוסיף ל-XML
-            if (tvTrashNotice != null) {
-                tvTrashNotice.setVisibility(View.VISIBLE);
-                tvTrashNotice.setText("מייל זה נמצא באשפה - פעולות מוגבלות");
-            }
-
-        } else if(isDraft){
-            // מייל רגיל - הצג תגובה
+            cardTrashNotice.setVisibility(View.VISIBLE);
+        } else if (isDraft) {
+            // טיוטה - הצג כפתור עריכה במקום תגובה
+            btnReply.setText("ערוך טיוטה");
+            btnReply.setOnClickListener(v -> editDraft(email));
+            btnManageLabels.setVisibility(View.VISIBLE);
+            cardTrashNotice.setVisibility(View.GONE);
+        } else {
+            // מייל רגיל - הצג הכל
             btnReply.setVisibility(View.VISIBLE);
+            btnManageLabels.setVisibility(View.VISIBLE);
+            cardTrashNotice.setVisibility(View.GONE);
         }
     }
-
     private void editDraft(Email email) {
         Intent intent = new Intent(this, ComposeActivity.class);
         intent.putExtra("is_draft", true);

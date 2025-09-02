@@ -2,6 +2,7 @@
 package com.example.gmailapplication;
 import android.app.DatePickerDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -28,6 +29,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+
 import com.example.gmailapplication.shared.*;
 
 import com.google.android.material.textfield.TextInputEditText;
@@ -65,6 +68,7 @@ public class RegisterActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        loadThemePreference();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
@@ -566,5 +570,11 @@ public class RegisterActivity extends AppCompatActivity {
         Calendar min = Calendar.getInstance();
         min.add(Calendar.YEAR, -120);
         return birth.after(min);
+    }
+
+    private void loadThemePreference() {
+        SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
+        int nightMode = prefs.getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        AppCompatDelegate.setDefaultNightMode(nightMode);
     }
 }

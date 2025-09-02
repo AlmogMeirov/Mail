@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -15,6 +16,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        loadThemePreference();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -64,6 +66,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void loadThemePreference() {
+        SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
+        int nightMode = prefs.getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        AppCompatDelegate.setDefaultNightMode(nightMode);
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -73,52 +81,3 @@ public class MainActivity extends AppCompatActivity {
     }
 }
 
-// activity_main.xml layout suggestion:
-/*
-<?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@android:color/white"
-    android:gravity="center">
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center">
-
-        <ImageView
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:src="@drawable/ic_email"
-            android:layout_marginBottom="24dp" />
-
-        <TextView
-            android:id="@+id/tvAppName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Gmail Application"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="@android:color/black"
-            android:layout_marginBottom="16dp" />
-
-        <TextView
-            android:id="@+id/tvLoading"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="טוען..."
-            android:textSize="16sp"
-            android:textColor="@android:color/darker_gray" />
-
-        <ProgressBar
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            style="?android:attr/progressBarStyle" />
-
-    </LinearLayout>
-
-</RelativeLayout>
-*/

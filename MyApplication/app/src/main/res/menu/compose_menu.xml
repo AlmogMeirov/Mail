@@ -1,15 +1,35 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <item
-        android:id="@+id/action_send"
-        android:title="שלח"
-        android:icon="@android:drawable/ic_menu_send"
-        app:showAsAction="always" />
+        <!-- כפתור שליחה -->
+        <item
+            android:id="@+id/action_send"
+            android:title="שלח"
+            android:icon="@android:drawable/ic_menu_send"
+            app:showAsAction="always"
+            app:iconTint="@color/gmail_blue" />
 
-    <item
-        android:id="@+id/action_save_draft"
-        android:title="שמור כטיוטה"
-        android:icon="@android:drawable/ic_menu_save"
-        app:showAsAction="ifRoom" />
+        <!-- כפתור שמירת טיוטה -->
+        <item
+            android:id="@+id/action_save_draft"
+            android:title="שמור טיוטה"
+            android:icon="@android:drawable/ic_menu_save"
+            app:showAsAction="ifRoom"
+            app:iconTint="@color/gmail_text_secondary" />
+
+        <!-- כפתורים נוספים בתפריט הגלילה -->
+        <item
+            android:id="@+id/action_attach_file"
+            android:title="צרף קובץ"
+            android:icon="@drawable/ic_attachment" />
+
+        <item
+            android:id="@+id/action_format_text"
+            android:title="עיצוב טקסט"
+            android:icon="@android:drawable/ic_menu_edit" />
+
+        <item
+            android:id="@+id/action_schedule_send"
+            android:title="תזמן שליחה"
+            android:icon="@android:drawable/ic_menu_my_calendar" />
 </menu>

@@ -1,9 +1,11 @@
 package com.example.gmailapplication.adapters;
 
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
@@ -19,9 +21,10 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
     private OnEmailClickListener listener;
     private OnEmailDeleteListener deleteListener;
     private OnStarClickListener starListener;
-    private OnEditDraftListener editDraftListener; // חדש
+    private OnEditDraftListener editDraftListener;
     private String currentUserEmail;
 
+    // הממשקים נשארים אותו דבר
     public interface OnEmailClickListener {
         void onEmailClick(Email email);
     }
@@ -34,7 +37,6 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
         void onStar(Email email);
     }
 
-    // חדש: ממשק לעריכת טיוטות
     public interface OnEditDraftListener {
         void onEditDraft(Email email);
     }
@@ -44,6 +46,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
         this.currentUserEmail = currentUserEmail;
     }
 
+    // Setters נשארים אותו דבר
     public void setDeleteListener(OnEmailDeleteListener deleteListener) {
         this.deleteListener = deleteListener;
     }
@@ -52,7 +55,6 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
         this.starListener = starListener;
     }
 
-    // חדש
     public void setEditDraftListener(OnEditDraftListener editDraftListener) {
         this.editDraftListener = editDraftListener;
     }
@@ -90,21 +92,32 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
     }
 
     class EmailViewHolder extends RecyclerView.ViewHolder {
-        private TextView tvSender, tvSubject, tvPreview, tvTime;
+        private TextView tvSenderAvatar, tvSender, tvSubject, tvPreview, tvTime;
         private TextView tvLabels;
-        private ImageView ivDelete, ivStar, ivEdit; // הוסף ivEdit
+        private LinearLayout layoutLabels, layoutIndicators;
+        private ImageView ivStar, ivMore, ivAttachment, ivImportant, ivSpamIndicator;
 
         public EmailViewHolder(@NonNull View itemView) {
             super(itemView);
+            // Views from new layout
+            tvSenderAvatar = itemView.findViewById(R.id.tvSenderAvatar);
             tvSender = itemView.findViewById(R.id.tvSender);
             tvSubject = itemView.findViewById(R.id.tvSubject);
             tvPreview = itemView.findViewById(R.id.tvPreview);
             tvTime = itemView.findViewById(R.id.tvTime);
             tvLabels = itemView.findViewById(R.id.tvLabels);
-            ivDelete = itemView.findViewById(R.id.ivDelete);
+            layoutLabels = itemView.findViewById(R.id.layoutLabels);
+            layoutIndicators = itemView.findViewById(R.id.layoutIndicators);
             ivStar = itemView.findViewById(R.id.ivStar);
-            ivEdit = itemView.findViewById(R.id.ivEdit); // הוסף אם קיים בlayout
+            ivMore = itemView.findViewById(R.id.ivMore);
+            ivAttachment = itemView.findViewById(R.id.ivAttachment);
+            ivImportant = itemView.findViewById(R.id.ivImportant);
+            ivSpamIndicator = itemView.findViewById(R.id.ivSpamIndicator);
 
+            setupClickListeners();
+        }
+
+        private void setupClickListeners() {
             // לחיצה על המייל עצמו
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
@@ -115,33 +128,26 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
                 }
             });
 
-            // לחיצה על כפתור המחיקה
-            ivDelete.setOnClickListener(v -> {
-                if (deleteListener != null) {
-                    int position = getAdapterPosition();
-                    if (position != RecyclerView.NO_POSITION) {
-                        deleteListener.onEmailDelete(emails.get(position));
-                    }
-                }
-            });
-
             // לחיצה על הכוכב
-            ivStar.setOnClickListener(v -> {
-                if (starListener != null) {
-                    int position = getAdapterPosition();
-                    if (position != RecyclerView.NO_POSITION) {
-                        starListener.onStar(emails.get(position));
-                    }
-                }
-            });
-
-            // לחיצה על כפתור העריכה (טיוטות)
-            if (ivEdit != null) {
-                ivEdit.setOnClickListener(v -> {
-                    if (editDraftListener != null) {
+            if (ivStar != null) {
+                ivStar.setOnClickListener(v -> {
+                    if (starListener != null) {
                         int position = getAdapterPosition();
                         if (position != RecyclerView.NO_POSITION) {
-                            editDraftListener.onEditDraft(emails.get(position));
+                            starListener.onStar(emails.get(position));
+                        }
+                    }
+                });
+            }
+
+            // לחיצה על כפתור More (תפריט אפשרויות)
+            if (ivMore != null) {
+                ivMore.setOnClickListener(v -> {
+                    if (deleteListener != null) {
+                        int position = getAdapterPosition();
+                        if (position != RecyclerView.NO_POSITION) {
+                            // כרגע נשתמש בזה למחיקה, אבל אפשר להוסיף PopupMenu
+                            deleteListener.onEmailDelete(emails.get(position));
                         }
                     }
                 });
@@ -150,95 +156,212 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
         public void bind(Email email) {
             boolean isDraft = isDraft(email);
+            boolean isSpam = isSpam(email);
+            boolean isImportant = isImportant(email);
+
+            // Avatar - אות ראשונה של השולח
+            setupSenderAvatar(email);
 
             // Sender
-            tvSender.setText(email.sender != null ? email.sender : "לא ידוע");
+            setupSender(email);
 
-            // Subject - הוסף אינדיקציה לטיוטה
-            String subject = email.subject != null ? email.subject : "(ללא נושא)";
-            if (isDraft) {
-                subject = "[טיוטה] " + subject;
-                tvSubject.setTextColor(android.graphics.Color.rgb(255, 152, 0)); // כתום
-            } else {
-                tvSubject.setTextColor(android.graphics.Color.BLACK); // צבע רגיל
-            }
-            tvSubject.setText(subject);
+            // Subject - הוסף אינדיקציה לטיוטה וספאם
+            setupSubject(email, isDraft, isSpam);
 
             // Preview
+            setupPreview(email);
+
+            // Time - פורמט יפה יותר
+            setupTime(email);
+
+            // Labels
+            setupLabels(email);
+
+            // הגדר אינדיקטורים (קבצים מצורפים, חשיבות, ספאם)
+            setupIndicators(email, isImportant, isSpam);
+
+            // הגדר כפתור כוכב
+            setupStarButton(email);
+
+            // הגדר כפתור More
+            setupMoreButton();
+        }
+
+        private void setupSenderAvatar(Email email) {
+            String senderEmail = email.sender != null ? email.sender : "?";
+            String firstLetter = senderEmail.substring(0, 1).toUpperCase();
+            tvSenderAvatar.setText(firstLetter);
+
+            // צבע רקע דינמי לפי האות הראשונה
+            int[] colors = {
+                    Color.parseColor("#1a73e8"), // כחול
+                    Color.parseColor("#34a853"), // ירוק
+                    Color.parseColor("#fbbc04"), // צהוב
+                    Color.parseColor("#ea4335"), // אדום
+                    Color.parseColor("#9c27b0"), // סגול
+                    Color.parseColor("#ff6f00"), // כתום
+            };
+
+            int colorIndex = Math.abs(firstLetter.hashCode()) % colors.length;
+            tvSenderAvatar.setBackgroundColor(colors[colorIndex]);
+        }
+
+        private void setupSender(Email email) {
+            String senderText = email.sender != null ? email.sender : "לא ידוע";
+
+            // אם זה מייל ששלחתי, הצג "אני" או "לעצמי"
+            if (currentUserEmail != null && currentUserEmail.equals(email.sender)) {
+                if (email.recipient != null && email.recipient.equals(currentUserEmail)) {
+                    senderText = "אני (לעצמי)";
+                } else {
+                    senderText = "אני";
+                }
+            }
+
+            tvSender.setText(senderText);
+        }
+
+        private void setupSubject(Email email, boolean isDraft, boolean isSpam) {
+            String subject = email.subject != null && !email.subject.trim().isEmpty()
+                    ? email.subject : "(ללא נושא)";
+
+            if (isDraft) {
+                subject = "טיוטה: " + subject;
+                tvSubject.setTextColor(Color.parseColor("#ff6f00")); // כתום
+            } else if (isSpam) {
+                tvSubject.setTextColor(Color.parseColor("#ea4335")); // אדום
+            } else {
+                tvSubject.setTextColor(Color.parseColor("#202124")); // שחור רגיל
+            }
+            tvSubject.setText(subject);
+        }
+
+        private void setupPreview(Email email) {
             String preview = email.content;
             if (preview != null && preview.length() > 100) {
                 preview = preview.substring(0, 100) + "...";
             }
             tvPreview.setText(preview != null ? preview : "(ללא תוכן)");
-
-            // Time
-            tvTime.setText(email.timestamp != null ? email.timestamp.substring(11, 16) : "");
-
-            // Labels
-            displayLabels(email);
-
-            // הגדר כפתורים לפי סוג המייל
-            configureButtonsForEmailType(email, isDraft);
         }
 
-        private void configureButtonsForEmailType(Email email, boolean isDraft) {
-            if (isDraft) {
-                // טיוטה: הסתר כוכב, הצג עריכה
-                ivStar.setVisibility(View.GONE);
-                if (ivEdit != null) {
-                    ivEdit.setVisibility(View.VISIBLE);
+        private void setupTime(Email email) {
+            if (email.timestamp != null) {
+                try {
+                    // פורמט זמן יפה יותר - רק שעה:דקה
+                    String timeStr = email.timestamp.length() > 16
+                            ? email.timestamp.substring(11, 16)
+                            : email.timestamp;
+                    tvTime.setText(timeStr);
+                } catch (Exception e) {
+                    tvTime.setText("--:--");
                 }
-                // מחיקה נשארת זמינה
-                ivDelete.setVisibility(View.VISIBLE);
             } else {
-                // מייל רגיל: הצג כוכב, הסתר עריכה
-                ivStar.setVisibility(View.VISIBLE);
-                if (ivEdit != null) {
-                    ivEdit.setVisibility(View.GONE);
-                }
-                ivDelete.setVisibility(View.VISIBLE);
-                // עדכן כוכב
-                updateStarButton(email);
+                tvTime.setText("--:--");
             }
+        }
+
+        private void setupLabels(Email email) {
+            if (email.labels != null && !email.labels.isEmpty()) {
+                // הצג רק תוויות מותאמות (לא מערכת)
+                List<String> customLabels = new ArrayList<>();
+                for (String label : email.labels) {
+                    if (!isSystemLabel(label)) {
+                        customLabels.add(label);
+                    }
+                }
+
+                if (!customLabels.isEmpty()) {
+                    String labelsText = customLabels.get(0); // הצג רק תווית אחת
+                    if (customLabels.size() > 1) {
+                        labelsText += " +" + (customLabels.size() - 1);
+                    }
+
+                    tvLabels.setText(labelsText);
+                    layoutLabels.setVisibility(View.VISIBLE);
+                } else {
+                    layoutLabels.setVisibility(View.GONE);
+                }
+            } else {
+                layoutLabels.setVisibility(View.GONE);
+            }
+        }
+
+        private void setupIndicators(Email email, boolean isImportant, boolean isSpam) {
+            boolean hasIndicators = false;
+
+            // Spam indicator
+            if (ivSpamIndicator != null) {
+                if (isSpam) {
+                    ivSpamIndicator.setVisibility(View.VISIBLE);
+                    hasIndicators = true;
+                } else {
+                    ivSpamIndicator.setVisibility(View.GONE);
+                }
+            }
+
+            // Important indicator
+            if (ivImportant != null) {
+                if (isImportant) {
+                    ivImportant.setVisibility(View.VISIBLE);
+                    hasIndicators = true;
+                } else {
+                    ivImportant.setVisibility(View.GONE);
+                }
+            }
+
+            // Attachment indicator (placeholder logic)
+            if (ivAttachment != null) {
+                // כרגע נסתיר כי אין לנו מידע על קבצים מצורפים
+                ivAttachment.setVisibility(View.GONE);
+            }
+
+            // הצג/הסתר את layout האינדיקטורים
+            if (layoutIndicators != null) {
+                layoutIndicators.setVisibility(hasIndicators ? View.VISIBLE : View.GONE);
+            }
+        }
+
+        private void setupStarButton(Email email) {
+            if (ivStar != null) {
+                boolean isStarred = email.labels != null && email.labels.contains("starred");
+
+                if (isStarred) {
+                    ivStar.setImageResource(android.R.drawable.btn_star_big_on);
+                    ivStar.setColorFilter(Color.parseColor("#fbbc04")); // צהוב זהב
+                } else {
+                    ivStar.setImageResource(android.R.drawable.btn_star_big_off);
+                    ivStar.setColorFilter(Color.parseColor("#9aa0a6")); // אפור בהיר
+                }
+            }
+        }
+
+        private void setupMoreButton() {
+            if (ivMore != null) {
+                // הצג כפתור More רק אם יש deleteListener
+                if (deleteListener != null) {
+                    ivMore.setVisibility(View.VISIBLE);
+                } else {
+                    ivMore.setVisibility(View.GONE);
+                }
+            }
+        }
+
+        private boolean isSystemLabel(String label) {
+            return label.equals("inbox") || label.equals("sent") || label.equals("drafts") ||
+                    label.equals("spam") || label.equals("starred") || label.equals("trash") ||
+                    label.equals("important");
         }
 
         private boolean isDraft(Email email) {
             return (email.labels != null && email.labels.contains("drafts"));
         }
 
-        private void displayLabels(Email email) {
-            if (email.labels != null && !email.labels.isEmpty()) {
-                StringBuilder labelsText = new StringBuilder("תוויות: ");
-
-                for (int i = 0; i < email.labels.size(); i++) {
-                    if (i > 0) labelsText.append(" • ");
-                    labelsText.append(email.labels.get(i));
-                }
-
-                tvLabels.setText(labelsText.toString());
-                tvLabels.setVisibility(View.VISIBLE);
-
-                // Debug
-                System.out.println("Email " + email.id + " labels: " + email.labels);
-
-            } else {
-                tvLabels.setVisibility(View.GONE);
-
-                // Debug
-                System.out.println("Email " + email.id + " has no labels");
-            }
+        private boolean isSpam(Email email) {
+            return (email.labels != null && email.labels.contains("spam"));
         }
 
-        private void updateStarButton(Email email) {
-            boolean isStarred = email.labels != null && email.labels.contains("starred");
-
-            if (isStarred) {
-                ivStar.setImageResource(android.R.drawable.btn_star_big_on);
-                ivStar.setColorFilter(android.graphics.Color.rgb(255, 193, 7)); // צהוב זהב
-            } else {
-                ivStar.setImageResource(android.R.drawable.btn_star_big_off);
-                ivStar.setColorFilter(android.graphics.Color.GRAY);
-            }
+        private boolean isImportant(Email email) {
+            return (email.labels != null && email.labels.contains("important"));
         }
     }
 }

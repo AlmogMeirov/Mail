@@ -1,6 +1,7 @@
 package com.example.gmailapplication;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -9,12 +10,14 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.lifecycle.ViewModelProvider;
@@ -55,6 +58,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        loadThemePreference();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_inbox);
         System.out.println("=== INBOX ACTIVITY STARTED ===");
@@ -83,6 +87,12 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         navigationView = findViewById(R.id.navigationView);
 
         setupFab(fab);
+    }
+
+    private void loadThemePreference() {
+        SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
+        int nightMode = prefs.getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        AppCompatDelegate.setDefaultNightMode(nightMode);
     }
 
     private void setupNavigationDrawer() {
@@ -530,30 +540,108 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
 
     private void setupHeader() {
         ImageView ivMenu = findViewById(R.id.ivMenu);
-        ImageView ivLogout = findViewById(R.id.ivLogout);
-        ImageView ivRefresh = findViewById(R.id.ivRefresh);
-        ImageView ivSearch = findViewById(R.id.ivSearch);
+        ImageView ivThemeToggle = findViewById(R.id.ivThemeToggle);
+        TextView tvProfileAvatar = findViewById(R.id.tvProfileAvatar);
+        LinearLayout searchBar = findViewById(R.id.searchBar);
 
-        // כפתור המבורגר - פתיחת Navigation Drawer
-        ivMenu.setOnClickListener(v -> {
-            if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                drawerLayout.closeDrawer(GravityCompat.START);
-            } else {
-                drawerLayout.openDrawer(GravityCompat.START);
+        // כפתור המבורגר
+        if (ivMenu != null) {
+            ivMenu.setOnClickListener(v -> {
+                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START);
+                } else {
+                    drawerLayout.openDrawer(GravityCompat.START);
+                }
+            });
+        }
+
+        // כפתור החלפת ערכת נושא
+        if (ivThemeToggle != null) {
+            updateThemeIcon(ivThemeToggle);
+            ivThemeToggle.setOnClickListener(v -> {
+                toggleTheme();
+                updateThemeIcon(ivThemeToggle);
+            });
+        }
+
+        // פרופיל אווטר - אפשרויות משתמש (רק רענן והתנתק עכשיו)
+        if (tvProfileAvatar != null) {
+            String userEmail = TokenManager.getCurrentUserEmail(this);
+            if (userEmail != null && !userEmail.isEmpty()) {
+                tvProfileAvatar.setText(userEmail.substring(0, 1).toUpperCase());
             }
-        });
 
-        ivLogout.setOnClickListener(v -> showLogoutConfirmation());
-        ivSearch.setOnClickListener(v -> showSearchDialog());
+            tvProfileAvatar.setOnClickListener(v -> showUserProfileMenu());
+        }
 
-        ivRefresh.setOnClickListener(v -> {
-            viewModel.refreshCurrentFilter();
-            Toast.makeText(this, "מרענן...", Toast.LENGTH_SHORT).show();
-        });
-
-        // ivSearch - לעתיד
+        // חיפוש
+        if (searchBar != null) {
+            searchBar.setOnClickListener(v -> showSearchDialog());
+        }
     }
 
+    private void updateThemeIcon(ImageView themeIcon) {
+        int currentMode = AppCompatDelegate.getDefaultNightMode();
+        if (currentMode == AppCompatDelegate.MODE_NIGHT_YES) {
+            // מצב כהה - הצג שמש (כדי לעבור למצב בהיר)
+            themeIcon.setImageResource(R.drawable.ic_theme_light);
+        } else {
+            // מצב בהיר - הצג ירח (כדי לעבור למצב כהה)
+            themeIcon.setImageResource(R.drawable.ic_theme_dark);
+        }
+    }
+
+    private void showUserProfileMenu() {
+        String[] options = {"רענן מיילים", "התנתק"};
+
+        new AlertDialog.Builder(this)
+                .setTitle("אפשרויות משתמש")
+                .setItems(options, (dialog, which) -> {
+                    switch (which) {
+                        case 0: // רענן
+                            viewModel.refreshCurrentFilter();
+                            Toast.makeText(this, "מרענן מיילים...", Toast.LENGTH_SHORT).show();
+                            break;
+                        case 1: // התנתק
+                            showLogoutConfirmation();
+                            break;
+                    }
+                })
+                .setNegativeButton("ביטול", null)
+                .show();
+    }
+
+    private void toggleTheme() {
+        int currentMode = AppCompatDelegate.getDefaultNightMode();
+        int newMode = (currentMode == AppCompatDelegate.MODE_NIGHT_YES) ?
+                AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_YES;
+
+        // שמור את ההעדפה
+        SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
+        prefs.edit().putInt("night_mode", newMode).apply();
+
+        // החלף את הערכת נושא
+        AppCompatDelegate.setDefaultNightMode(newMode);
+    }
+
+    private void showUserOptions() {
+        String[] options = {"רענן", "התנתק"};
+
+        new AlertDialog.Builder(this)
+                .setTitle("אפשרויות")
+                .setItems(options, (dialog, which) -> {
+                    switch (which) {
+                        case 0: // רענן
+                            viewModel.refreshCurrentFilter();
+                            Toast.makeText(this, "מרענן...", Toast.LENGTH_SHORT).show();
+                            break;
+                        case 1: // התנתק
+                            showLogoutConfirmation();
+                            break;
+                    }
+                })
+                .show();
+    }
 
     private void showSearchDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);

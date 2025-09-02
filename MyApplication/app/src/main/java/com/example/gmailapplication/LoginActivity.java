@@ -11,6 +11,7 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.gmailapplication.viewmodels.LoginViewModel;
@@ -30,6 +31,7 @@ public class LoginActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        loadThemePreference();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
@@ -227,5 +229,11 @@ public class LoginActivity extends AppCompatActivity {
 
     private void showToast(String msg) {
         android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show();
+    }
+
+    private void loadThemePreference() {
+        SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
+        int nightMode = prefs.getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        AppCompatDelegate.setDefaultNightMode(nightMode);
     }
 }

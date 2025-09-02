@@ -3,156 +3,213 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/gmail_background_light"
+    android:fitsSystemWindows="true">
 
-    <!-- Main Content (כל התוכן הקיים) -->
+    <!-- Main Content -->
     <androidx.coordinatorlayout.widget.CoordinatorLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/white">
+        android:background="@color/gmail_background_light">
 
-        <LinearLayout
+        <!-- App Bar Layout -->
+        <com.google.android.material.appbar.AppBarLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:layout_height="wrap_content"
+            android:background="@color/gmail_background_white"
+            android:elevation="4dp"
+            app:elevation="4dp">
 
-            <!-- Header -->
+            <!-- Search Bar Style Header -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="64dp"
                 android:orientation="horizontal"
                 android:padding="16dp"
                 android:gravity="center_vertical"
-                android:background="@android:color/holo_blue_dark">
+                android:background="@color/gmail_background_white">
 
-                <!-- כפתור המבורגר לפתיחת הDrawer -->
+                <!-- Menu Button -->
                 <ImageView
                     android:id="@+id/ivMenu"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_sort_by_size"
-                    android:tint="@android:color/white"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:padding="4dp"
-                    android:layout_marginEnd="12dp"
-                    android:contentDescription="תפריט" />
-
-                <ImageView
                     android:layout_width="32dp"
                     android:layout_height="32dp"
+                    android:src="@drawable/ic_hamburger_menu"
+                    android:tint="@color/gmail_text_secondary"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:padding="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:contentDescription="תפריט" />
+
+                <LinearLayout
+                    android:id="@+id/searchBar"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/search_bar_background"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="12dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@android:drawable/ic_menu_search"
+                        android:tint="@color/gmail_text_hint"
+                        android:layout_marginEnd="12dp" />
+
+                    <TextView
+                        android:id="@+id/tvWelcome"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="חפש בדואר"
+                        android:textColor="@color/gmail_text_hint"
+                        android:textSize="16sp"
+                        android:background="@android:color/transparent" />
+
+                </LinearLayout>
+
+                <!-- Theme Toggle Button -->
+                <ImageView
+                    android:id="@+id/ivThemeToggle"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/ic_theme_light"
+                    android:tint="@color/gmail_text_secondary"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:padding="6dp"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="8dp"
+                    android:contentDescription="החלף ערכת נושא" />
+
+                <!-- Profile Icon -->
+                <TextView
+                    android:id="@+id/tvProfileAvatar"
+                    style="@style/GmailAvatar"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:text="U"
+                    android:textSize="14sp"
+                    android:layout_marginStart="4dp"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>צ
+        </com.google.android.material.appbar.AppBarLayout>
+
+        <!-- Main Content Area -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+            <!-- Email List -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerViewEmails"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingTop="8dp"
+                android:paddingBottom="88dp"
+                android:scrollbars="vertical"
+                android:background="@color/gmail_background_light" />
+
+            <!-- Empty State -->
+            <LinearLayout
+                android:id="@+id/layoutEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:padding="32dp">
+
+                <ImageView
+                    android:layout_width="120dp"
+                    android:layout_height="120dp"
                     android:src="@android:drawable/ic_dialog_email"
-                    android:tint="@android:color/white"
-                    android:layout_marginEnd="12dp" />
+                    android:tint="@color/gmail_text_disabled"
+                    android:layout_marginBottom="24dp"
+                    android:alpha="0.6" />
 
                 <TextView
-                    android:id="@+id/tvWelcome"
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="דואר נכנס"
-                    android:textColor="@android:color/white"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
+                    android:text="אין מיילים"
+                    android:textSize="20sp"
+                    android:textColor="@color/gmail_text_secondary"
+                    android:layout_marginBottom="8dp" />
 
-                <ImageView
-                    android:id="@+id/ivRefresh"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_rotate"
-                    android:tint="@android:color/white"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:padding="4dp"
-                    android:layout_marginEnd="8dp"
-                    android:contentDescription="רענון" />
-
-                <ImageView
-                    android:id="@+id/ivSearch"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_search"
-                    android:tint="@android:color/white"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:padding="4dp"
-                    android:contentDescription="חיפוש" />
-
-                <ImageView
-                    android:id="@+id/ivLogout"
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
-                    android:src="@android:drawable/ic_menu_revert"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:padding="4dp"
-                    android:layout_marginStart="8dp"
-                    android:contentDescription="התנתק"
-                    app:tint="@android:color/white" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="כל המיילים שלך יופיעו כאן"
+                    android:textSize="14sp"
+                    android:textColor="@color/gmail_text_hint"
+                    android:gravity="center" />
 
             </LinearLayout>
 
-            <!-- Content with SwipeRefreshLayout -->
-            <FrameLayout
+            <!-- Loading State -->
+            <LinearLayout
+                android:id="@+id/layoutLoading"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1">
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:padding="32dp">
 
-                <!-- SwipeRefreshLayout עוטף את הRecyclerView -->
-                <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-                    android:id="@+id/swipeRefreshLayout"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent">
+                <ProgressBar
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp" />
 
-                    <!-- Email List -->
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/recyclerViewEmails"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:clipToPadding="false"
-                        android:paddingBottom="80dp" />
-
-                </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-
-                <!-- Empty State -->
                 <TextView
-                    android:id="@+id/tvEmpty"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:text="אין מיילים בדואר נכנס"
-                    android:textSize="18sp"
-                    android:textColor="@android:color/darker_gray"
-                    android:visibility="gone" />
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="טוען מיילים..."
+                    android:textSize="16sp"
+                    android:textColor="@color/gmail_text_secondary" />
 
-            </FrameLayout>
+            </LinearLayout>
 
-        </LinearLayout>
+        </FrameLayout>
 
         <!-- Floating Action Button -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabCompose"
+            style="@style/GmailFAB"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
             android:layout_margin="16dp"
-            android:src="@android:drawable/ic_dialog_email"
-            app:backgroundTint="@android:color/holo_blue_dark"
-            app:tint="@android:color/white"
+            android:src="@drawable/fab_compose_icon"
             android:contentDescription="כתוב מייל חדש" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <!-- Navigation Drawer -->
-    <!-- Navigation Drawer -->
-    <!-- Navigation Drawer -->
     <com.google.android.material.navigation.NavigationView
         android:id="@+id/navigationView"
+        style="@style/GmailNavigationView"
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="@android:color/white"
+        android:fitsSystemWindows="true"
         app:headerLayout="@layout/nav_header_main"
-        app:menu="@menu/nav_drawer_menu" />
+        app:menu="@menu/nav_drawer_menu"
+        app:itemIconTint="@color/gmail_text_secondary"
+        app:itemTextColor="@color/gmail_text_primary" />
 
 </androidx.drawerlayout.widget.DrawerLayout>

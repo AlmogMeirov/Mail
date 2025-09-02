@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -36,6 +37,7 @@ public class ComposeActivity extends AppCompatActivity {
     private String currentUserEmail;
 
     private boolean isSending = false;
+    private Button btnSend, btnSaveDraft;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -47,6 +49,14 @@ public class ComposeActivity extends AppCompatActivity {
         setupAPI();
         handleReplyData();
         setupBackPressHandler();
+
+        // כפתורים חדשים
+        btnSend = findViewById(R.id.btnSend);
+        btnSaveDraft = findViewById(R.id.btnSaveDraft);
+
+        // Setup listeners
+        btnSend.setOnClickListener(v -> sendEmail());
+        btnSaveDraft.setOnClickListener(v -> saveDraftToServer());
     }
 
     private void initViews() {
@@ -56,6 +66,8 @@ public class ComposeActivity extends AppCompatActivity {
         etContent = findViewById(R.id.etContent);
     }
 
+
+
     private void setupToolbar() {
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
@@ -63,6 +75,25 @@ public class ComposeActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("כתיבת מייל");
         }
     }
+
+    private void saveDraftToServer() {
+        String to = etTo.getText().toString().trim();
+        String subject = etSubject.getText().toString().trim();
+        String content = etContent.getText().toString().trim();
+
+        if (TextUtils.isEmpty(to) && TextUtils.isEmpty(subject) && TextUtils.isEmpty(content)) {
+            Toast.makeText(this, "אין תוכן לשמירה", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // יצירת בקשת טיוטה
+        // צריך להוסיף את זה ל-EmailAPI אם עדיין לא קיים
+        Toast.makeText(this, "שומר טיוטה...", Toast.LENGTH_SHORT).show();
+
+        // לעת עתה נשמור רק לוקלית
+        saveDraft();
+    }
+
 
     private void setupAPI() {
         emailAPI = BackendClient.get(this).create(EmailAPI.class);
