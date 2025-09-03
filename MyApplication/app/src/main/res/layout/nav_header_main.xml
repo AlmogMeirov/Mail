@@ -7,13 +7,14 @@
     android:padding="16dp"
     android:gravity="bottom">
 
-    <!-- לוגו Gmail -->
+    <!-- תמונת פרופיל -->
     <ImageView
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:src="@android:drawable/ic_dialog_email"
-        android:tint="@android:color/white"
-        android:layout_marginBottom="16dp" />
+        android:id="@+id/ivProfileImage"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:src="@drawable/ic_account_circle"
+        android:scaleType="centerCrop"
+        android:layout_marginBottom="8dp" />
 
     <!-- שם האפליקציה -->
     <TextView

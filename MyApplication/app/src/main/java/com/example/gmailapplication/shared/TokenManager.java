@@ -44,6 +44,30 @@ public class TokenManager {
         prefs.edit().clear().apply();
     }
 
+    public static String getCurrentUserId(Context context) {
+        String token = load(context);
+        if (token == null) return null;
+
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) return null;
+
+            String payload = new String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE));
+
+            // חפש את ה-sub field (זה ה-user ID)
+            int start = payload.indexOf("\"sub\":\"") + 7;
+            if (start == 6) return null; // לא נמצא
+
+            int end = payload.indexOf("\"", start);
+            if (end == -1) return null;
+
+            return payload.substring(start, end);
+        } catch (Exception e) {
+            System.out.println("Error parsing user ID from token: " + e.getMessage());
+            return null;
+        }
+    }
+
     public static boolean hasToken(Context context) {
         return load(context) != null;
     }

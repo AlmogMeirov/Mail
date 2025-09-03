@@ -3,6 +3,7 @@ package com.example.gmailapplication;
 import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -131,7 +132,7 @@ public class RegisterActivity extends AppCompatActivity {
 
     // --- Gender dropdown with both Hebrew and English values ---
     private void wireGenderDropdown() {
-        String[] genders = new String[]{"זכר", "נקבה", "אחר", "male", "female", "other"};
+        String[] genders = new String[]{"זכר", "נקבה", "אחר"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_dropdown_item_1line, genders);
         etGender.setAdapter(adapter);
@@ -191,24 +192,62 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     // --- Enhanced image processing with background thread ---
+    // הוסף זה ב-onImagePicked
     private void onImagePicked(Uri uri) {
-        if (uri == null) return;
+        System.out.println("=== IMAGE PICKED DEBUG ===");
+        System.out.println("URI: " + uri);
 
-        // Show loading state
+        if (uri == null) {
+            System.out.println("✗ URI is null");
+            return;
+        }
+
+        // בדוק אם אנחנו יכולים לקרוא את הקובץ
+        try {
+            String displayName = null;
+            long size = 0;
+
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
+
+                    if (nameIndex != -1) {
+                        displayName = cursor.getString(nameIndex);
+                    }
+                    if (sizeIndex != -1) {
+                        size = cursor.getLong(sizeIndex);
+                    }
+                }
+            }
+
+            System.out.println("File name: " + displayName);
+            System.out.println("File size: " + size + " bytes (" + (size/1024) + " KB)");
+
+        } catch (Exception e) {
+            System.out.println("Error reading file info: " + e.getMessage());
+        }
+
+        // המשך עם הקוד הרגיל...
         btnPickImage.setEnabled(false);
         btnPickImage.setText("טוען תמונה...");
 
-        // Process image in background thread
         new Thread(() -> {
             try {
                 byte[] imageBytes = readImageBytes(uri);
+
+                System.out.println("=== IMAGE PROCESSING RESULT ===");
+                System.out.println("Image bytes: " + (imageBytes != null ? imageBytes.length + " bytes" : "null"));
 
                 runOnUiThread(() -> {
                     btnPickImage.setEnabled(true);
 
                     if (imageBytes != null) {
                         avatarBase64 = Base64.encodeToString(imageBytes, Base64.NO_WRAP);
-                        btnPickImage.setText("תמונה נבחרה");
+                        System.out.println("Base64 encoded length: " + avatarBase64.length());
+                        System.out.println("Base64 sample (first 50 chars): " + avatarBase64.substring(0, Math.min(50, avatarBase64.length())));
+
+                        btnPickImage.setText("תמונה נבחרה ✓");
                         showToast("תמונת פרופיל נבחרה בהצלחה");
                     } else {
                         btnPickImage.setText("בחר תמונת פרופיל");
@@ -216,6 +255,8 @@ public class RegisterActivity extends AppCompatActivity {
                     }
                 });
             } catch (Exception e) {
+                System.out.println("=== IMAGE PROCESSING ERROR ===");
+                e.printStackTrace();
                 runOnUiThread(() -> {
                     btnPickImage.setEnabled(true);
                     btnPickImage.setText("בחר תמונת פרופיל");
@@ -224,7 +265,6 @@ public class RegisterActivity extends AppCompatActivity {
             }
         }).start();
     }
-
     // --- Helper method to read image bytes ---
     private byte[] readImageBytes(Uri uri) {
         try (InputStream in = getContentResolver().openInputStream(uri)) {
@@ -341,9 +381,18 @@ public class RegisterActivity extends AppCompatActivity {
         }
 
         // Profile picture
+        System.out.println("=== AVATAR DEBUG ===");
+        System.out.println("avatarBase64 is null: " + (avatarBase64 == null));
+        System.out.println("avatarBase64 is empty: " + (avatarBase64 != null && avatarBase64.isEmpty()));
+        System.out.println("avatarBase64 length: " + (avatarBase64 != null ? avatarBase64.length() : 0));
+        System.out.println("avatarMime: " + avatarMime);
+
         if (!TextUtils.isEmpty(avatarBase64)) {
             String dataUrl = "data:" + avatarMime + ";base64," + avatarBase64;
             request.profilePicture = dataUrl;
+            System.out.println("✓ Setting profilePicture, length: " + dataUrl.length());
+        } else {
+            System.out.println("✗ No avatar to send");
         }
 
         return request;

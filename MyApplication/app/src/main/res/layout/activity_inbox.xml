@@ -44,6 +44,17 @@
                     android:layout_marginEnd="8dp"
                     android:contentDescription="תפריט" />
 
+                <!-- Profile Image in Header - FIXED -->
+                <ImageView
+                    android:id="@+id/ivProfileImageHeader"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_account_circle"
+                    android:scaleType="centerCrop"
+                    android:layout_marginEnd="12dp"
+                    android:layout_marginStart="4dp"
+                    android:contentDescription="תמונת פרופיל" />
+
                 <LinearLayout
                     android:id="@+id/searchBar"
                     android:layout_width="0dp"
@@ -104,7 +115,7 @@
                     android:clickable="true"
                     android:focusable="true" />
 
-            </LinearLayout>צ
+            </LinearLayout>
         </com.google.android.material.appbar.AppBarLayout>
 
         <!-- Main Content Area -->

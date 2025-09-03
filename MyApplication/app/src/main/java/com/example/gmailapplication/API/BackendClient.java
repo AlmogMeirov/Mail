@@ -30,6 +30,7 @@ public final class BackendClient {
     private static String getServerUrl() {
         return "http://10.0.2.2:3000/api/";
     }
+
     public static Retrofit get(Context ctx) {
         if (INSTANCE == null) {
             synchronized (BackendClient.class) {
@@ -67,28 +68,40 @@ public final class BackendClient {
                                         System.out.println("Response code: " + response.code());
                                         System.out.println("Response message: " + response.message());
 
-                                        // קריאת התוכן הגולמי של התגובה
-                                        String responseBodyString = null;
-                                        try {
-                                            if (response.body() != null) {
-                                                ResponseBody responseBody = response.body();
-                                                responseBodyString = responseBody.string();
-                                                System.out.println("=== RAW RESPONSE BODY ===");
-                                                System.out.println("Body length: " + responseBodyString.length());
-                                                System.out.println("Body content: " + responseBodyString);
-                                                System.out.println("Content-Type: " + response.header("Content-Type"));
-                                                System.out.println("========================");
+                                        // בדיקה אם זה תמונה או JSON
+                                        String contentType = response.header("Content-Type", "");
+                                        System.out.println("Content-Type: " + contentType);
 
-                                                // יצירת ResponseBody חדש כי קראנו את המקורי
-                                                MediaType contentType = responseBody.contentType();
-                                                ResponseBody newBody = ResponseBody.create(contentType, responseBodyString);
-                                                response = response.newBuilder().body(newBody).build();
-                                            } else {
-                                                System.out.println("=== NO RESPONSE BODY ===");
+                                        if (contentType.startsWith("image/")) {
+                                            // עבור תמונות - אל תקרא את התוכן כ-String כי זה משבש אותן
+                                            System.out.println("=== IMAGE RESPONSE ===");
+                                            System.out.println("Content-Length: " + response.header("Content-Length"));
+                                            System.out.println("Image type: " + contentType);
+                                            System.out.println("Passing image data without modification");
+                                            System.out.println("======================");
+                                        } else {
+                                            // עבור JSON/text - קרא את התוכן לדיבוג
+                                            String responseBodyString = null;
+                                            try {
+                                                if (response.body() != null) {
+                                                    ResponseBody responseBody = response.body();
+                                                    responseBodyString = responseBody.string();
+                                                    System.out.println("=== JSON RESPONSE BODY ===");
+                                                    System.out.println("Body length: " + responseBodyString.length());
+                                                    System.out.println("Body content: " + responseBodyString);
+                                                    System.out.println("==========================");
+
+                                                    // יצירת ResponseBody חדש כי קראנו את המקורי
+                                                    MediaType mediaType = responseBody.contentType();
+                                                    ResponseBody newBody = ResponseBody.create(mediaType, responseBodyString);
+                                                    response = response.newBuilder().body(newBody).build();
+                                                } else {
+                                                    System.out.println("=== NO RESPONSE BODY ===");
+                                                }
+                                            } catch (Exception e) {
+                                                System.out.println("Error reading response body: " + e.getMessage());
+                                                e.printStackTrace();
                                             }
-                                        } catch (Exception e) {
-                                            System.out.println("Error reading response body: " + e.getMessage());
-                                            e.printStackTrace();
                                         }
 
                                         // אם יש שגיאת 401, הדפס פרטים נוספים

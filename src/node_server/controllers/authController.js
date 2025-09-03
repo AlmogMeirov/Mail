@@ -18,48 +18,16 @@ const SECRET = process.env.JWT_SECRET || "dev_only_replace";
 
 // --- helpers ---
 const dataUrlRegex = /^data:(image\/(png|jpeg|jpg|webp));base64,/i;
-function parseAvatarFromDataUrlOrBase64(avatarStr) {
-  if (!avatarStr) return null;
-  let contentType = "image/png";
-  let b64 = avatarStr;
 
-  if (dataUrlRegex.test(avatarStr)) {
-    const parts = avatarStr.split(";base64,");
-    if (parts.length !== 2) throw new Error("Invalid data URL");
-    contentType = parts[0].split(":")[1];
-    b64 = parts[1];
-  }
-  const buf = Buffer.from(b64, "base64");
-  if (!buf.length) throw new Error("Invalid base64");
-  if (buf.length > 2 * 1024 * 1024) throw new Error("Avatar too large (max 2MB)");
+// הוסף debug מפורט ב-authController.js:
 
-  // very light magic bytes check
-  const isPng = buf.slice(0, 8).toString("hex") === "89504e470d0a1a0a";
-  const isJpeg = buf.slice(0, 3).toString("hex") === "ffd8ff";
-  const isRiff = buf.slice(0, 4).toString("ascii").toUpperCase() === "RIFF"; // webp
-  if (!isPng && !isJpeg && !isRiff) throw new Error("Invalid image data");
-
-  return { data: buf, contentType };
-}
-
-async function parseAvatarFromUploadedFile(file) {
-  if (!file) return null;
-  const bytes = await fs.readFile(file.path);
-  if (bytes.length > 2 * 1024 * 1024) throw new Error("Avatar too large (max 2MB)");
-  const ct = file.mimetype || "application/octet-stream";
-
-  // light magic bytes check
-  const isPng = bytes.slice(0, 8).toString("hex") === "89504e470d0a1a0a";
-  const isJpeg = bytes.slice(0, 3).toString("hex") === "ffd8ff";
-  const isRiff = bytes.slice(0, 4).toString("ascii").toUpperCase() === "RIFF";
-  if (!isPng && !isJpeg && !isRiff) throw new Error("Invalid image data");
-
-  return { data: bytes, contentType: ct };
-}
-
-// --- Controller: POST /register ---
 async function register(req, res) {
   try {
+    console.log("=== REGISTER DEBUG START ===");
+    console.log("Request body keys:", Object.keys(req.body || {}));
+    console.log("Has file:", !!req.file);
+    console.log("ProfilePicture field:", !!req.body.profilePicture);
+    
     // pull fields from body (multer text fields also come on req.body)
     const {
       firstName,
@@ -75,6 +43,14 @@ async function register(req, res) {
     // 1) multer file (req.file)
     // 2) JSON field "profilePicture" (data URL or base64)
     const profilePicture = req.body.profilePicture || null;
+    
+    console.log("=== AVATAR PROCESSING ===");
+    console.log("Profile picture from request:", !!profilePicture);
+    if (profilePicture) {
+      console.log("Profile picture type:", typeof profilePicture);
+      console.log("Profile picture length:", profilePicture.length);
+      console.log("Profile picture sample:", profilePicture.substring(0, 100));
+    }
 
     // minimal required validation (keep it simple here; you can plug Zod if you want)
     if (!firstName || !lastName || !password || !email) {
@@ -94,11 +70,19 @@ async function register(req, res) {
     let avatarDoc = null;
     try {
       if (req.file) {
+        console.log("Processing multer file...");
         avatarDoc = await parseAvatarFromUploadedFile(req.file);
       } else if (profilePicture) {
+        console.log("Processing profilePicture field...");
         avatarDoc = parseAvatarFromDataUrlOrBase64(profilePicture);
+        console.log("Avatar parsed successfully:", {
+          hasData: !!avatarDoc?.data,
+          dataLength: avatarDoc?.data?.length || 0,
+          contentType: avatarDoc?.contentType
+        });
       }
     } catch (e) {
+      console.error("Avatar processing error:", e.message);
       return res.status(400).json({ error: e.message || "Invalid avatar" });
     } finally {
       // cleanup multer tmp file if present
@@ -106,6 +90,9 @@ async function register(req, res) {
         try { await fs.unlink(req.file.path); } catch { }
       }
     }
+
+    console.log("=== CREATING USER ===");
+    console.log("Has avatar:", !!avatarDoc);
 
     // persist user in Mongo
     const user = await User.create({
@@ -116,8 +103,12 @@ async function register(req, res) {
       gender: String(gender || "").toLowerCase().trim() || "other",
       birthDate: birthDate ? new Date(birthDate) : null,
       phone: String(phone || "").trim(),
-      avatar: avatarDoc || undefined,
+      avatar: avatarDoc || undefined, // ודא שזה undefined ולא null
     });
+
+    console.log("=== USER CREATED ===");
+    console.log("User ID:", user._id.toString());
+    console.log("User has avatar:", !!user.avatar);
 
     // FIXED: Add user to inboxMap (temporary until we migrate fully to MongoDB)
     if (inboxMap) {
@@ -139,7 +130,10 @@ async function register(req, res) {
       id: user._id.toString(),
       email: user.email,
       name: `${user.firstName} ${user.lastName}`,
-      profileImage: avatarDoc ? { contentType: avatarDoc.contentType, size: avatarDoc.data.length } : null,
+      profilePicture: avatarDoc ? { 
+        contentType: avatarDoc.contentType, 
+        size: avatarDoc.data.length 
+      } : null,
     });
   } catch (err) {
     console.error("POST /register error:", err);
@@ -147,6 +141,54 @@ async function register(req, res) {
   }
 }
 
+// גם תוסיף debug ב-parseAvatarFromDataUrlOrBase64:
+function parseAvatarFromDataUrlOrBase64(avatarStr) {
+  console.log("=== PARSE AVATAR DEBUG ===");
+  console.log("Input type:", typeof avatarStr);
+  console.log("Input length:", avatarStr?.length || 0);
+  console.log("Input sample:", avatarStr?.substring(0, 50) || "empty");
+  
+  if (!avatarStr) return null;
+  
+  let contentType = "image/png";
+  let b64 = avatarStr;
+
+  if (dataUrlRegex.test(avatarStr)) {
+    console.log("Detected data URL format");
+    const parts = avatarStr.split(";base64,");
+    if (parts.length !== 2) throw new Error("Invalid data URL");
+    contentType = parts[0].split(":")[1];
+    b64 = parts[1];
+  } else {
+    console.log("Assuming raw base64 format");
+  }
+  
+  console.log("Content type:", contentType);
+  console.log("Base64 length:", b64.length);
+  
+  const buf = Buffer.from(b64, "base64");
+  console.log("Buffer created, length:", buf.length);
+  
+  if (!buf.length) throw new Error("Invalid base64");
+  if (buf.length > 2 * 1024 * 1024) throw new Error("Avatar too large (max 2MB)");
+
+  // very light magic bytes check
+  const isPng = buf.slice(0, 8).toString("hex") === "89504e470d0a1a0a";
+  const isJpeg = buf.slice(0, 3).toString("hex") === "ffd8ff";
+  const isRiff = buf.slice(0, 4).toString("ascii").toUpperCase() === "RIFF"; // webp
+  
+  console.log("Image validation:", { isPng, isJpeg, isRiff });
+  
+  if (!isPng && !isJpeg && !isRiff) throw new Error("Invalid image data");
+
+  const result = { data: buf, contentType };
+  console.log("Parse successful:", {
+    contentType: result.contentType,
+    dataLength: result.data.length
+  });
+  
+  return result;
+}
 // --- Controller: POST /login ---
 async function login(req, res) {
   try {
@@ -216,4 +258,59 @@ async function getCurrentUser(req, res) {
   }
 }
 
-module.exports = { register, login, getCurrentUser };
+const getAvatar = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    console.log(`[AVATAR] Getting avatar for user: ${userId}`);
+    
+    const user = await User.findById(userId).select('avatar');
+    if (!user) {
+      console.log(`[AVATAR] User not found: ${userId}`);
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    if (!user.avatar || !user.avatar.data) {
+      console.log(`[AVATAR] Avatar not found for user: ${userId}`);
+      return res.status(404).json({ error: "Avatar not found" });
+    }
+
+    console.log(`[AVATAR] Found avatar data`);
+    console.log(`[AVATAR] Data type: ${typeof user.avatar.data}`);
+    console.log(`[AVATAR] Is Buffer: ${Buffer.isBuffer(user.avatar.data)}`);
+    console.log(`[AVATAR] Content type: ${user.avatar.contentType}`);
+
+    res.set({
+      'Content-Type': user.avatar.contentType || 'image/png',
+      'Cache-Control': 'public, max-age=86400'
+    });
+    
+    if (Buffer.isBuffer(user.avatar.data)) {
+      console.log(`[AVATAR] Sending Buffer of size: ${user.avatar.data.length}`);
+      return res.send(user.avatar.data);
+    }
+    
+    if (user.avatar.data && user.avatar.data.buffer) {
+      console.log(`[AVATAR] Converting MongoDB Buffer object to Buffer`);
+      const buffer = Buffer.from(user.avatar.data.buffer);
+      console.log(`[AVATAR] Converted buffer size: ${buffer.length}`);
+      return res.send(buffer);
+    }
+    
+    if (typeof user.avatar.data === 'string') {
+      console.log(`[AVATAR] Converting base64 string to Buffer`);
+      const buffer = Buffer.from(user.avatar.data, 'base64');
+      return res.send(buffer);
+    }
+    
+    console.log(`[AVATAR] Trying to convert unknown format to Buffer`);
+    console.log(`[AVATAR] Raw data sample:`, user.avatar.data.toString().substring(0, 100));
+    const buffer = Buffer.from(user.avatar.data);
+    console.log(`[AVATAR] Final buffer size: ${buffer.length}`);
+    return res.send(buffer);
+    
+  } catch (err) {
+    console.error("Error getting avatar:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+module.exports = { register, login, getCurrentUser, getAvatar };

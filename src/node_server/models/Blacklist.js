@@ -2,16 +2,15 @@
 const mongoose = require('mongoose');
 
 const blacklistSchema = new mongoose.Schema({
-    // URL שברשימה השחורה
+  
     url: {
         type: String,
         required: true,
-        unique: true, // מונע כפילויות
+        unique: true,
         trim: true,
-        index: true // לשאילתות מהירות
+        index: true 
     },
     
-    // מי הוסיף את ה-URL (אופציונלי)
     addedBy: {
         type: String,
         match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
@@ -19,7 +18,7 @@ const blacklistSchema = new mongoose.Schema({
         default: null
     },
     
-    // סיבת הוספה (אופציונלי)
+   
     reason: {
         type: String,
         trim: true,
@@ -27,7 +26,7 @@ const blacklistSchema = new mongoose.Schema({
         default: "Spam detection"
     }
 }, {
-    timestamps: true // מוסיף createdAt ו-updatedAt אוטומטית
+    timestamps: true 
 });
 
 // Static methods for easy usage
@@ -40,7 +39,7 @@ blacklistSchema.statics.addUrl = async function(url, addedBy = null, reason = nu
     try {
         const blacklistEntry = new this({
             url: url.trim(),
-            addedBy: addedBy, // יכול להיות null
+            addedBy: addedBy, 
             reason: reason || "Spam detection"
         });
         return await blacklistEntry.save();
@@ -54,7 +53,7 @@ blacklistSchema.statics.addUrl = async function(url, addedBy = null, reason = nu
 
 blacklistSchema.statics.removeUrl = async function(url) {
     const result = await this.findOneAndDelete({ url: url.trim() });
-    return !!result; // החזר true אם נמחק, false אם לא נמצא
+    return !!result; 
 };
 
 blacklistSchema.statics.getAllUrls = async function() {

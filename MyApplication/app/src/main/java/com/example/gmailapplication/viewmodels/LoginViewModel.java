@@ -169,7 +169,6 @@ public class LoginViewModel extends AndroidViewModel {
     // החלף את השיטה fetchUserData() הקיימת בקובץ LoginViewModel.java עם הקוד הזה:
 
     private void fetchUserData(LoginResponse loginResponse) {
-        // *** קודם כל שמור את הטוקן ב-TokenManager ***
         com.example.gmailapplication.shared.TokenManager.save(getApplication(), loginResponse.token);
 
         String authHeader = "Bearer " + loginResponse.token;
@@ -185,12 +184,23 @@ public class LoginViewModel extends AndroidViewModel {
                     UserDto user = response.body();
                     if (user != null) {
                         System.out.println("User email: " + user.email);
-                        System.out.println("User name: " + user.name);
+                        System.out.println("User name: " + user.getFullName());
+                        System.out.println("User ID: " + user.getId());
+                        System.out.println("Raw id field: " + user.id);
+                        System.out.println("Raw _id field: " + user._id);
 
-                        // שמור את נתוני המשתמש ואת תגובת ההתחברות
+                        // שמירת נתוני משתמש ב-SharedPreferences
+                        android.content.SharedPreferences prefs = getApplication().getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE);
+                        prefs.edit()
+                                .putString("user_id", user.getId())
+                                .putString("user_email", user.email)
+                                .putString("user_name", user.getFullName())
+                                .apply();
+
+                        System.out.println("Saved user ID to SharedPreferences: " + user.getId());
+
                         currentUser.setValue(user);
                         loginResult.setValue(loginResponse);
-
                         successMessage.setValue("התחברות מוצלחת!");
                     } else {
                         errorMessage.setValue("שגיאה בקבלת נתוני משתמש - response body is null");

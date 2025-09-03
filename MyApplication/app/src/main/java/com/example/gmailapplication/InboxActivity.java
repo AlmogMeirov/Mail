@@ -2,6 +2,12 @@ package com.example.gmailapplication;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -26,6 +32,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.LabelAPI;
+import com.example.gmailapplication.API.UserAPI;
 import com.example.gmailapplication.adapters.EmailAdapter;
 import com.example.gmailapplication.shared.CreateLabelRequest;
 import com.example.gmailapplication.shared.Email;
@@ -36,9 +43,11 @@ import com.example.gmailapplication.viewmodels.InboxViewModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -109,12 +118,28 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
 
         // Find views in header
         TextView tvUserEmail = headerView.findViewById(R.id.tvUserEmail);
+        ImageView ivProfileImage = headerView.findViewById(R.id.ivProfileImage); // הוסף את זה
         Button btnCreateNewLabel = headerView.findViewById(R.id.btnCreateNewLabel);
+
+
 
         // Set current user email
         String currentUserEmail = TokenManager.getCurrentUserEmail(this);
+        String currentUserId = TokenManager.getCurrentUserId(this); // הוסף את זה
+
+        System.out.println("=== NAVIGATION HEADER DEBUG ===");
+        System.out.println("User email: " + currentUserEmail);
+        System.out.println("User ID: " + currentUserId);
+
         if (currentUserEmail != null) {
             tvUserEmail.setText(currentUserEmail);
+
+            // הוסף את זה:
+            if (currentUserId != null && ivProfileImage != null) {
+                loadProfileImage(currentUserId, ivProfileImage);
+            } else {
+                System.out.println("User ID is null or ImageView not found - cannot load avatar");
+            }
         }
 
         // Setup create label button
@@ -122,6 +147,127 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             drawerLayout.closeDrawer(GravityCompat.START);
             showCreateLabelDialog();
         });
+    }
+
+    // הוסף את זה ל-InboxActivity.java
+
+    private void loadProfileImage(String userId, ImageView imageView) {
+        System.out.println("=== LOADING AVATAR FOR USER: " + userId + " ===");
+        System.out.println("ImageView: " + imageView.toString());
+
+        UserAPI userAPI = BackendClient.get(this).create(UserAPI.class);
+
+        userAPI.getAvatar(userId).enqueue(new Callback<ResponseBody>() {
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                System.out.println("=== AVATAR API RESPONSE ===");
+                System.out.println("Response code: " + response.code());
+                System.out.println("Response successful: " + response.isSuccessful());
+                System.out.println("Response body exists: " + (response.body() != null));
+
+                if (response.isSuccessful() && response.body() != null) {
+                    try {
+                        byte[] imageBytes = response.body().bytes();
+                        System.out.println("✓ Image loaded successfully, size: " + imageBytes.length + " bytes");
+
+                        // בדיקת magic bytes - האם זה באמת PNG?
+                        if (imageBytes.length >= 8) {
+                            String header = String.format("%02X%02X%02X%02X%02X%02X%02X%02X",
+                                    imageBytes[0], imageBytes[1], imageBytes[2], imageBytes[3],
+                                    imageBytes[4], imageBytes[5], imageBytes[6], imageBytes[7]);
+                            System.out.println("Image header (first 8 bytes): " + header);
+
+                            // PNG header should be: 89504E470D0A1A0A
+                            boolean isPNG = header.equals("89504E470D0A1A0A");
+                            System.out.println("Is valid PNG: " + isPNG);
+                        }
+
+                        // נסה פענוח עם BitmapFactory options
+                        BitmapFactory.Options options = new BitmapFactory.Options();
+                        options.inJustDecodeBounds = true; // רק מידע, לא פענוח
+                        BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length, options);
+
+                        System.out.println("Image format: " + options.outMimeType);
+                        System.out.println("Image dimensions: " + options.outWidth + "x" + options.outHeight);
+
+                        // עכשיו פענוח אמיתי
+                        options.inJustDecodeBounds = false;
+                        Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length, options);
+
+                        System.out.println("✓ Bitmap decoded successfully: " + (bitmap != null));
+
+                        if (bitmap != null) {
+                            System.out.println("Bitmap config: " + bitmap.getConfig());
+                            System.out.println("Bitmap size: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+
+                            runOnUiThread(() -> {
+                                System.out.println("=== SETTING IMAGE ON UI THREAD ===");
+                                System.out.println("ImageView before: " + imageView.getDrawable());
+
+                                // שים תמונה עגולה
+                                Bitmap circularBitmap = createCircularBitmap(bitmap);
+                                imageView.setImageBitmap(circularBitmap);
+
+                                System.out.println("✓ ImageView updated successfully");
+                                System.out.println("ImageView after: " + imageView.getDrawable());
+                            });
+                        } else {
+                            System.out.println("✗ Bitmap decoding failed - using default image");
+                            runOnUiThread(() -> {
+                                imageView.setImageResource(R.drawable.ic_account_circle);
+                            });
+                        }
+                    } catch (Exception e) {
+                        System.out.println("✗ Exception in image processing: " + e.getMessage());
+                        e.printStackTrace();
+                        runOnUiThread(() -> {
+                            imageView.setImageResource(R.drawable.ic_account_circle);
+                        });
+                    }
+                } else {
+                    System.out.println("✗ API response failed or empty body");
+                    System.out.println("Response code: " + response.code());
+                    System.out.println("Response message: " + response.message());
+                    runOnUiThread(() -> {
+                        imageView.setImageResource(R.drawable.ic_account_circle);
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                System.out.println("=== AVATAR API FAILURE ===");
+                System.out.println("✗ Failed to load avatar: " + t.getMessage());
+                t.printStackTrace();
+                runOnUiThread(() -> {
+                    imageView.setImageResource(R.drawable.ic_account_circle);
+                });
+            }
+        });
+    }
+
+    // גם ודא שהפונקציה createCircularBitmap עובדת טוב
+    private Bitmap createCircularBitmap(Bitmap bitmap) {
+        System.out.println("=== CREATING CIRCULAR BITMAP ===");
+        System.out.println("Input bitmap: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        int size = Math.min(width, height);
+
+        Bitmap output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(output);
+
+        Paint paint = new Paint();
+        paint.setAntiAlias(true);
+
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint);
+        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+
+        canvas.drawBitmap(bitmap, (size - width) / 2f, (size - height) / 2f, paint);
+
+        System.out.println("✓ Circular bitmap created: " + output.getWidth() + "x" + output.getHeight());
+        return output;
     }
 
     private void loadCustomLabels() {
@@ -543,6 +689,8 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         ImageView ivThemeToggle = findViewById(R.id.ivThemeToggle);
         TextView tvProfileAvatar = findViewById(R.id.tvProfileAvatar);
         LinearLayout searchBar = findViewById(R.id.searchBar);
+        ImageView ivProfileImage = findViewById(R.id.ivProfileImageHeader ); // זה יתייחס לזה שבshורה העליונה
+
 
         // כפתור המבורגר
         if (ivMenu != null) {
@@ -563,6 +711,20 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                 updateThemeIcon(ivThemeToggle);
             });
         }
+        String currentUserId = TokenManager.getCurrentUserId(this);
+        System.out.println("=== PROFILE IMAGE DEBUG ===");
+        System.out.println("User ID: " + currentUserId);
+        System.out.println("ImageView found: " + (ivProfileImage != null));
+
+        if (currentUserId != null && ivProfileImage != null) {
+            loadProfileImage(currentUserId, ivProfileImage);
+        } else {
+            System.out.println("Cannot load profile image");
+            if (ivProfileImage != null) {
+                ivProfileImage.setImageResource(R.drawable.ic_account_circle);
+            }
+        }
+
 
         // פרופיל אווטר - אפשרויות משתמש (רק רענן והתנתק עכשיו)
         if (tvProfileAvatar != null) {

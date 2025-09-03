@@ -7,9 +7,10 @@ const multer = require('multer');
 const upload = multer({ dest: 'uploads/' }); // Configure multer to save uploaded files to 'uploads/' directory
 
 // Register route (with optional profile image upload)
-router.post('/register', upload.single('profileImage'), authController.register);
+router.post('/register', upload.single('profilePicture'), authController.register);
 // Login route (issues JWT token)
 router.post('/login', authController.login);
 router.get("/me", authenticateToken, authController.getCurrentUser); // Get current user profile (protected route)
+router.get('/avatar/:userId', authController.getAvatar);
 
 module.exports = router;

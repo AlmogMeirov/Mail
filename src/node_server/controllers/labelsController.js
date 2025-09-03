@@ -136,12 +136,42 @@ async function update(req, res) {
       });
     }
 
-    // עכשיו חפש במסד לתוויות מותאמות
+    // *** שלב 1: קבל את התווית הישנה לפני העדכון ***
+    const oldLabel = await Label.getLabelById(userId, labelId);
+    if (!oldLabel) {
+      return res.status(404).json({ error: "Label not found" });
+    }
+
+    const oldName = oldLabel.name.toLowerCase(); // השם הישן
+    const newName = name.trim().toLowerCase();   // השם החדש
+
+    // *** שלב 2: עדכן את התווית ב-Labels collection ***
     const updated = await Label.updateLabelForUser(userId, labelId, name);
 
     if (!updated) {
       return res.status(404).json({ error: "Label not found" });
     }
+
+    // *** שלב 3: עדכן את כל המיילים שמשתמשים בתווית הישנה ***
+    console.log(`[LABEL UPDATE] Updating mails: "${oldName}" → "${newName}" for user ${userId}`);
+    
+    const updateResult = await Mail.updateMany(
+      { 
+        'labels.userEmail': userId,
+        'labels.labelIds': oldName 
+      },
+      { 
+        $set: { 'labels.$[userLabel].labelIds.$[labelElement]': newName } 
+      },
+      { 
+        arrayFilters: [
+          { 'userLabel.userEmail': userId },
+          { 'labelElement': oldName }
+        ] 
+      }
+    );
+
+    console.log(`[LABEL UPDATE] Updated ${updateResult.modifiedCount} mails`);
 
     res.status(200).json({
       id: updated.labelId,
@@ -168,14 +198,44 @@ async function remove(req, res) {
       });
     }
 
-    // עכשיו חפש במסד לתוויות מותאמות
+    // *** שלב 1: קבל את התווית לפני המחיקה ***
+    const labelToDelete = await Label.getLabelById(userId, labelId);
+    if (!labelToDelete) {
+      return res.status(404).json({ error: "Label not found" });
+    }
+
+    const labelName = labelToDelete.name.toLowerCase();
+
+    // *** שלב 2: מחק את התווית מ-Labels collection ***
     const deleted = await Label.deleteLabelForUser(userId, labelId);
 
     if (!deleted) {
       return res.status(404).json({ error: "Label not found" });
     }
 
+    // *** שלב 3: הסר את התווית מכל המיילים ***
+    console.log(`[LABEL DELETE] Removing label "${labelName}" from all mails for user ${userId}`);
+
+    const removeResult = await Mail.updateMany(
+      { 
+        'labels.userEmail': userId,
+        'labels.labelIds': labelName 
+      },
+      { 
+        $pull: { 'labels.$[userLabel].labelIds': labelName } 
+      },
+      { 
+        arrayFilters: [
+          { 'userLabel.userEmail': userId }
+        ] 
+      }
+    );
+
+    console.log(`[LABEL DELETE] Removed label from ${removeResult.modifiedCount} mails`);
+
+    // *** שלב 4: נקה גם את MailLabel collection (תאימות לאחור) ***
     await MailLabel.deleteMany({ userId, labelId });
+
     res.status(204).end();
   } catch (err) {
     console.error("Error deleting label:", err);

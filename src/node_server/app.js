@@ -41,8 +41,8 @@ const router = require("./routes");       // your main router index
 app.use("/api", router);
 
 // NOTE: comments in English only
-const listEndpoints = require('express-list-endpoints');
-console.log(listEndpoints(app));
+//const listEndpoints = require('express-list-endpoints');
+//console.log(listEndpoints(app));
 
 
 // Optional: lightweight health check
