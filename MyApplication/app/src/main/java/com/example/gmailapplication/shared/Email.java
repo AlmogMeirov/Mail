@@ -12,7 +12,7 @@ import androidx.room.PrimaryKey;
 import androidx.room.TypeConverters;
 import com.example.gmailapplication.data.converters.StringListConverter;
 
-import androidx.annotation.NonNull; // השתמש בזה
+import androidx.annotation.NonNull; // Use this
 
 @Entity(tableName = "emails")
 @TypeConverters({StringListConverter.class})
@@ -37,7 +37,7 @@ public class Email {
         return labels != null && labels.contains(labelName);
     }
 
-    // Custom deserializer שמטפל גם ב-string וגם ב-object
+    // Custom deserializer that handles both string and object
     public static class FlexibleStringDeserializer implements JsonDeserializer<String> {
         @Override
         public String deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) {

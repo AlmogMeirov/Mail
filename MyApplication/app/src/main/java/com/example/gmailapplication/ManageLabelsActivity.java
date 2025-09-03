@@ -64,7 +64,7 @@ public class ManageLabelsActivity extends AppCompatActivity {
         btnSave = findViewById(R.id.btnSave);
         labelCheckboxes = new ArrayList<>();
 
-        // רק כפתור שמור
+        // Save button only
         btnSave.setOnClickListener(v -> saveLabels());
     }
 
@@ -93,7 +93,7 @@ public class ManageLabelsActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("ניהול תוויות");
+            getSupportActionBar().setTitle(getString(R.string.manage_labels_title));
         }
         toolbar.setNavigationOnClickListener(v -> {
             setResult(RESULT_CANCELED);
@@ -110,7 +110,7 @@ public class ManageLabelsActivity extends AppCompatActivity {
                     displayLabels();
                 } else {
                     Toast.makeText(ManageLabelsActivity.this,
-                            "שגיאה בטעינת תוויות: " + response.code(), Toast.LENGTH_SHORT).show();
+                            getString(R.string.labels_load_error, response.code()), Toast.LENGTH_SHORT).show();
                     setResult(RESULT_CANCELED);
                     finish();
                 }
@@ -119,7 +119,7 @@ public class ManageLabelsActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<List<Label>> call, Throwable t) {
                 Toast.makeText(ManageLabelsActivity.this,
-                        "שגיאה בחיבור לשרת: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        getString(R.string.error_server_connection, t.getMessage()), Toast.LENGTH_SHORT).show();
                 setResult(RESULT_CANCELED);
                 finish();
             }
@@ -135,13 +135,13 @@ public class ManageLabelsActivity extends AppCompatActivity {
         System.out.println("All labels count: " + allLabels.size());
 
         for (Label label : allLabels) {
-            // דלג על תווית trash - היא מנוהלת דרך כפתור המחיקה בלבד
+            // Skip trash label - managed by delete button only
             if ("trash".equals(label.name.toLowerCase())) {
                 System.out.println("Skipping trash label - managed by delete button");
                 continue;
             }
 
-            // דלג על תווית important - היא מנוהלת דרך כפתור הכוכב בלבד
+            // Skip important label - managed by star button only
             if ("important".equals(label.name.toLowerCase())) {
                 System.out.println("Skipping important label - managed by star button");
                 continue;
@@ -151,7 +151,7 @@ public class ManageLabelsActivity extends AppCompatActivity {
             checkBox.setText(label.name);
             checkBox.setTag(label);
 
-            // בדוק name בלבד (case insensitive)
+            // Check name only (case insensitive)
             boolean isChecked = false;
             if (originalLabels != null) {
                 for (String originalLabel : originalLabels) {
@@ -167,7 +167,7 @@ public class ManageLabelsActivity extends AppCompatActivity {
 
             System.out.println("Label: " + label.name + " (id: " + label.id + ") - Checked: " + isChecked);
 
-            // תוויות מערכת מסוימות לא ניתנות לשינוי ידני
+            // Certain system labels cannot be changed manually
             if (label.isSystem && (label.name.equals("sent") || label.name.equals("drafts"))) {
                 checkBox.setEnabled(false);
             }
@@ -196,7 +196,7 @@ public class ManageLabelsActivity extends AppCompatActivity {
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) {
                     Toast.makeText(ManageLabelsActivity.this,
-                            "תוויות עודכנו בהצלחה", Toast.LENGTH_SHORT).show();
+                            getString(R.string.labels_updated), Toast.LENGTH_SHORT).show();
 
                     Intent resultIntent = new Intent();
                     resultIntent.putStringArrayListExtra("updated_labels", new ArrayList<>(selectedLabels));
@@ -204,14 +204,14 @@ public class ManageLabelsActivity extends AppCompatActivity {
                     finish();
                 } else {
                     Toast.makeText(ManageLabelsActivity.this,
-                            "שגיאה בעדכון תוויות: " + response.code(), Toast.LENGTH_SHORT).show();
+                            getString(R.string.labels_update_error, response.code()), Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<Void> call, Throwable t) {
                 Toast.makeText(ManageLabelsActivity.this,
-                        "שגיאה בחיבור לשרת: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        getString(R.string.error_server_connection, t.getMessage()), Toast.LENGTH_SHORT).show();
             }
         });
     }

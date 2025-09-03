@@ -54,9 +54,8 @@ public class TokenManager {
 
             String payload = new String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE));
 
-            // חפש את ה-sub field (זה ה-user ID)
             int start = payload.indexOf("\"sub\":\"") + 7;
-            if (start == 6) return null; // לא נמצא
+            if (start == 6) return null;
 
             int end = payload.indexOf("\"", start);
             if (end == -1) return null;

@@ -3,7 +3,7 @@ package com.example.gmailapplication.shared;
 public class UserDto {
     // Fields that match server response
     public String id;
-    public String _id; // MongoDB style ID - תקן את זה (הסר את ה-*)
+    public String _id; // MongoDB style ID
     public String firstName;
     public String lastName;
     public String email;
@@ -48,7 +48,7 @@ public class UserDto {
         } else if (email != null) {
             return email;
         } else {
-            return "משתמש";
+            return "User";
         }
     }
 }

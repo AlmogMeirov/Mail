@@ -100,7 +100,7 @@ public class RegisterActivity extends AppCompatActivity {
         avatarBase64 = savedInstanceState.getString("avatarBase64");
         avatarMime = savedInstanceState.getString("avatarMime", "image/png");
         if (!TextUtils.isEmpty(avatarBase64)) {
-            btnPickImage.setText("תמונה נבחרה");
+            btnPickImage.setText(getString(R.string.image_selected));
         }
     }
 
@@ -130,9 +130,13 @@ public class RegisterActivity extends AppCompatActivity {
         tvLoginLink  = findViewById(R.id.tvLoginLink);
     }
 
-    // --- Gender dropdown with both Hebrew and English values ---
+    // --- Gender dropdown with English values ---
     private void wireGenderDropdown() {
-        String[] genders = new String[]{"זכר", "נקבה", "אחר"};
+        String[] genders = new String[]{
+                getString(R.string.gender_male),
+                getString(R.string.gender_female),
+                getString(R.string.gender_other)
+        };
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_dropdown_item_1line, genders);
         etGender.setAdapter(adapter);
@@ -192,7 +196,6 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     // --- Enhanced image processing with background thread ---
-    // הוסף זה ב-onImagePicked
     private void onImagePicked(Uri uri) {
         System.out.println("=== IMAGE PICKED DEBUG ===");
         System.out.println("URI: " + uri);
@@ -202,7 +205,7 @@ public class RegisterActivity extends AppCompatActivity {
             return;
         }
 
-        // בדוק אם אנחנו יכולים לקרוא את הקובץ
+        // Check if we can read the file
         try {
             String displayName = null;
             long size = 0;
@@ -228,9 +231,9 @@ public class RegisterActivity extends AppCompatActivity {
             System.out.println("Error reading file info: " + e.getMessage());
         }
 
-        // המשך עם הקוד הרגיל...
+        // Continue with regular code...
         btnPickImage.setEnabled(false);
-        btnPickImage.setText("טוען תמונה...");
+        btnPickImage.setText(getString(R.string.loading_image));
 
         new Thread(() -> {
             try {
@@ -247,11 +250,11 @@ public class RegisterActivity extends AppCompatActivity {
                         System.out.println("Base64 encoded length: " + avatarBase64.length());
                         System.out.println("Base64 sample (first 50 chars): " + avatarBase64.substring(0, Math.min(50, avatarBase64.length())));
 
-                        btnPickImage.setText("תמונה נבחרה ✓");
-                        showToast("תמונת פרופיל נבחרה בהצלחה");
+                        btnPickImage.setText(getString(R.string.image_selected));
+                        showToast(getString(R.string.profile_image_selected));
                     } else {
-                        btnPickImage.setText("בחר תמונת פרופיל");
-                        showToast("שגיאה בקריאת התמונה");
+                        btnPickImage.setText(getString(R.string.choose_profile_image));
+                        showToast(getString(R.string.error_reading_image));
                     }
                 });
             } catch (Exception e) {
@@ -259,12 +262,13 @@ public class RegisterActivity extends AppCompatActivity {
                 e.printStackTrace();
                 runOnUiThread(() -> {
                     btnPickImage.setEnabled(true);
-                    btnPickImage.setText("בחר תמונת פרופיל");
-                    showToast("שגיאה בעיבוד התמונה: " + e.getMessage());
+                    btnPickImage.setText(getString(R.string.choose_profile_image));
+                    showToast(getString(R.string.error_processing_image, e.getMessage()));
                 });
             }
         }).start();
     }
+
     // --- Helper method to read image bytes ---
     private byte[] readImageBytes(Uri uri) {
         try (InputStream in = getContentResolver().openInputStream(uri)) {
@@ -280,7 +284,7 @@ public class RegisterActivity extends AppCompatActivity {
 
             // Size limit: 2MB
             if (bytes.length > 2 * 1024 * 1024) {
-                runOnUiThread(() -> showToast("התמונה גדולה מדי (מקסימום 2MB)"));
+                runOnUiThread(() -> showToast(getString(R.string.image_too_large)));
                 return null;
             }
 
@@ -303,7 +307,7 @@ public class RegisterActivity extends AppCompatActivity {
             if (!validateAll()) return;
 
             btnSubmit.setEnabled(false);
-            tvResult.setText("מבצע רישום...");
+            tvResult.setText(getString(R.string.registering));
 
             try {
                 RegisterRequest request = buildRegisterRequest();
@@ -316,25 +320,25 @@ public class RegisterActivity extends AppCompatActivity {
                         btnSubmit.setEnabled(true);
 
                         if (response.isSuccessful()) {
-                            // comments in English only
                             UserDto user = response.body();
 
-// Local fallback from the form, in case server does not return firstName
+                            // Show success message
                             String localFirst = textOf(etFirstName).trim();
-                            String displayName =
-                                    (user != null && !TextUtils.isEmpty(user.firstName)) ? user.firstName :
-                                            (!TextUtils.isEmpty(localFirst)) ? localFirst :
-                                                    (user != null && !TextUtils.isEmpty(user.email)) ? user.email :
-                                                            "חבר";
+                            String displayName = (user != null && !TextUtils.isEmpty(user.firstName)) ? user.firstName :
+                                    (!TextUtils.isEmpty(localFirst)) ? localFirst :
+                                            (user != null && !TextUtils.isEmpty(user.email)) ? user.email : "Friend";
 
-                            tvResult.setText("הרישום הושלם בהצלחה!\nברוך הבא " + displayName + "!");
-                            // Navigate straight to Login and prefill the email field
-                            Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
-                            intent.putExtra("prefill_email", textOf(etEmail).trim().toLowerCase(Locale.US));
-                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                            startActivity(intent);
-                            finish(); // remove Register from back stack
-                            return;
+                            tvResult.setText(getString(R.string.registration_successful, displayName));
+                            tvResult.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
+
+                            // Wait 2 seconds then navigate to Login
+                            new android.os.Handler(getMainLooper()).postDelayed(() -> {
+                                Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
+                                intent.putExtra("registration_success", true);
+                                intent.putExtra("email", textOf(etEmail).trim().toLowerCase(Locale.US));
+                                startActivity(intent);
+                                finish();
+                            }, 2000);
 
                         } else {
                             handleServerError(response);
@@ -344,14 +348,14 @@ public class RegisterActivity extends AppCompatActivity {
                     @Override
                     public void onFailure(Call<UserDto> call, Throwable t) {
                         btnSubmit.setEnabled(true);
-                        tvResult.setText("הרישום נכשל: " + t.getMessage());
+                        tvResult.setText(getString(R.string.registration_failed, t.getMessage()));
                         System.err.println("Registration error: " + t.getMessage());
                     }
                 });
 
             } catch (Exception e) {
                 btnSubmit.setEnabled(true);
-                tvResult.setText("שגיאה ביצירת הבקשה: " + e.getMessage());
+                tvResult.setText(getString(R.string.error_creating_request, e.getMessage()));
             }
         });
     }
@@ -398,28 +402,26 @@ public class RegisterActivity extends AppCompatActivity {
         return request;
     }
 
-    // --- Map Hebrew/English gender to English for API ---
+    // --- Map gender to English for API ---
     private String mapGenderToEnglish(String gender) {
         if (TextUtils.isEmpty(gender)) return "";
         String genderLower = gender.toLowerCase().trim();
-        switch (genderLower) {
-            case "זכר":
-            case "male":
-                return "male";
-            case "נקבה":
-            case "female":
-                return "female";
-            case "אחר":
-            case "other":
-                return "other";
-            default:
-                return genderLower;
+
+        // Check English strings from resources
+        if (genderLower.equals(getString(R.string.gender_male).toLowerCase()) || genderLower.equals("male")) {
+            return "male";
+        } else if (genderLower.equals(getString(R.string.gender_female).toLowerCase()) || genderLower.equals("female")) {
+            return "female";
+        } else if (genderLower.equals(getString(R.string.gender_other).toLowerCase()) || genderLower.equals("other")) {
+            return "other";
         }
+
+        return genderLower;
     }
 
     // --- Wire login link click ---
     private void wireLoginLink() {
-        tvLoginLink.setText("כבר יש לך חשבון? התחבר כאן");
+        tvLoginLink.setText(getString(R.string.already_have_account));
         tvLoginLink.setOnClickListener(v -> {
             Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
             startActivity(intent);
@@ -430,13 +432,13 @@ public class RegisterActivity extends AppCompatActivity {
     // --- Enhanced server error handling ---
     private void handleServerError(Response<UserDto> response) {
         try {
-            String errorBody = response.errorBody() != null ? response.errorBody().string() : "שגיאה לא ידועה";
+            String errorBody = response.errorBody() != null ? response.errorBody().string() : getString(R.string.error_registration_failed_retry);
             System.err.println("Server error: " + errorBody);
 
             // Try to parse JSON error response
             try {
                 JSONObject errorJson = new JSONObject(errorBody);
-                String message = errorJson.optString("message", "הרישום נכשל");
+                String message = errorJson.optString("message", getString(R.string.error_registration_failed_retry));
                 tvResult.setText(message);
                 return;
             } catch (JSONException e) {
@@ -445,27 +447,27 @@ public class RegisterActivity extends AppCompatActivity {
 
             switch (response.code()) {
                 case 400:
-                    tvResult.setText("נתוני רישום לא תקינים");
+                    tvResult.setText(getString(R.string.error_invalid_registration_data));
                     break;
                 case 409:
-                    tvResult.setText("משתמש זה כבר קיים במערכת");
-                    tilEmail.setError("כתובת מייל זו כבר רשומה במערכת");
+                    tvResult.setText(getString(R.string.error_user_already_exists));
+                    tilEmail.setError(getString(R.string.error_email_already_registered));
                     break;
                 case 422:
-                    tvResult.setText("אימות הנתונים נכשל");
+                    tvResult.setText(getString(R.string.error_data_validation_failed));
                     break;
                 case 500:
-                    tvResult.setText("שגיאת שרת פנימית - אנא נסה מאוחר יותר");
+                    tvResult.setText(getString(R.string.error_server_internal));
                     break;
                 default:
-                    tvResult.setText("הרישום נכשל (שגיאה " + response.code() + ")");
+                    tvResult.setText(getString(R.string.error_registration_failed_code, response.code()));
             }
         } catch (Exception e) {
-            tvResult.setText("הרישום נכשל - אנא נסה שוב");
+            tvResult.setText(getString(R.string.error_registration_failed_retry));
         }
     }
 
-    // --- Enhanced validation with Hebrew messages and stronger password rules ---
+    // --- Enhanced validation with English messages and stronger password rules ---
     private boolean validateAll() {
         boolean ok = true;
 
@@ -480,19 +482,19 @@ public class RegisterActivity extends AppCompatActivity {
 
         String first = textOf(etFirstName).trim();
         if (first.length() < 2) {
-            tilFirstName.setError("שם פרטי חייב להכיל לפחות 2 תווים");
+            tilFirstName.setError(getString(R.string.error_first_name_length));
             ok = false;
         }
 
         String last = textOf(etLastName).trim();
         if (last.length() < 2) {
-            tilLastName.setError("שם משפחה חייב להכיל לפחות 2 תווים");
+            tilLastName.setError(getString(R.string.error_last_name_length));
             ok = false;
         }
 
         String email = textOf(etEmail).toLowerCase(Locale.US).trim();
         if (TextUtils.isEmpty(email) || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            tilEmail.setError("כתובת מייל לא תקינה");
+            tilEmail.setError(getString(R.string.error_invalid_email));
             ok = false;
         }
 
@@ -503,23 +505,23 @@ public class RegisterActivity extends AppCompatActivity {
 
         String confirm = textOf(etConfirm);
         if (!pass.equals(confirm)) {
-            tilConfirm.setError("הסיסמאות אינן זהות");
+            tilConfirm.setError(getString(R.string.error_passwords_not_match));
             ok = false;
         }
 
         String gender = textOf(etGender);
         if (!TextUtils.isEmpty(gender) && !isValidGender(gender)) {
-            tilGender.setError("יש לבחור מין תקין (male/female/other או זכר/נקבה/אחר)");
+            tilGender.setError(getString(R.string.error_invalid_gender));
             ok = false;
         }
 
         String birth = textOf(etBirth);
         if (!TextUtils.isEmpty(birth)) {
             if (!isValidIsoDate(birth)) {
-                tilBirth.setError("תאריך לידה חייב להיות בפורמט YYYY-MM-DD");
+                tilBirth.setError(getString(R.string.error_invalid_date_format));
                 ok = false;
             } else if (!isReasonableBirth(birth)) {
-                tilBirth.setError("תאריך לידה לא סביר");
+                tilBirth.setError(getString(R.string.error_unreasonable_birth_date));
                 ok = false;
             }
         }
@@ -528,7 +530,7 @@ public class RegisterActivity extends AppCompatActivity {
         if (!TextUtils.isEmpty(phone)) {
             String cleanPhone = phone.replaceAll("[-\\s]", "");
             if (!PHONE_RE.matcher(cleanPhone).matches()) {
-                tilPhone.setError("מספר טלפון לא תקין (דוגמה: 053-4302092 או +972534302092)");
+                tilPhone.setError(getString(R.string.error_invalid_phone));
                 ok = false;
             }
         }
@@ -540,23 +542,25 @@ public class RegisterActivity extends AppCompatActivity {
     // --- Enhanced password validation ---
     private boolean validatePassword(String password) {
         if (password.length() < 8) {
-            tilPassword.setError("הסיסמה חייבת להכיל לפחות 8 תווים");
+            tilPassword.setError(getString(R.string.error_password_length));
             return false;
         }
 
         if (!PASSWORD_RE.matcher(password).matches()) {
-            tilPassword.setError("הסיסמה חייבת להכיל שילוב של אותיות ומספרים");
+            tilPassword.setError(getString(R.string.error_password_complexity));
             return false;
         }
 
         return true;
     }
 
-    // --- Validate Hebrew gender options ---
+    // --- Validate gender options ---
     private boolean isValidGender(String gender) {
         if (TextUtils.isEmpty(gender)) return true; // Optional field
         String genderLower = gender.toLowerCase().trim();
-        return genderLower.equals("זכר") || genderLower.equals("נקבה") || genderLower.equals("אחר") ||
+        return genderLower.equals(getString(R.string.gender_male).toLowerCase()) ||
+                genderLower.equals(getString(R.string.gender_female).toLowerCase()) ||
+                genderLower.equals(getString(R.string.gender_other).toLowerCase()) ||
                 genderLower.equals("male") || genderLower.equals("female") || genderLower.equals("other");
     }
 

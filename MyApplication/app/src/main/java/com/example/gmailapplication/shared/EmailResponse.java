@@ -3,20 +3,20 @@ package com.example.gmailapplication.shared;
 import java.util.List;
 
 /**
- * מבנה התגובה החדש מהשרת (התאמה למבנה MongoDB)
- * השרת מחזיר: { message, inbox, sent, drafts, recent_mails }
+ * New response structure from server (adapted to MongoDB structure)
+ * Server returns: { message, inbox, sent, drafts, recent_mails }
  */
 public class EmailResponse {
     public String message;
-    public List<Email> inbox;        // מיילים בדואר נכנס
-    public List<Email> sent;         // מיילים שנשלחו
-    public List<Email> drafts;       // טיוטות
-    public List<Email> recent_mails; // מיילים אחרונים (לתצוגה מהירה)
+    public List<Email> inbox;        // Emails in inbox
+    public List<Email> sent;         // Sent emails
+    public List<Email> drafts;       // Drafts
+    public List<Email> recent_mails; // Recent emails (for quick display)
 
     public EmailResponse() {}
 
     /**
-     * מחזיר את כל המיילים ממוזגים (לא כולל drafts)
+     * Returns all emails merged (excludes drafts)
      */
     public List<Email> getAllMails() {
         List<Email> allMails = new java.util.ArrayList<>();
@@ -33,28 +33,28 @@ public class EmailResponse {
     }
 
     /**
-     * מחזיר רק מיילי inbox
+     * Returns only inbox emails
      */
     public List<Email> getInboxMails() {
         return inbox != null ? inbox : new java.util.ArrayList<>();
     }
 
     /**
-     * מחזיר רק מיילים שנשלחו
+     * Returns only sent emails
      */
     public List<Email> getSentMails() {
         return sent != null ? sent : new java.util.ArrayList<>();
     }
 
     /**
-     * מחזיר רק טיוטות
+     * Returns only drafts
      */
     public List<Email> getDraftMails() {
         return drafts != null ? drafts : new java.util.ArrayList<>();
     }
 
     /**
-     * מחזיר מיילים אחרונים (לתצוגה מהירה)
+     * Returns recent emails (for quick display)
      */
     public List<Email> getRecentMails() {
         return recent_mails != null ? recent_mails : new java.util.ArrayList<>();

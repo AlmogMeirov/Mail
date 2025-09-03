@@ -47,7 +47,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="12dp"
-                        android:hint="אל (הפרד מספר נמענים בפסיק)"
+                        android:hint="To (separate multiple recipients with commas)"
                         app:startIconDrawable="@android:drawable/ic_dialog_email"
                         app:startIconTint="@color/gmail_text_secondary"
                         app:boxStrokeColor="@color/gmail_blue"
@@ -68,7 +68,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="16dp"
-                        android:hint="נושא"
+                        android:hint="Subject"
                         app:boxStrokeColor="@color/gmail_blue"
                         app:hintTextColor="@color/gmail_text_secondary">
 
@@ -93,7 +93,7 @@
                         style="@style/GmailTextPrimary"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="כתיבת מייל:"
+                        android:text="Compose Email:"
                         android:textStyle="bold"
                         android:layout_marginBottom="8dp" />
 
@@ -104,7 +104,7 @@
                         android:layout_height="200dp"
                         android:background="@android:color/transparent"
                         android:gravity="top|start"
-                        android:hint="כתוב את המייל כאן..."
+                        android:hint="Write your email here..."
                         android:inputType="textMultiLine|textCapSentences"
                         android:padding="12dp"
                         android:textSize="16sp"
@@ -143,7 +143,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="טיפ: מיילים עם קישורים חשודים יועברו אוטומטית לדואר זבל"
+                        android:text="Tip: Emails with suspicious links will be automatically moved to spam"
                         android:textColor="@color/gmail_blue" />
 
                 </LinearLayout>
@@ -170,7 +170,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
-            android:text="שלח"
+            android:text="Send"
             android:textColor="@android:color/white"
             app:backgroundTint="@color/gmail_blue"
             app:cornerRadius="8dp"
@@ -184,7 +184,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="שמור טיוטה"
+            android:text="Save Draft"
             android:textColor="@color/gmail_text_secondary"
             app:strokeColor="@color/gmail_text_secondary"
             app:cornerRadius="8dp" />

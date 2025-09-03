@@ -25,7 +25,7 @@
             android:id="@+id/tvAppName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Gmail Application"
+            android:text="FooMail Application"
             android:textSize="28sp"
             android:textStyle="bold"
             android:textColor="@android:color/black"
@@ -36,7 +36,7 @@
             android:id="@+id/tvLoading"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="טוען..."
+            android:text="Loading..."
             android:textSize="16sp"
             android:textColor="@android:color/darker_gray"
             android:layout_marginBottom="16dp" />

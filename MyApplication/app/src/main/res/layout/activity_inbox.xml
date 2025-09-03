@@ -42,9 +42,9 @@
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:padding="8dp"
                     android:layout_marginEnd="8dp"
-                    android:contentDescription="תפריט" />
+                    android:contentDescription="Menu" />
 
-                <!-- Profile Image in Header - FIXED -->
+                <!-- Profile Image in Header -->
                 <ImageView
                     android:id="@+id/ivProfileImageHeader"
                     android:layout_width="40dp"
@@ -53,7 +53,7 @@
                     android:scaleType="centerCrop"
                     android:layout_marginEnd="12dp"
                     android:layout_marginStart="4dp"
-                    android:contentDescription="תמונת פרופיל" />
+                    android:contentDescription="Profile Picture" />
 
                 <LinearLayout
                     android:id="@+id/searchBar"
@@ -81,7 +81,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="חפש בדואר"
+                        android:text="Search in mail"
                         android:textColor="@color/gmail_text_hint"
                         android:textSize="16sp"
                         android:background="@android:color/transparent" />
@@ -101,7 +101,7 @@
                     android:padding="6dp"
                     android:layout_marginStart="4dp"
                     android:layout_marginEnd="8dp"
-                    android:contentDescription="החלף ערכת נושא" />
+                    android:contentDescription="Toggle Theme" />
 
                 <!-- Profile Icon -->
                 <TextView
@@ -156,7 +156,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="אין מיילים"
+                    android:text="No emails"
                     android:textSize="20sp"
                     android:textColor="@color/gmail_text_secondary"
                     android:layout_marginBottom="8dp" />
@@ -164,7 +164,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="כל המיילים שלך יופיעו כאן"
+                    android:text="All your emails will appear here"
                     android:textSize="14sp"
                     android:textColor="@color/gmail_text_hint"
                     android:gravity="center" />
@@ -189,9 +189,44 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="טוען מיילים..."
+                    android:text="Loading emails..."
                     android:textSize="16sp"
                     android:textColor="@color/gmail_text_secondary" />
+
+            </LinearLayout>
+
+            <!-- Pagination Controls -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:padding="16dp"
+                android:background="?android:attr/colorBackground">
+
+                <Button
+                    android:id="@+id/btnPreviousPage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Previous"
+                    android:enabled="false" />
+
+                <TextView
+                    android:id="@+id/tvPageInfo"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Page 1 of 1"
+                    android:textAlignment="center"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnNextPage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Next"
+                    android:enabled="false" />
 
             </LinearLayout>
 
@@ -206,7 +241,7 @@
             android:layout_gravity="bottom|end"
             android:layout_margin="16dp"
             android:src="@drawable/fab_compose_icon"
-            android:contentDescription="כתוב מייל חדש" />
+            android:contentDescription="Write new email" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 

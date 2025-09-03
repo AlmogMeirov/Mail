@@ -56,7 +56,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="נושא המייל"
+                            android:text="Email Subject"
                             android:textSize="20sp"
                             android:textStyle="bold"
                             android:textColor="@color/gmail_text_primary" />
@@ -103,7 +103,7 @@
                                 style="@style/GmailTextPrimary"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="מאת: sender@example.com"
+                                android:text="From: sender@example.com"
                                 android:textStyle="bold" />
 
                             <!-- Recipients -->
@@ -112,7 +112,7 @@
                                 style="@style/GmailTextSecondary"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="אל: recipient@example.com"
+                                android:text="To: recipient@example.com"
                                 android:layout_marginTop="2dp"
                                 android:visibility="gone" />
 
@@ -142,7 +142,7 @@
                             style="@style/GmailTextHint"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="תוויות: "
+                            android:text="Labels: "
                             android:textStyle="bold" />
 
                         <TextView
@@ -179,7 +179,7 @@
                         style="@style/GmailTextPrimary"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="תוכן המייל:"
+                        android:text="Email Content:"
                         android:textStyle="bold"
                         android:layout_marginBottom="12dp" />
 
@@ -188,7 +188,7 @@
                         style="@style/GmailTextPrimary"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="תוכן המייל יופיע כאן..."
+                        android:text="Email content will appear here..."
                         android:textSize="16sp"
                         android:lineSpacingExtra="4dp"
                         android:textIsSelectable="true" />
@@ -227,7 +227,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="מייל זה נמצא באשפה - פעולות מוגבלות"
+                        android:text="This email is in trash - limited actions available"
                         android:textColor="@color/gmail_orange" />
 
                 </LinearLayout>
@@ -254,7 +254,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
-            android:text="הגב"
+            android:text="Reply"
             android:textColor="@android:color/white"
             app:backgroundTint="@color/gmail_blue"
             app:cornerRadius="8dp"
@@ -269,7 +269,7 @@
             android:layout_weight="1"
             android:layout_marginStart="4dp"
             android:layout_marginEnd="4dp"
-            android:text="דווח ספאם"
+            android:text="Report Spam"
             android:textColor="@color/gmail_red"
             app:strokeColor="@color/gmail_red"
             app:cornerRadius="8dp" />
@@ -281,7 +281,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="נהל תוויות"
+            android:text="Manage Labels"
             android:textColor="@color/gmail_blue"
             app:strokeColor="@color/gmail_blue"
             app:cornerRadius="8dp" />

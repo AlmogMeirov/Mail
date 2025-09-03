@@ -43,9 +43,6 @@ public class EmailDetailActivity extends AppCompatActivity {
     private EmailAPI emailAPI;
     private TextView tvSenderAvatar;
 
-// בתוך initViews(), הוסף:
-
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,7 +54,7 @@ public class EmailDetailActivity extends AppCompatActivity {
         setupToolbar();
         initAPI();
         loadEmailData();
-        loadFullEmailFromServer(); // טען את המייל המלא כולל תוויות
+        loadFullEmailFromServer(); // Load full email including labels
     }
 
     @Override
@@ -87,10 +84,7 @@ public class EmailDetailActivity extends AppCompatActivity {
 
         Button btnManageLabels = findViewById(R.id.btnManageLabels);
         btnManageLabels.setOnClickListener(v -> openManageLabels());
-
-
     }
-    // החלף את btnReportSpam
 
     private void reportAsSpam() {
         System.out.println("=== REPORT AS SPAM CLICKED ===");
@@ -99,14 +93,14 @@ public class EmailDetailActivity extends AppCompatActivity {
                 .setMessage("Move this message to Spam and block future emails from " + sender + "?")
                 .setIcon(android.R.drawable.ic_dialog_alert)
                 .setPositiveButton("Report spam", (dialog, which) -> {
-                    // שלב 1: העבר מייל לספאם
+                    // Step 1: Move email to spam
                     moveEmailToSpam();
 
-                    // שלב 2: חלץ URLs והוסף לblacklist
+                    // Step 2: Extract URLs and add to blacklist
                     extractAndBlockUrls();
 
                     Toast.makeText(this, "Message reported as spam", Toast.LENGTH_SHORT).show();
-                    finish(); // חזור לרשימת המיילים
+                    finish(); // Return to email list
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -115,7 +109,7 @@ public class EmailDetailActivity extends AppCompatActivity {
     private void moveEmailToSpam() {
         EmailAPI emailAPI = BackendClient.get(this).create(EmailAPI.class);
 
-        // הוסף תווית spam למייל
+        // Add spam label to email
         EmailAPI.AddLabelRequest request = new EmailAPI.AddLabelRequest("spam");
 
         emailAPI.addLabelToEmail(emailId, request).enqueue(new Callback<Void>() {
@@ -134,7 +128,7 @@ public class EmailDetailActivity extends AppCompatActivity {
     private void extractAndBlockUrls() {
         System.out.println("=== EXTRACT AND BLOCK URLS ===");
 
-        // שלב את הכותרת והתוכן לבדיקה
+        // Combine subject and content for checking
         String fullText = "";
         if (subject != null) {
             fullText += subject + " ";
@@ -147,7 +141,7 @@ public class EmailDetailActivity extends AppCompatActivity {
 
         if (fullText.isEmpty()) return;
 
-        // חלץ URLs מהטקסט המלא
+        // Extract URLs from full text
         String urlPattern = "https?://[^\\s]+";
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(urlPattern);
         java.util.regex.Matcher matcher = pattern.matcher(fullText);
@@ -177,11 +171,10 @@ public class EmailDetailActivity extends AppCompatActivity {
         }
     }
 
-
     private void testBlacklistAPI() {
         EmailAPI emailAPI = BackendClient.get(this).create(EmailAPI.class);
 
-        // בדיקה פשוטה - הוסף URL לblacklist
+        // Simple test - add URL to blacklist
         EmailAPI.BlacklistRequest request = new EmailAPI.BlacklistRequest(
                 "http://test-spam.com",
                 "Test from Android app"
@@ -215,7 +208,7 @@ public class EmailDetailActivity extends AppCompatActivity {
         Intent intent = new Intent(this, ComposeActivity.class);
         intent.putExtra("reply_to", sender);
         intent.putExtra("reply_subject", "Re: " + subject);
-        intent.putExtra("reply_content", "\n\n--- תגובה למייל מקורי ---\n" + content);
+        intent.putExtra("reply_content", "\n\n--- Reply to original message ---\n" + content);
         startActivity(intent);
     }
 
@@ -228,7 +221,7 @@ public class EmailDetailActivity extends AppCompatActivity {
 
             ManageLabelsActivity.start(this, emailId, currentLabels);
         } else {
-            Toast.makeText(this, "לא ניתן לנהל תוויות - חסר מזהה מייל", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Unable to manage labels - missing email ID", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -236,12 +229,12 @@ public class EmailDetailActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("פרטי המייל");
+            getSupportActionBar().setTitle("Email Details");
         }
     }
 
     private void loadEmailData() {
-        // קבל את הנתונים מה-Intent (נתונים בסיסיים)
+        // Get data from Intent (basic data)
         emailId = getIntent().getStringExtra("email_id");
         sender = getIntent().getStringExtra("sender");
         subject = getIntent().getStringExtra("subject");
@@ -255,7 +248,7 @@ public class EmailDetailActivity extends AppCompatActivity {
         System.out.println("Content length: " + (content != null ? content.length() : 0));
         System.out.println("========================");
 
-        // הצג את הנתונים הבסיסיים מיד
+        // Display basic data immediately
         displayBasicEmailData();
     }
 
@@ -320,23 +313,23 @@ public class EmailDetailActivity extends AppCompatActivity {
     }
 
     private void displayBasicEmailData() {
-        // הצג את הנתונים הבסיסיים בUI
-        tvSender.setText("מאת: " + (sender != null ? sender : "לא ידוע"));
-        tvSubject.setText(subject != null ? subject : "(ללא נושא)");
-        tvContent.setText(content != null ? content : "(ללא תוכן)");
+        // Display basic data in UI
+        tvSender.setText("From: " + (sender != null ? sender : "Unknown"));
+        tvSubject.setText(subject != null ? subject : "(No subject)");
+        tvContent.setText(content != null ? content : "(No content)");
 
-        // פורמט זמן פשוט (לעכשיו)
+        // Simple time format (for now)
         if (timestamp != null && timestamp.length() > 10) {
             String timeOnly = timestamp.substring(11, 16); // HH:MM
             String dateOnly = timestamp.substring(0, 10);  // YYYY-MM-DD
             tvTimestamp.setText(dateOnly + " " + timeOnly);
         } else {
-            tvTimestamp.setText("זמן לא ידוע");
+            tvTimestamp.setText("Time unknown");
         }
     }
 
     private void displayFullEmailData(Email email) {
-        // עדכן נתונים שעלולים להיות שונים מהנתונים שהועברו ב-Intent
+        // Update data that might be different from Intent data
         if (email.subject != null) {
             tvSubject.setText(email.subject);
         }
@@ -344,12 +337,12 @@ public class EmailDetailActivity extends AppCompatActivity {
             tvContent.setText(email.content);
         }
         if (email.sender != null) {
-            tvSender.setText("מאת: " + email.sender);
-            // הוסף לוגיקה לאווטאר
+            tvSender.setText("From: " + email.sender);
+            // Add avatar logic
             setupSenderAvatar(email.sender);
         }
 
-        // קריטי: עדכן את currentLabels
+        // Critical: Update currentLabels
         currentLabels = email.labels != null ? new ArrayList<>(email.labels) : new ArrayList<>();
 
         System.out.println("=== UPDATED CURRENT LABELS ===");
@@ -357,9 +350,9 @@ public class EmailDetailActivity extends AppCompatActivity {
         System.out.println("Current labels set to: " + currentLabels);
         System.out.println("==============================");
 
-        // הצג recipients אם יש
+        // Display recipients if any
         if (email.recipients != null && !email.recipients.isEmpty()) {
-            StringBuilder recipientsStr = new StringBuilder("אל: ");
+            StringBuilder recipientsStr = new StringBuilder("To: ");
             for (int i = 0; i < email.recipients.size(); i++) {
                 if (i > 0) recipientsStr.append(", ");
                 recipientsStr.append(email.recipients.get(i));
@@ -370,33 +363,33 @@ public class EmailDetailActivity extends AppCompatActivity {
             tvRecipients.setVisibility(View.GONE);
         }
 
-        // הצג תוויות
+        // Display labels
         displayLabels(currentLabels);
 
-        // בדוק אם יש ספאם
+        // Check for spam
         checkForSpamIndicator(currentLabels);
 
-        // בדוק מצב המייל (trash/draft)
+        // Check email state (trash/draft)
         boolean isInTrash = email.labels != null && email.labels.contains("trash");
         boolean isDraft = email.labels != null && email.labels.contains("drafts");
 
         configureUIForEmailState(isInTrash, isDraft, email);
     }
 
-    // הוסף method חדש לsetup של האווטאר:
+    // Add new method for avatar setup:
     private void setupSenderAvatar(String senderEmail) {
         if (senderEmail != null && !senderEmail.isEmpty()) {
             String firstLetter = senderEmail.substring(0, 1).toUpperCase();
             tvSenderAvatar.setText(firstLetter);
 
-            // צבע רקע דינמי לפי האות הראשונה (אותה לוגיקה כמו ב-EmailAdapter)
+            // Dynamic background color based on first letter (same logic as EmailAdapter)
             int[] colors = {
-                    android.graphics.Color.parseColor("#1a73e8"), // כחול
-                    android.graphics.Color.parseColor("#34a853"), // ירוק
-                    android.graphics.Color.parseColor("#fbbc04"), // צהוב
-                    android.graphics.Color.parseColor("#ea4335"), // אדום
-                    android.graphics.Color.parseColor("#9c27b0"), // סגול
-                    android.graphics.Color.parseColor("#ff6f00"), // כתום
+                    android.graphics.Color.parseColor("#1a73e8"), // Blue
+                    android.graphics.Color.parseColor("#34a853"), // Green
+                    android.graphics.Color.parseColor("#fbbc04"), // Yellow
+                    android.graphics.Color.parseColor("#ea4335"), // Red
+                    android.graphics.Color.parseColor("#9c27b0"), // Purple
+                    android.graphics.Color.parseColor("#ff6f00"), // Orange
             };
 
             int colorIndex = Math.abs(firstLetter.hashCode()) % colors.length;
@@ -404,30 +397,31 @@ public class EmailDetailActivity extends AppCompatActivity {
         }
     }
 
-    // הוסף method חדש לניהול מצב ה-UI:
+    // Add new method for UI state management:
     private void configureUIForEmailState(boolean isInTrash, boolean isDraft, Email email) {
         Button btnReply = findViewById(R.id.btnReply);
         Button btnManageLabels = findViewById(R.id.btnManageLabels);
         View cardTrashNotice = findViewById(R.id.cardTrashNotice);
 
         if (isInTrash) {
-            // מייל באשפה - הסתר תגובה וניהול תוויות
+            // Email in trash - hide reply and label management
             btnReply.setVisibility(View.GONE);
             btnManageLabels.setVisibility(View.GONE);
             cardTrashNotice.setVisibility(View.VISIBLE);
         } else if (isDraft) {
-            // טיוטה - הצג כפתור עריכה במקום תגובה
-            btnReply.setText("ערוך טיוטה");
+            // Draft - show edit button instead of reply
+            btnReply.setText("Edit Draft");
             btnReply.setOnClickListener(v -> editDraft(email));
             btnManageLabels.setVisibility(View.VISIBLE);
             cardTrashNotice.setVisibility(View.GONE);
         } else {
-            // מייל רגיל - הצג הכל
+            // Regular email - show everything
             btnReply.setVisibility(View.VISIBLE);
             btnManageLabels.setVisibility(View.VISIBLE);
             cardTrashNotice.setVisibility(View.GONE);
         }
     }
+
     private void editDraft(Email email) {
         Intent intent = new Intent(this, ComposeActivity.class);
         intent.putExtra("is_draft", true);
@@ -457,7 +451,7 @@ public class EmailDetailActivity extends AppCompatActivity {
         ivSpamIndicator.setVisibility(isSpam ? View.VISIBLE : View.GONE);
 
         if (isSpam) {
-            // אולי נרצה לשנות את צבע הכותרת או להוסיף התראה
+            // Maybe change subject color or add warning
             tvSubject.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
         }
     }
@@ -467,7 +461,7 @@ public class EmailDetailActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == MANAGE_LABELS_REQUEST_CODE && resultCode == RESULT_OK) {
-            // תוויות עודכנו - רענן את התצוגה
+            // Labels updated - refresh display
             if (data != null) {
                 ArrayList<String> updatedLabels = data.getStringArrayListExtra("updated_labels");
                 if (updatedLabels != null) {
@@ -475,7 +469,7 @@ public class EmailDetailActivity extends AppCompatActivity {
                     displayLabels(currentLabels);
                     checkForSpamIndicator(currentLabels);
 
-                    Toast.makeText(this, "תוויות עודכנו בהצלחה", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Labels updated successfully", Toast.LENGTH_SHORT).show();
                 }
             }
         }
@@ -483,7 +477,7 @@ public class EmailDetailActivity extends AppCompatActivity {
 
     @Override
     public boolean onSupportNavigateUp() {
-        // חזרה למסך הקודם כשלוחצים על החץ
+        // Return to previous screen when back button is pressed
         onBackPressed();
         return true;
     }

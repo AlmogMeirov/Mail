@@ -4,22 +4,22 @@ import com.google.gson.annotations.SerializedName;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
-import androidx.annotation.NonNull; // השתמש בזה
+import androidx.annotation.NonNull; // Use this
 
 @Entity(tableName = "labels")
 public class Label {
     @PrimaryKey
     @NonNull
-    public String id;          // UUID עבור תוויות מותאמות, או שם עבור תוויות מערכת
-    public String name;        // שם התווית
+    public String id;          // UUID for custom labels, or name for system labels
+    public String name;        // Label name
     @SerializedName("isSystem")
-    public boolean isSystem;   // האם זו תווית מערכת
+    public boolean isSystem;   // Is this a system label
 
     public Label() {}
 
     public Label(String name) {
         this.name = name;
-        this.id = name; // עבור תוויות מערכת, ID = name
+        this.id = name; // For system labels, ID = name
         this.isSystem = isSystemLabel(name);
     }
 
@@ -35,7 +35,7 @@ public class Label {
         this.isSystem = isSystem;
     }
 
-    // בדיקה אם זו תווית מערכת לפי השם
+    // Check if this is a system label by name
     private boolean isSystemLabel(String labelName) {
         if (labelName == null) return false;
         String lower = labelName.toLowerCase();
@@ -44,7 +44,7 @@ public class Label {
                 lower.equals("important");
     }
 
-    // שיטה לבדיקה אם ניתן למחוק/לערוך
+    // Method to check if can be deleted/edited
     public boolean canModify() {
         return !isSystem;
     }

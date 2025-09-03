@@ -10,6 +10,7 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.UserAPI;
+import com.example.gmailapplication.repository.UserRepository;
 import com.example.gmailapplication.shared.LoginRequest;
 import com.example.gmailapplication.shared.LoginResponse;
 import com.example.gmailapplication.shared.UserDto;
@@ -40,10 +41,13 @@ public class LoginViewModel extends AndroidViewModel {
     // Login result - just use LoginResponse directly
     private MutableLiveData<LoginResponse> loginResult = new MutableLiveData<>();
     private MutableLiveData<UserDto> currentUser = new MutableLiveData<>();
+    private UserRepository repository;
 
     public LoginViewModel(@NonNull Application application) {
         super(application);
         userAPI = BackendClient.get(application).create(UserAPI.class);
+        repository = new UserRepository(application);
+        System.out.println("LoginViewModel: UserRepository with Room initialized");
     }
 
     // --- Getters for LiveData (read-only) ---
@@ -97,20 +101,20 @@ public class LoginViewModel extends AndroidViewModel {
         // Email validation
         String emailVal = email.getValue();
         if (TextUtils.isEmpty(emailVal)) {
-            emailError.setValue("יש להזין כתובת מייל");
+            emailError.setValue("Please enter email address");
             isValid = false;
         } else if (!Patterns.EMAIL_ADDRESS.matcher(emailVal.trim()).matches()) {
-            emailError.setValue("כתובת מייל לא תקינה");
+            emailError.setValue("Invalid email address");
             isValid = false;
         }
 
         // Password validation
         String passwordVal = password.getValue();
         if (TextUtils.isEmpty(passwordVal)) {
-            passwordError.setValue("יש להזין סיסמה");
+            passwordError.setValue("Please enter password");
             isValid = false;
         } else if (passwordVal.length() < 6) {
-            passwordError.setValue("סיסמה חייבת להכיל לפחות 6 תווים");
+            passwordError.setValue("Password must be at least 6 characters");
             isValid = false;
         }
 
@@ -148,7 +152,7 @@ public class LoginViewModel extends AndroidViewModel {
                         // Now fetch user data with the token
                         fetchUserData(result);
                     } else {
-                        errorMessage.setValue("תגובת שרת לא תקינה - אין token");
+                        errorMessage.setValue("Invalid server response - no token");
                     }
                 } else {
                     System.out.println("Response not successful: " + response.code());
@@ -160,13 +164,13 @@ public class LoginViewModel extends AndroidViewModel {
             public void onFailure(Call<LoginResponse> call, Throwable t) {
                 isLoading.setValue(false);
                 System.out.println("Login failed: " + t.getMessage());
-                errorMessage.setValue("שגיאת חיבור: " + t.getMessage());
+                errorMessage.setValue("Connection error: " + t.getMessage());
             }
         });
     }
 
     // --- Fetch user data after successful login ---
-    // החלף את השיטה fetchUserData() הקיימת בקובץ LoginViewModel.java עם הקוד הזה:
+    // Replace the existing fetchUserData() method in LoginViewModel.java with this code:
 
     private void fetchUserData(LoginResponse loginResponse) {
         com.example.gmailapplication.shared.TokenManager.save(getApplication(), loginResponse.token);
@@ -182,6 +186,7 @@ public class LoginViewModel extends AndroidViewModel {
 
                 if (response.isSuccessful()) {
                     UserDto user = response.body();
+                    repository.saveUserToRoom(user);
                     if (user != null) {
                         System.out.println("User email: " + user.email);
                         System.out.println("User name: " + user.getFullName());
@@ -189,7 +194,7 @@ public class LoginViewModel extends AndroidViewModel {
                         System.out.println("Raw id field: " + user.id);
                         System.out.println("Raw _id field: " + user._id);
 
-                        // שמירת נתוני משתמש ב-SharedPreferences
+                        // Save user data in SharedPreferences
                         android.content.SharedPreferences prefs = getApplication().getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE);
                         prefs.edit()
                                 .putString("user_id", user.getId())
@@ -201,18 +206,18 @@ public class LoginViewModel extends AndroidViewModel {
 
                         currentUser.setValue(user);
                         loginResult.setValue(loginResponse);
-                        successMessage.setValue("התחברות מוצלחת!");
+                        successMessage.setValue("Login successful!");
                     } else {
-                        errorMessage.setValue("שגיאה בקבלת נתוני משתמש - response body is null");
+                        errorMessage.setValue("Error getting user data - response body is null");
                     }
                 } else {
-                    errorMessage.setValue("שגיאה בקבלת נתוני משתמש - קוד " + response.code());
+                    errorMessage.setValue("Error getting user data - code " + response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<UserDto> call, Throwable t) {
-                errorMessage.setValue("שגיאה בקבלת נתוני משתמש: " + t.getMessage());
+                errorMessage.setValue("Error getting user data: " + t.getMessage());
             }
         });
     }
@@ -228,35 +233,35 @@ public class LoginViewModel extends AndroidViewModel {
     // --- Server error handling ---
     private void handleServerError(Response<LoginResponse> response) {
         try {
-            String errorBody = response.errorBody() != null ? response.errorBody().string() : "שגיאה לא ידועה";
+            String errorBody = response.errorBody() != null ? response.errorBody().string() : "Unknown error";
 
             switch (response.code()) {
                 case 400:
-                    errorMessage.setValue("נתונים לא תקינים");
+                    errorMessage.setValue("Invalid data");
                     break;
                 case 401:
-                    errorMessage.setValue("כתובת מייל או סיסמה שגויים");
-                    emailError.setValue("פרטי התחברות שגויים");
-                    passwordError.setValue("פרטי התחברות שגויים");
+                    errorMessage.setValue("Incorrect email or password");
+                    emailError.setValue("Incorrect login details");
+                    passwordError.setValue("Incorrect login details");
                     break;
                 case 403:
-                    errorMessage.setValue("חשבון חסום או לא פעיל");
+                    errorMessage.setValue("Account blocked or inactive");
                     break;
                 case 404:
-                    errorMessage.setValue("משתמש לא נמצא");
-                    emailError.setValue("משתמש לא קיים במערכת");
+                    errorMessage.setValue("User not found");
+                    emailError.setValue("User does not exist in system");
                     break;
                 case 429:
-                    errorMessage.setValue("יותר מדי נסיונות התחברות - אנא נסה מאוחר יותר");
+                    errorMessage.setValue("Too many login attempts - please try again later");
                     break;
                 case 500:
-                    errorMessage.setValue("שגיאת שרת פנימית - אנא נסה מאוחר יותר");
+                    errorMessage.setValue("Internal server error - please try again later");
                     break;
                 default:
-                    errorMessage.setValue("התחברות נכשלה (שגיאה " + response.code() + ")");
+                    errorMessage.setValue("Login failed (error " + response.code() + ")");
             }
         } catch (Exception e) {
-            errorMessage.setValue("התחברות נכשלה - אנא נסה שוב");
+            errorMessage.setValue("Login failed - please try again");
         }
     }
 
@@ -264,39 +269,17 @@ public class LoginViewModel extends AndroidViewModel {
     public void requestPasswordReset() {
         String emailVal = email.getValue();
         if (TextUtils.isEmpty(emailVal) || !Patterns.EMAIL_ADDRESS.matcher(emailVal.trim()).matches()) {
-            emailError.setValue("יש להזין כתובת מייל תקינה לאיפוס סיסמה");
+            emailError.setValue("Please enter a valid email address for password reset");
             return;
         }
 
         isLoading.setValue(true);
         errorMessage.setValue("");
 
-        // Create password reset request
-        // You'll need to add this to your API interface
-        /*
-        userAPI.requestPasswordReset(emailVal.trim()).enqueue(new Callback<Void>() {
-            @Override
-            public void onResponse(Call<Void> call, Response<Void> response) {
-                isLoading.setValue(false);
-                if (response.isSuccessful()) {
-                    successMessage.setValue("קישור לאיפוס סיסמה נשלח למייל שלך");
-                } else {
-                    errorMessage.setValue("שגיאה בשליחת איפוס סיסמה");
-                }
-            }
-
-            @Override
-            public void onFailure(Call<Void> call, Throwable t) {
-                isLoading.setValue(false);
-                errorMessage.setValue("שגיאה בשליחת איפוס סיסמה: " + t.getMessage());
-            }
-        });
-        */
-
         // For now, just show a message
         new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
             isLoading.setValue(false);
-            successMessage.setValue("קישור לאיפוס סיסמה נשלח למייל " + emailVal);
+            successMessage.setValue("Password reset link sent to " + emailVal);
         }, 1000);
     }
 

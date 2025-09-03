@@ -27,23 +27,22 @@
                 android:layout_width="80dp"
                 android:layout_height="80dp"
                 android:src="@android:drawable/ic_dialog_email"
-                android:tint="@color/gmail_red"
                 android:layout_marginBottom="16dp" />
 
             <!-- App Title -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Gmail"
-                android:textSize="32sp"
-                android:textStyle="normal"
+                android:layout_marginBottom="8dp"
+                android:text="FooMail"
                 android:textColor="@color/gmail_text_primary"
-                android:layout_marginBottom="8dp" />
+                android:textSize="32sp"
+                android:textStyle="normal" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="התחברות לחשבון"
+                android:text="Sign in to your account"
                 android:textSize="16sp"
                 android:textColor="@color/gmail_text_secondary" />
 
@@ -70,7 +69,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:hint="כתובת מייל"
+                android:hint="Email address"
                 app:boxStrokeColor="@color/gmail_blue"
                 app:hintTextColor="@color/gmail_text_secondary"
                 app:startIconDrawable="@android:drawable/ic_dialog_email"
@@ -91,7 +90,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
-                android:hint="סיסמה"
+                android:hint="Password"
                 app:boxStrokeColor="@color/gmail_blue"
                 app:hintTextColor="@color/gmail_text_secondary"
                 app:endIconMode="password_toggle"
@@ -113,7 +112,7 @@
                 style="@style/Widget.MaterialComponents.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="התחבר"
+                android:text="Sign In"
                 android:textSize="16sp"
                 android:textColor="@android:color/white"
                 app:backgroundTint="@color/gmail_blue"
@@ -162,7 +161,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="אין לך חשבון? הירשם כאן"
+                android:text="Don't have an account? Sign up here"
                 android:textColor="@color/gmail_blue"
                 android:textSize="14sp" />
 

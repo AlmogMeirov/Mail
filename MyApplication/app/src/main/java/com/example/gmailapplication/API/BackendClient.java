@@ -10,6 +10,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Interceptor;
 import okhttp3.MediaType;
@@ -23,10 +24,6 @@ import retrofit2.converter.gson.GsonConverterFactory;
 public final class BackendClient {
     private static volatile Retrofit INSTANCE;
 
-    /**
-     * זיהוי אוטומטי של כתובת השרת
-     * תמיד משתמש ב-10.0.2.2 לאמולטור - הכתובת הסטנדרטית שעובדת
-     */
     private static String getServerUrl() {
         return "http://10.0.2.2:3000/api/";
     }
@@ -35,7 +32,9 @@ public final class BackendClient {
         if (INSTANCE == null) {
             synchronized (BackendClient.class) {
                 if (INSTANCE == null) {
-                    OkHttpClient ok = new OkHttpClient.Builder()
+                    OkHttpClient ok = new OkHttpClient.Builder().connectTimeout(60, TimeUnit.SECONDS)
+                            .readTimeout(60, TimeUnit.SECONDS)
+                            .writeTimeout(90, TimeUnit.SECONDS)
                             .addInterceptor(new Interceptor() {
                                 @Override
                                 public Response intercept(Chain chain) throws IOException {
@@ -68,19 +67,19 @@ public final class BackendClient {
                                         System.out.println("Response code: " + response.code());
                                         System.out.println("Response message: " + response.message());
 
-                                        // בדיקה אם זה תמונה או JSON
+                                        // Check if it's an image or JSON
                                         String contentType = response.header("Content-Type", "");
                                         System.out.println("Content-Type: " + contentType);
 
                                         if (contentType.startsWith("image/")) {
-                                            // עבור תמונות - אל תקרא את התוכן כ-String כי זה משבש אותן
+                                            // For images - don't read content as String as it corrupts data
                                             System.out.println("=== IMAGE RESPONSE ===");
                                             System.out.println("Content-Length: " + response.header("Content-Length"));
                                             System.out.println("Image type: " + contentType);
                                             System.out.println("Passing image data without modification");
                                             System.out.println("======================");
                                         } else {
-                                            // עבור JSON/text - קרא את התוכן לדיבוג
+                                            // For JSON/text - read content for debugging
                                             String responseBodyString = null;
                                             try {
                                                 if (response.body() != null) {
@@ -91,7 +90,7 @@ public final class BackendClient {
                                                     System.out.println("Body content: " + responseBodyString);
                                                     System.out.println("==========================");
 
-                                                    // יצירת ResponseBody חדש כי קראנו את המקורי
+                                                    // Create new ResponseBody as we read the original
                                                     MediaType mediaType = responseBody.contentType();
                                                     ResponseBody newBody = ResponseBody.create(mediaType, responseBodyString);
                                                     response = response.newBuilder().body(newBody).build();
@@ -104,7 +103,7 @@ public final class BackendClient {
                                             }
                                         }
 
-                                        // אם יש שגיאת 401, הדפס פרטים נוספים
+                                        // If there's a 401 error, print additional details
                                         if (response.code() == 401) {
                                             System.out.println("*** 401 UNAUTHORIZED DEBUG ***");
                                             System.out.println("Request URL: " + finalRequest.url());
@@ -127,9 +126,9 @@ public final class BackendClient {
                                 }
                             }).build();
 
-                    // יצירת Gson פשוט ללא deserializers מותאמים
+                    // Create simple Gson without custom deserializers
                     Gson gson = new GsonBuilder()
-                            .setLenient() // מאפשר JSON לא מושלם
+                            .setLenient() // Allows non-strict JSON
                             .create();
 
                     INSTANCE = new Retrofit.Builder()

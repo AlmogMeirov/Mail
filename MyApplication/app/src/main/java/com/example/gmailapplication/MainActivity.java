@@ -28,9 +28,9 @@ public class MainActivity extends AppCompatActivity {
         tvAppName = findViewById(R.id.tvAppName);
         tvLoading = findViewById(R.id.tvLoading);
 
-        // Set app name and loading text
-        tvAppName.setText("Gmail Application");
-        tvLoading.setText("טוען...");
+        // Set app name and loading text using string resources
+        tvAppName.setText(getString(R.string.app_name));
+        tvLoading.setText(getString(R.string.loading));
     }
 
     private void showSplashScreen() {
@@ -80,4 +80,3 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 }
-

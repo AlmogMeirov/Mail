@@ -86,7 +86,7 @@ public class LoginActivity extends AppCompatActivity {
     // --- Wire links ---
     private void wireLinks() {
         // Register link
-        tvRegisterLink.setText("אין לך חשבון? הירשם כאן");
+        tvRegisterLink.setText(getString(R.string.no_account_register));
         tvRegisterLink.setOnClickListener(v -> {
             Intent intent = new Intent(LoginActivity.this, RegisterActivity.class);
             startActivity(intent);
@@ -104,7 +104,7 @@ public class LoginActivity extends AppCompatActivity {
                 viewModel.prefillEmail(email);
                 etEmail.setText(email);
             }
-            showToast("הרישום הושלם בהצלחה! אנא התחבר עם הסיסמה שלך");
+            showToast(getString(R.string.registration_completed));
         }
     }
 
@@ -114,7 +114,7 @@ public class LoginActivity extends AppCompatActivity {
         viewModel.getIsLoading().observe(this, isLoading -> {
             btnLogin.setEnabled(!isLoading);
             if (isLoading) {
-                tvResult.setText("מתחבר...");
+                tvResult.setText(getString(R.string.logging_in));
             }
         });
 
@@ -150,7 +150,7 @@ public class LoginActivity extends AppCompatActivity {
                     saveLoginData(loginResponse, user);
 
                     // Show success message briefly then navigate to inbox
-                    showToast("התחברות מוצלחת! מעביר לתיבת הדואר...");
+                    showToast(getString(R.string.login_successful));
 
                     // Navigate to inbox activity after a short delay
                     new android.os.Handler(getMainLooper()).postDelayed(() -> {

@@ -62,7 +62,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
     private DrawerLayout drawerLayout;
     private NavigationView navigationView;
 
-    // מצב נוכחי פשוט
+    // Current filter state
     private String currentFilter = "inbox";
 
     @Override
@@ -82,6 +82,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         setupObservers();
         setupNavigationDrawer();
         setupHeader();
+        setupPaginationControls();
 
         // Load emails
         viewModel.loadEmails();
@@ -109,7 +110,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         navigationView.setCheckedItem(R.id.nav_inbox);
 
         setupNavigationHeader();
-        loadCustomLabels(); // טעינת תוויות מותאמות
+        loadCustomLabels();
     }
 
     private void setupNavigationHeader() {
@@ -118,14 +119,12 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
 
         // Find views in header
         TextView tvUserEmail = headerView.findViewById(R.id.tvUserEmail);
-        ImageView ivProfileImage = headerView.findViewById(R.id.ivProfileImage); // הוסף את זה
+        ImageView ivProfileImage = headerView.findViewById(R.id.ivProfileImage);
         Button btnCreateNewLabel = headerView.findViewById(R.id.btnCreateNewLabel);
-
-
 
         // Set current user email
         String currentUserEmail = TokenManager.getCurrentUserEmail(this);
-        String currentUserId = TokenManager.getCurrentUserId(this); // הוסף את זה
+        String currentUserId = TokenManager.getCurrentUserId(this);
 
         System.out.println("=== NAVIGATION HEADER DEBUG ===");
         System.out.println("User email: " + currentUserEmail);
@@ -134,7 +133,6 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         if (currentUserEmail != null) {
             tvUserEmail.setText(currentUserEmail);
 
-            // הוסף את זה:
             if (currentUserId != null && ivProfileImage != null) {
                 loadProfileImage(currentUserId, ivProfileImage);
             } else {
@@ -148,8 +146,6 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             showCreateLabelDialog();
         });
     }
-
-    // הוסף את זה ל-InboxActivity.java
 
     private void loadProfileImage(String userId, ImageView imageView) {
         System.out.println("=== LOADING AVATAR FOR USER: " + userId + " ===");
@@ -170,7 +166,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                         byte[] imageBytes = response.body().bytes();
                         System.out.println("✓ Image loaded successfully, size: " + imageBytes.length + " bytes");
 
-                        // בדיקת magic bytes - האם זה באמת PNG?
+                        // Check magic bytes - is this actually PNG?
                         if (imageBytes.length >= 8) {
                             String header = String.format("%02X%02X%02X%02X%02X%02X%02X%02X",
                                     imageBytes[0], imageBytes[1], imageBytes[2], imageBytes[3],
@@ -182,15 +178,15 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                             System.out.println("Is valid PNG: " + isPNG);
                         }
 
-                        // נסה פענוח עם BitmapFactory options
+                        // Try decoding with BitmapFactory options
                         BitmapFactory.Options options = new BitmapFactory.Options();
-                        options.inJustDecodeBounds = true; // רק מידע, לא פענוח
+                        options.inJustDecodeBounds = true; // Info only, no decoding
                         BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length, options);
 
                         System.out.println("Image format: " + options.outMimeType);
                         System.out.println("Image dimensions: " + options.outWidth + "x" + options.outHeight);
 
-                        // עכשיו פענוח אמיתי
+                        // Now decode for real
                         options.inJustDecodeBounds = false;
                         Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length, options);
 
@@ -204,7 +200,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                                 System.out.println("=== SETTING IMAGE ON UI THREAD ===");
                                 System.out.println("ImageView before: " + imageView.getDrawable());
 
-                                // שים תמונה עגולה
+                                // Create circular image
                                 Bitmap circularBitmap = createCircularBitmap(bitmap);
                                 imageView.setImageBitmap(circularBitmap);
 
@@ -246,7 +242,6 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         });
     }
 
-    // גם ודא שהפונקציה createCircularBitmap עובדת טוב
     private Bitmap createCircularBitmap(Bitmap bitmap) {
         System.out.println("=== CREATING CIRCULAR BITMAP ===");
         System.out.println("Input bitmap: " + bitmap.getWidth() + "x" + bitmap.getHeight());
@@ -290,10 +285,8 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         });
     }
 
-    // החלף את המתודה addCustomLabelsToMenu הקיימת בזו:
-
     private void addCustomLabelsToMenu(List<Label> allLabels) {
-        // סנן רק תוויות מותאמות (לא מערכת)
+        // Filter only custom labels (not system)
         List<Label> customLabels = new ArrayList<>();
         for (Label label : allLabels) {
             if (!label.isSystem) {
@@ -302,38 +295,36 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         }
 
         if (customLabels.isEmpty()) {
-            return; // אין תוויות מותאמות
+            return; // No custom labels
         }
 
-        // מקבל את התפריט של הNavigation View
+        // Get the Navigation View menu
         Menu menu = navigationView.getMenu();
 
-        // מנקה תוויות קיימות בקבוצה המותאמת
+        // Remove existing labels in custom group
         menu.removeGroup(R.id.group_custom_labels);
 
-        // מוסיף כותרת לתוויות מותאמות
-        menu.add(R.id.group_custom_labels, Menu.NONE, Menu.NONE, "תוויות אישיות")
+        // Add header for custom labels
+        menu.add(R.id.group_custom_labels, Menu.NONE, Menu.NONE, getString(R.string.nav_personal_labels))
                 .setEnabled(false);
 
-        // מוסיף את התוויות החדשות
+        // Add the new labels
         for (int i = 0; i < customLabels.size(); i++) {
             Label label = customLabels.get(i);
             MenuItem item = menu.add(R.id.group_custom_labels,
                     View.generateViewId(), i + 1, label.name);
             item.setIcon(android.R.drawable.ic_menu_mylocation);
 
-            // ** החדש: הוסף long-click listener **
             setupLongClickForCustomLabel(item, label);
         }
     }
 
-    // מתודה חדשה לטיפול ב-long click על תוויות מותאמות
     private void setupLongClickForCustomLabel(MenuItem menuItem, Label label) {
-        // למצער Android לא תומך ב-long click ישירות על MenuItem
-        // נשתמש בפתרון חלופי - נוסיף ContextMenu בלחיצה רגילה אם זה תווית מותאמת
+        // Android doesn't support long click directly on MenuItem
+        // Use alternative solution - add ContextMenu on regular click if it's custom label
 
-        // נשמור את ה-label במקום נגיש כדי לטפל בו בonNavigationItemSelected
-        menuItem.getIntent(); // ניצור Intent חדש לשמירה
+        // Store the label in Intent for handling in onNavigationItemSelected
+        menuItem.getIntent();
         if (menuItem.getIntent() == null) {
             menuItem.setIntent(new android.content.Intent());
         }
@@ -341,7 +332,6 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         menuItem.getIntent().putExtra("custom_label_name", label.name);
     }
 
-    // עדכון onNavigationItemSelected לטיפול בתוויות מותאמות:
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         drawerLayout.closeDrawer(GravityCompat.START);
@@ -349,15 +339,15 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         int itemId = item.getItemId();
         int groupId = item.getGroupId();
 
-        // תוויות מערכת (הקוד הקיים)
+        // System labels (existing code)
         if (itemId == R.id.nav_inbox) {
             viewModel.loadEmails();
             return true;
         } else if (itemId == R.id.nav_sent) {
-            viewModel.loadEmailsByLabel("sent", "נשלח");
+            viewModel.loadEmailsByLabel("sent", getString(R.string.nav_sent));
             return true;
         } else if (itemId == R.id.nav_drafts) {
-            viewModel.loadEmailsByLabel("drafts", "טיוטות");
+            viewModel.loadEmailsByLabel("drafts", getString(R.string.nav_drafts));
             return true;
         } else if (itemId == R.id.nav_starred) {
             viewModel.loadStarredEmails();
@@ -366,30 +356,30 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             viewModel.loadSpamEmails();
             return true;
         } else if (itemId == R.id.nav_trash) {
-            viewModel.loadEmailsByLabel("trash", "אשפה");
+            viewModel.loadEmailsByLabel("trash", getString(R.string.nav_trash));
             return true;
         }
 
-        // תוויות מותאמות אישית
+        // Custom personal labels
         else if (groupId == R.id.group_custom_labels) {
             String labelName = item.getTitle().toString();
 
-            // דלג על הכותרת "תוויות אישיות"
-            if (labelName.equals("תוויות אישיות")) {
+            // Skip the header "Personal Labels"
+            if (labelName.equals(getString(R.string.nav_personal_labels))) {
                 return true;
             }
 
-            // בדוק אם יש מידע על תווית מותאמת
+            // Check if we have custom label info
             if (item.getIntent() != null &&
                     item.getIntent().hasExtra("custom_label_id")) {
 
                 String labelId = item.getIntent().getStringExtra("custom_label_id");
 
-                // הצג תפריט אפשרויות לתווית מותאמת
+                // Show options menu for custom label
                 showCustomLabelOptions(labelId, labelName);
                 return true;
             } else {
-                // תווית רגילה - פתח אותה
+                // Regular label - open it
                 viewModel.loadEmailsByLabel(labelName, labelName);
                 return true;
             }
@@ -398,33 +388,35 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         return false;
     }
 
-    // מתודה חדשה להצגת אפשרויות לתווית מותאמת
     private void showCustomLabelOptions(String labelId, String labelName) {
-        String[] options = {"הצג מיילים", "ערוך תווית", "מחק תווית"};
+        String[] options = {
+                getString(R.string.show_emails),
+                getString(R.string.edit_label),
+                getString(R.string.delete_label)
+        };
 
         new AlertDialog.Builder(this)
                 .setTitle("'" + labelName + "'")
                 .setItems(options, (dialog, which) -> {
                     switch (which) {
-                        case 0: // הצג מיילים
+                        case 0: // Show emails
                             viewModel.loadEmailsByLabel(labelName, labelName);
                             break;
-                        case 1: // ערוך תווית
+                        case 1: // Edit label
                             showEditLabelDialog(labelId, labelName);
                             break;
-                        case 2: // מחק תווית
+                        case 2: // Delete label
                             showDeleteLabelDialog(labelId, labelName);
                             break;
                     }
                 })
-                .setNegativeButton("ביטול", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .show();
     }
 
-    // מתודה לעריכת תווית
     private void showEditLabelDialog(String labelId, String currentName) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("עריכת תווית");
+        builder.setTitle(getString(R.string.edit_label_title));
 
         final EditText input = new EditText(this);
         input.setText(currentName);
@@ -432,37 +424,35 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         input.setPadding(32, 32, 32, 32);
         builder.setView(input);
 
-        builder.setPositiveButton("עדכן", (dialog, which) -> {
+        builder.setPositiveButton(getString(R.string.update), (dialog, which) -> {
             String newName = input.getText().toString().trim();
             if (!newName.isEmpty()) {
                 if (!newName.equals(currentName)) {
                     updateLabel(labelId, newName);
                 } else {
-                    Toast.makeText(this, "לא בוצעו שינויים", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_no_changes), Toast.LENGTH_SHORT).show();
                 }
             } else {
-                Toast.makeText(this, "יש להזין שם תווית", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.error_label_name_required), Toast.LENGTH_SHORT).show();
             }
         });
 
-        builder.setNegativeButton("ביטול", null);
+        builder.setNegativeButton(getString(R.string.cancel), null);
         AlertDialog dialog = builder.create();
         dialog.show();
         input.requestFocus();
     }
 
-    // מתודה למחיקת תווית
     private void showDeleteLabelDialog(String labelId, String labelName) {
         new AlertDialog.Builder(this)
-                .setTitle("מחיקת תווית")
-                .setMessage("האם אתה בטוח שברצונך למחוק את התווית '" + labelName + "'?\n\nהתווית תוסר מכל המיילים הקיימים.")
+                .setTitle(getString(R.string.delete_label_title))
+                .setMessage(getString(R.string.delete_label_message, labelName))
                 .setIcon(android.R.drawable.ic_dialog_alert)
-                .setPositiveButton("מחק", (dialog, which) -> deleteLabel(labelId, labelName))
-                .setNegativeButton("ביטול", null)
+                .setPositiveButton(getString(R.string.delete), (dialog, which) -> deleteLabel(labelId, labelName))
+                .setNegativeButton(getString(R.string.cancel), null)
                 .show();
     }
 
-    // מתודה לעדכון תווית בשרת
     private void updateLabel(String labelId, String newName) {
         LabelAPI labelAPI = BackendClient.get(this).create(LabelAPI.class);
         UpdateLabelRequest request = new UpdateLabelRequest(newName);
@@ -472,22 +462,21 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             public void onResponse(Call<Label> call, Response<Label> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     Toast.makeText(InboxActivity.this,
-                            "תווית עודכנה ל-'" + response.body().name + "'", Toast.LENGTH_SHORT).show();
-                    refreshNavigationMenu(); // רענן תפריט
+                            getString(R.string.label_updated, response.body().name), Toast.LENGTH_SHORT).show();
+                    refreshNavigationMenu();
                 } else {
-                    handleLabelError("עדכון", response.code());
+                    handleLabelError(getString(R.string.update), response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<Label> call, Throwable t) {
                 Toast.makeText(InboxActivity.this,
-                        "שגיאה בחיבור לשרת: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        getString(R.string.error_server_connection, t.getMessage()), Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    // מתודה למחיקת תווית בשרת
     private void deleteLabel(String labelId, String labelName) {
         LabelAPI labelAPI = BackendClient.get(this).create(LabelAPI.class);
 
@@ -496,51 +485,57 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) {
                     Toast.makeText(InboxActivity.this,
-                            "תווית '" + labelName + "' נמחקה בהצלחה", Toast.LENGTH_SHORT).show();
+                            getString(R.string.label_deleted, labelName), Toast.LENGTH_SHORT).show();
 
                     String currentFilter = viewModel.getCurrentFilter().getValue();
-                    // השווה גם במקרה המקורי וגם בלווארקייס
+                    // Compare both original case and lowercase
                     if (labelName.equalsIgnoreCase(currentFilter) ||
                             labelName.toLowerCase().equals(currentFilter)) {
-                        viewModel.loadEmails(); // חזור לדואר נכנס
+                        viewModel.loadEmails(); // Return to inbox
                         Toast.makeText(InboxActivity.this,
-                                "התווית נמחקה - מעבר לדואר נכנס", Toast.LENGTH_SHORT).show();
+                                getString(R.string.label_deleted_returning_inbox), Toast.LENGTH_SHORT).show();
                     }
 
-                    refreshNavigationMenu(); // רענן תפריט
+                    refreshNavigationMenu();
                 } else {
-                    handleLabelError("מחיקה", response.code());
+                    handleLabelError(getString(R.string.delete), response.code());
                 }
             }
 
             @Override
             public void onFailure(Call<Void> call, Throwable t) {
                 Toast.makeText(InboxActivity.this,
-                        "שגיאה בחיבור לשרת: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        getString(R.string.error_server_connection, t.getMessage()), Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    // מתודה לטיפול בשגיאות תוויות
     private void handleLabelError(String action, int responseCode) {
         String message;
         switch (responseCode) {
             case 404:
-                message = "התווית לא נמצאה";
+                message = getString(R.string.error_label_not_found);
                 break;
             case 409:
-                message = "תווית עם שם זה כבר קיימת";
+                message = getString(R.string.error_label_exists);
                 break;
             case 403:
-                message = "אין הרשאה לבצע פעולה זו";
+                message = getString(R.string.error_no_permission);
                 break;
             default:
-                message = "שגיאה ב" + action + " תווית (קוד " + responseCode + ")";
+                if (action.equals(getString(R.string.update))) {
+                    message = getString(R.string.error_updating_label, responseCode);
+                } else if (action.equals(getString(R.string.delete))) {
+                    message = getString(R.string.error_deleting_label, responseCode);
+                } else {
+                    message = "Error " + action + " label (code " + responseCode + ")";
+                }
         }
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
+
     private void refreshNavigationMenu() {
-        // רענון תוויות אחרי יצירת תווית חדשה
+        // Refresh labels after creating new label
         loadCustomLabels();
     }
 
@@ -559,14 +554,14 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         System.out.println("Current user email from token: " + currentUserEmail);
 
         adapter = new EmailAdapter(email -> {
-            // בדוק אם זה טיוטה
+            // Check if it's a draft
             boolean isDraft = (email.labels != null && email.labels.contains("drafts"));
 
             if (isDraft) {
-                // טיוטה - פתח עריכה
+                // Draft - open for editing
                 handleEditDraft(email);
             } else {
-                // מייל רגיל - הצג פרטים
+                // Regular email - show details
                 Intent intent = new Intent(this, EmailDetailActivity.class);
                 intent.putExtra("email_id", email.id);
                 intent.putExtra("sender", email.sender);
@@ -577,7 +572,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             }
         }, currentUserEmail);
 
-// שאר הlisteners
+        // Set other listeners
         adapter.setDeleteListener(this::handleEmailDelete);
         adapter.setStarListener(this::handleEmailStar);
         adapter.setEditDraftListener(this::handleEditDraft);
@@ -587,21 +582,21 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
     }
 
     private void handleEmailDelete(Email email) {
-        // לוגיקה פשוטה על פי השרת:
-        // אם אנחנו בתווית trash → מחיקה סופית (DELETE API)
-        // אחרת → החלפת כל התוויות ב-"trash" בלבד
+        // Simple logic based on server:
+        // If in trash → permanent delete (DELETE API)
+        // Otherwise → move to trash (replace all labels with "trash" only)
 
         if ("trash".equals(currentFilter)) {
-            // באשפה - אשר מחיקה סופית
+            // In trash - confirm permanent delete
             showPermanentDeleteConfirmation(email);
         } else {
-            // במצב רגיל - העבר לאשפה (החלף את כל התוויות ב-trash)
+            // Regular mode - move to trash (replace all labels with trash)
             viewModel.moveToTrash(email.id, success -> {
                 if (success) {
-                    Toast.makeText(this, "המייל הועבר לאשפה", Toast.LENGTH_SHORT).show();
-                    viewModel.refreshCurrentFilter(); // רענן רשימה
+                    Toast.makeText(this, getString(R.string.moved_to_trash), Toast.LENGTH_SHORT).show();
+                    viewModel.refreshCurrentFilter(); // Refresh list
                 } else {
-                    Toast.makeText(this, "שגיאה בהעברת המייל לאשפה", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.error_moving_to_trash), Toast.LENGTH_SHORT).show();
                 }
             });
         }
@@ -609,21 +604,21 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
 
     private void showPermanentDeleteConfirmation(Email email) {
         new AlertDialog.Builder(this)
-                .setTitle("מחיקה סופית")
-                .setMessage("האם אתה בטוח שברצונך למחוק את המייל לצמיתות?\nפעולה זו לא ניתנת לביטול!")
+                .setTitle(getString(R.string.permanent_delete_title))
+                .setMessage(getString(R.string.permanent_delete_message))
                 .setIcon(android.R.drawable.ic_dialog_alert)
-                .setPositiveButton("מחק לצמיתות", (dialog, which) -> {
-                    // השתמש ב-DELETE API
+                .setPositiveButton(getString(R.string.delete_permanently), (dialog, which) -> {
+                    // Use DELETE API
                     viewModel.deleteEmail(email.id, success -> {
                         if (success) {
-                            Toast.makeText(InboxActivity.this, "המייל נמחק לצמיתות", Toast.LENGTH_SHORT).show();
-                            viewModel.refreshCurrentFilter(); // רענן רשימה
+                            Toast.makeText(InboxActivity.this, getString(R.string.permanently_deleted), Toast.LENGTH_SHORT).show();
+                            viewModel.refreshCurrentFilter(); // Refresh list
                         } else {
-                            Toast.makeText(InboxActivity.this, "שגיאה במחיקת המייל", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(InboxActivity.this, getString(R.string.error_deleting_email), Toast.LENGTH_SHORT).show();
                         }
                     });
                 })
-                .setNegativeButton("ביטול", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .show();
     }
 
@@ -641,7 +636,16 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             System.out.println("==================");
         });
 
-        // Observer לעדכון כותרת המסך
+        viewModel.getRoomEmails().observe(this, roomEmails -> {
+            System.out.println("=== ROOM DEBUG 6: Observer triggered ===");
+            System.out.println("roomEmails is null: " + (roomEmails == null));
+            if (roomEmails != null) {
+                System.out.println("roomEmails size: " + roomEmails.size());
+            }
+            System.out.println("===============================");
+        });
+
+        // Observer for screen title update
         viewModel.getCurrentFilterDisplayName().observe(this, displayName -> {
             TextView tvWelcome = findViewById(R.id.tvWelcome);
             if (tvWelcome != null && displayName != null) {
@@ -649,13 +653,13 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             }
         });
 
-        // Observer למעקב אחר הפילטר הנוכחי
+        // Observer for current filter tracking
         viewModel.getCurrentFilter().observe(this, filter -> {
             currentFilter = filter != null ? filter : "inbox";
             System.out.println("Current filter changed to: " + currentFilter);
         });
 
-        // הוסף בתוך setupObservers()
+        // Add within setupObservers()
         viewModel.getSearchResults().observe(this, searchResults -> {
             if (searchResults != null) {
                 adapter.updateEmails(searchResults);
@@ -665,7 +669,42 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
 
         viewModel.getIsSearching().observe(this, isSearching -> {
             if (isSearching != null && isSearching) {
-                Toast.makeText(this, "מחפש...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.searching), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        viewModel.getRoomEmails().observe(this, roomEmails -> {
+            System.out.println("=== ROOM OBSERVER TRIGGERED ===");
+            System.out.println("Room emails count: " + (roomEmails != null ? roomEmails.size() : "null"));
+
+            if (roomEmails != null) {
+                System.out.println("First 3 Room emails:");
+                for (int i = 0; i < Math.min(3, roomEmails.size()); i++) {
+                    Email email = roomEmails.get(i);
+                    System.out.println("  " + (i+1) + ". " + email.subject + " (from: " + email.sender + ")");
+                }
+            }
+            System.out.println("==============================");
+        });
+
+        viewModel.getHasNextPage().observe(this, hasNext -> {
+            Button btnNext = findViewById(R.id.btnNextPage);
+            if (btnNext != null) {
+                btnNext.setEnabled(hasNext != null && hasNext);
+            }
+        });
+
+        viewModel.getHasPreviousPage().observe(this, hasPrev -> {
+            Button btnPrev = findViewById(R.id.btnPreviousPage);
+            if (btnPrev != null) {
+                btnPrev.setEnabled(hasPrev != null && hasPrev);
+            }
+        });
+
+        viewModel.getTotalPages().observe(this, totalPages -> {
+            TextView tvPageInfo = findViewById(R.id.tvPageInfo);
+            if (tvPageInfo != null && totalPages != null) {
+                tvPageInfo.setText(getString(R.string.page_info, viewModel.getCurrentPage(), totalPages));
             }
         });
 
@@ -689,10 +728,9 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         ImageView ivThemeToggle = findViewById(R.id.ivThemeToggle);
         TextView tvProfileAvatar = findViewById(R.id.tvProfileAvatar);
         LinearLayout searchBar = findViewById(R.id.searchBar);
-        ImageView ivProfileImage = findViewById(R.id.ivProfileImageHeader ); // זה יתייחס לזה שבshורה העליונה
+        ImageView ivProfileImage = findViewById(R.id.ivProfileImageHeader); // This refers to the one in the upper bar
 
-
-        // כפתור המבורגר
+        // Menu hamburger button
         if (ivMenu != null) {
             ivMenu.setOnClickListener(v -> {
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
@@ -703,7 +741,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             });
         }
 
-        // כפתור החלפת ערכת נושא
+        // Theme toggle button
         if (ivThemeToggle != null) {
             updateThemeIcon(ivThemeToggle);
             ivThemeToggle.setOnClickListener(v -> {
@@ -711,6 +749,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                 updateThemeIcon(ivThemeToggle);
             });
         }
+
         String currentUserId = TokenManager.getCurrentUserId(this);
         System.out.println("=== PROFILE IMAGE DEBUG ===");
         System.out.println("User ID: " + currentUserId);
@@ -725,8 +764,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             }
         }
 
-
-        // פרופיל אווטר - אפשרויות משתמש (רק רענן והתנתק עכשיו)
+        // Profile avatar - user options (only refresh and logout for now)
         if (tvProfileAvatar != null) {
             String userEmail = TokenManager.getCurrentUserEmail(this);
             if (userEmail != null && !userEmail.isEmpty()) {
@@ -736,7 +774,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
             tvProfileAvatar.setOnClickListener(v -> showUserProfileMenu());
         }
 
-        // חיפוש
+        // Search
         if (searchBar != null) {
             searchBar.setOnClickListener(v -> showSearchDialog());
         }
@@ -745,31 +783,34 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
     private void updateThemeIcon(ImageView themeIcon) {
         int currentMode = AppCompatDelegate.getDefaultNightMode();
         if (currentMode == AppCompatDelegate.MODE_NIGHT_YES) {
-            // מצב כהה - הצג שמש (כדי לעבור למצב בהיר)
+            // Dark mode - show sun (to switch to light)
             themeIcon.setImageResource(R.drawable.ic_theme_light);
         } else {
-            // מצב בהיר - הצג ירח (כדי לעבור למצב כהה)
+            // Light mode - show moon (to switch to dark)
             themeIcon.setImageResource(R.drawable.ic_theme_dark);
         }
     }
 
     private void showUserProfileMenu() {
-        String[] options = {"רענן מיילים", "התנתק"};
+        String[] options = {
+                getString(R.string.refresh),
+                getString(R.string.logout)
+        };
 
         new AlertDialog.Builder(this)
-                .setTitle("אפשרויות משתמש")
+                .setTitle(getString(R.string.user_options))
                 .setItems(options, (dialog, which) -> {
                     switch (which) {
-                        case 0: // רענן
+                        case 0: // Refresh
                             viewModel.refreshCurrentFilter();
-                            Toast.makeText(this, "מרענן מיילים...", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, getString(R.string.refreshing), Toast.LENGTH_SHORT).show();
                             break;
-                        case 1: // התנתק
+                        case 1: // Logout
                             showLogoutConfirmation();
                             break;
                     }
                 })
-                .setNegativeButton("ביטול", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .show();
     }
 
@@ -778,26 +819,29 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         int newMode = (currentMode == AppCompatDelegate.MODE_NIGHT_YES) ?
                 AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_YES;
 
-        // שמור את ההעדפה
+        // Save preference
         SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
         prefs.edit().putInt("night_mode", newMode).apply();
 
-        // החלף את הערכת נושא
+        // Switch theme
         AppCompatDelegate.setDefaultNightMode(newMode);
     }
 
     private void showUserOptions() {
-        String[] options = {"רענן", "התנתק"};
+        String[] options = {
+                getString(R.string.refresh),
+                getString(R.string.logout)
+        };
 
         new AlertDialog.Builder(this)
-                .setTitle("אפשרויות")
+                .setTitle(getString(R.string.user_options))
                 .setItems(options, (dialog, which) -> {
                     switch (which) {
-                        case 0: // רענן
+                        case 0: // Refresh
                             viewModel.refreshCurrentFilter();
-                            Toast.makeText(this, "מרענן...", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, getString(R.string.refreshing), Toast.LENGTH_SHORT).show();
                             break;
-                        case 1: // התנתק
+                        case 1: // Logout
                             showLogoutConfirmation();
                             break;
                     }
@@ -807,25 +851,25 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
 
     private void showSearchDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("חיפוש מיילים");
+        builder.setTitle(getString(R.string.search_title));
 
         final EditText input = new EditText(this);
-        input.setHint("הזן מילות חיפוש...");
+        input.setHint(getString(R.string.search_hint));
         input.setPadding(32, 32, 32, 32);
         builder.setView(input);
 
-        builder.setPositiveButton("חפש", (dialog, which) -> {
+        builder.setPositiveButton(getString(R.string.search), (dialog, which) -> {
             String query = input.getText().toString().trim();
             if (!query.isEmpty()) {
                 performSearch(query);
             } else {
-                Toast.makeText(this, "יש להזין מילות חיפוש", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.error_search_terms_required), Toast.LENGTH_SHORT).show();
             }
         });
 
-        builder.setNegativeButton("ביטול", null);
+        builder.setNegativeButton(getString(R.string.cancel), null);
 
-        builder.setNeutralButton("נקה", (dialog, which) -> {
+        builder.setNeutralButton(getString(R.string.clear), (dialog, which) -> {
             clearSearch();
         });
 
@@ -836,37 +880,37 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
 
     private void performSearch(String query) {
         viewModel.searchEmails(query);
-        currentFilter = "search"; // עדכן מצב
+        currentFilter = "search"; // Update state
         TextView tvWelcome = findViewById(R.id.tvWelcome);
-        tvWelcome.setText("תוצאות חיפוש: " + query);
+        tvWelcome.setText(getString(R.string.search_results, query));
     }
 
     private void clearSearch() {
         viewModel.clearSearch();
-        viewModel.refreshCurrentFilter(); // חזור למצב הקודם
-        Toast.makeText(this, "החיפוש נוקה", Toast.LENGTH_SHORT).show();
+        viewModel.refreshCurrentFilter(); // Return to previous state
+        Toast.makeText(this, getString(R.string.search_cleared), Toast.LENGTH_SHORT).show();
     }
 
     private void showCreateLabelDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("יצירת תווית חדשה");
+        builder.setTitle(getString(R.string.create_label_title));
 
         final EditText input = new EditText(this);
-        input.setHint("שם התווית");
+        input.setHint(getString(R.string.label_name_hint));
         input.setPadding(32, 32, 32, 32);
         builder.setView(input);
 
-        builder.setPositiveButton("צור", (dialog, which) -> {
+        builder.setPositiveButton(getString(R.string.create), (dialog, which) -> {
             String labelName = input.getText().toString().trim();
             if (!labelName.isEmpty()) {
                 createLabel(labelName);
             } else {
                 Toast.makeText(InboxActivity.this,
-                        "יש להזין שם תווית", Toast.LENGTH_SHORT).show();
+                        getString(R.string.error_label_name_required), Toast.LENGTH_SHORT).show();
             }
         });
 
-        builder.setNegativeButton("ביטול", null);
+        builder.setNegativeButton(getString(R.string.cancel), null);
 
         AlertDialog dialog = builder.create();
         dialog.show();
@@ -885,25 +929,24 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                 if (response.isSuccessful() && response.body() != null) {
                     Label newLabel = response.body();
                     Toast.makeText(InboxActivity.this,
-                            "תווית '" + newLabel.name + "' נוצרה בהצלחה", Toast.LENGTH_SHORT).show();
+                            getString(R.string.label_created, newLabel.name), Toast.LENGTH_SHORT).show();
 
-                    // רענון התפריט כדי להציג את התווית החדשה
+                    // Refresh menu to show new label
                     refreshNavigationMenu();
 
                 } else {
                     Toast.makeText(InboxActivity.this,
-                            "שגיאה ביצירת תווית: " + response.code(), Toast.LENGTH_SHORT).show();
+                            getString(R.string.error_creating_label, response.code()), Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<Label> call, Throwable t) {
                 Toast.makeText(InboxActivity.this,
-                        "שגיאה בחיבור לשרת: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        getString(R.string.error_server_connection, t.getMessage()), Toast.LENGTH_SHORT).show();
             }
         });
     }
-
 
     @Override
     public void onBackPressed() {
@@ -916,16 +959,17 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
 
     private void showLogoutConfirmation() {
         new AlertDialog.Builder(this)
-                .setTitle("התנתקות")
-                .setMessage("האם אתה בטוח שברצונך להתנתק?")
-                .setPositiveButton("התנתק", (dialog, which) -> logout())
-                .setNegativeButton("ביטול", null)
+                .setTitle(getString(R.string.logout_title))
+                .setMessage(getString(R.string.logout_message))
+                .setPositiveButton(getString(R.string.logout), (dialog, which) -> logout())
+                .setNegativeButton(getString(R.string.cancel), null)
                 .show();
     }
+
     private void logout() {
         System.out.println("=== LOGOUT PROCESS STARTED ===");
 
-        // נקה את הטוכן מכל המקומות
+        // Clear content from all locations
         TokenManager.clear(this);
 
         android.content.SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
@@ -933,16 +977,15 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
 
         System.out.println("=== USER DATA CLEARED ===");
 
-        // חזור למסך ההתחברות ונקה את כל ה-stack
+        // Return to login screen and clear stack
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
 
-        Toast.makeText(this, "התנתקת בהצלחה", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, getString(R.string.logout_successful), Toast.LENGTH_SHORT).show();
         System.out.println("=== LOGOUT COMPLETED ===");
     }
-
 
     private void handleEmailStar(Email email) {
         boolean isCurrentlyStarred = email.labels != null && email.labels.contains("starred");
@@ -950,15 +993,27 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         viewModel.toggleStar(email.id, success -> {
             if (success) {
                 if (isCurrentlyStarred) {
-                    Toast.makeText(this, "הכוכב הוסר", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.star_removed), Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(this, "נוסף כוכב", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.star_added), Toast.LENGTH_SHORT).show();
                 }
-                viewModel.refreshCurrentFilter(); // רענן רשימה
+                viewModel.refreshCurrentFilter(); // Refresh list
             } else {
-                Toast.makeText(this, "שגיאה בעדכון הכוכב", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.error_updating_star), Toast.LENGTH_SHORT).show();
             }
         });
     }
 
+    private void setupPaginationControls() {
+        Button btnNext = findViewById(R.id.btnNextPage);
+        Button btnPrev = findViewById(R.id.btnPreviousPage);
+
+        if (btnNext != null) {
+            btnNext.setOnClickListener(v -> viewModel.goToNextPage());
+        }
+
+        if (btnPrev != null) {
+            btnPrev.setOnClickListener(v -> viewModel.goToPreviousPage());
+        }
+    }
 }

@@ -28,70 +28,71 @@ public interface EmailAPI {
         public List<Email> recent_mails;
     }
 
-    // כל המיילים (inbox, sent, drafts) - מבנה תגובה חדש מהשרת
+    // All emails (inbox, sent, drafts) - returns new response from server
     @GET("mails")
     Call<EmailListResponse> getEmails();
 
-    // שליחת מייל
+    // Send email
     @POST("mails")
     Call<Void> sendEmail(@Body SendEmailRequest request);
-    // מייל ספציפי
+
+    // Specific email
     @GET("mails/{id}")
     Call<Email> getEmailById(@Path("id") String emailId);
 
-    // חיפוש מיילים
+    // Search emails
     @GET("mails/search")
     Call<List<Email>> searchEmails(@Query("q") String query);
 
-    // עדכון תוויות מייל (התאמה לשרת החדש)
+    // Update email labels (adapted to new server)
     @PATCH("mails/{id}/labels")
     Call<Void> updateEmailLabels(@Path("id") String emailId, @Body UpdateLabelsRequest request);
 
-    // מחיקת מייל
+    // Delete email
     @DELETE("mails/{id}")
     Call<Void> deleteEmail(@Path("id") String emailId);
 
-    // === API חדש מהשרת ===
+    // === New API from server ===
 
-    // ארכוב מייל (הסרת תווית inbox)
+    // Archive email (remove inbox label)
     @POST("mails/{id}/archive")
     Call<Void> archiveEmail(@Path("id") String emailId);
 
-    // הוספה/הסרה של כוכב
+    // Add/remove star
     @POST("mails/{id}/star")
     Call<Void> toggleStarEmail(@Path("id") String emailId);
 
-    // הוספת תווית יחידה
+    // Add single label
     @POST("mails/{id}/add-label")
     Call<Void> addLabelToEmail(@Path("id") String emailId, @Body AddLabelRequest request);
 
-    // הסרת תווית יחידה
+    // Remove single label
     @POST("mails/{id}/remove-label")
     Call<Void> removeLabelFromEmail(@Path("id") String emailId, @Body RemoveLabelRequest request);
 
-    // מיילים לפי תווית (מהשרת החדש)
+    // Emails by label (from new server)
     @GET("mails/label/{label}")
     Call<MailsByLabelResponse> getMailsByLabel(@Path("label") String labelName);
 
-    // מיילים מסומנים בכוכב
+    // Starred emails
     @GET("mails/starred")
     Call<MailsByLabelResponse> getStarredMails();
 
-    // מיילי ספאם
+    // Spam emails
     @GET("mails/spam")
     Call<MailsByLabelResponse> getSpamMails();
 
-    // === טיוטות ===
+    // === Drafts ===
 
-    // יצירת טיוטה
+    // Create draft
     @POST("mails/drafts")
     Call<Void> createDraft(@Body SendEmailRequest request);
 
-    // שליחת טיוטה
+    // Send draft
     @POST("mails/drafts/{id}/send")
     Call<Void> sendDraft(@Path("id") String draftId);
 
-    // קבלת טיוטות
+    // Get drafts
     @GET("mails/drafts")
     Call<DraftsResponse> getDrafts();
 

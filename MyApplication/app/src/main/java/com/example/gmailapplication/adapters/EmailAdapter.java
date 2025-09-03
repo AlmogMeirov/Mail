@@ -24,7 +24,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
     private OnEditDraftListener editDraftListener;
     private String currentUserEmail;
 
-    // הממשקים נשארים אותו דבר
+    // Interfaces remain the same
     public interface OnEmailClickListener {
         void onEmailClick(Email email);
     }
@@ -46,7 +46,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
         this.currentUserEmail = currentUserEmail;
     }
 
-    // Setters נשארים אותו דבר
+    // Setters remain the same
     public void setDeleteListener(OnEmailDeleteListener deleteListener) {
         this.deleteListener = deleteListener;
     }
@@ -118,7 +118,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
         }
 
         private void setupClickListeners() {
-            // לחיצה על המייל עצמו
+            // Click on email itself
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
                     int position = getAdapterPosition();
@@ -128,7 +128,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
                 }
             });
 
-            // לחיצה על הכוכב
+            // Click on star
             if (ivStar != null) {
                 ivStar.setOnClickListener(v -> {
                     if (starListener != null) {
@@ -140,13 +140,13 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
                 });
             }
 
-            // לחיצה על כפתור More (תפריט אפשרויות)
+            // Click on More button (options menu)
             if (ivMore != null) {
                 ivMore.setOnClickListener(v -> {
                     if (deleteListener != null) {
                         int position = getAdapterPosition();
                         if (position != RecyclerView.NO_POSITION) {
-                            // כרגע נשתמש בזה למחיקה, אבל אפשר להוסיף PopupMenu
+                            // Currently using this for deletion, but could add PopupMenu
                             deleteListener.onEmailDelete(emails.get(position));
                         }
                     }
@@ -159,31 +159,31 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
             boolean isSpam = isSpam(email);
             boolean isImportant = isImportant(email);
 
-            // Avatar - אות ראשונה של השולח
+            // Avatar - first letter of sender
             setupSenderAvatar(email);
 
             // Sender
             setupSender(email);
 
-            // Subject - הוסף אינדיקציה לטיוטה וספאם
+            // Subject - add indication for draft and spam
             setupSubject(email, isDraft, isSpam);
 
             // Preview
             setupPreview(email);
 
-            // Time - פורמט יפה יותר
+            // Time - better format
             setupTime(email);
 
             // Labels
             setupLabels(email);
 
-            // הגדר אינדיקטורים (קבצים מצורפים, חשיבות, ספאם)
+            // Set indicators (attachments, importance, spam)
             setupIndicators(email, isImportant, isSpam);
 
-            // הגדר כפתור כוכב
+            // Set star button
             setupStarButton(email);
 
-            // הגדר כפתור More
+            // Set More button
             setupMoreButton();
         }
 
@@ -192,14 +192,14 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
             String firstLetter = senderEmail.substring(0, 1).toUpperCase();
             tvSenderAvatar.setText(firstLetter);
 
-            // צבע רקע דינמי לפי האות הראשונה
+            // Dynamic background color based on first letter
             int[] colors = {
-                    Color.parseColor("#1a73e8"), // כחול
-                    Color.parseColor("#34a853"), // ירוק
-                    Color.parseColor("#fbbc04"), // צהוב
-                    Color.parseColor("#ea4335"), // אדום
-                    Color.parseColor("#9c27b0"), // סגול
-                    Color.parseColor("#ff6f00"), // כתום
+                    Color.parseColor("#1a73e8"), // Blue
+                    Color.parseColor("#34a853"), // Green
+                    Color.parseColor("#fbbc04"), // Yellow
+                    Color.parseColor("#ea4335"), // Red
+                    Color.parseColor("#9c27b0"), // Purple
+                    Color.parseColor("#ff6f00"), // Orange
             };
 
             int colorIndex = Math.abs(firstLetter.hashCode()) % colors.length;
@@ -207,31 +207,21 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
         }
 
         private void setupSender(Email email) {
-            String senderText = email.sender != null ? email.sender : "לא ידוע";
-
-            // אם זה מייל ששלחתי, הצג "אני" או "לעצמי"
-            if (currentUserEmail != null && currentUserEmail.equals(email.sender)) {
-                if (email.recipient != null && email.recipient.equals(currentUserEmail)) {
-                    senderText = "אני (לעצמי)";
-                } else {
-                    senderText = "אני";
-                }
-            }
-
+            String senderText = email.sender != null ? email.sender : itemView.getContext().getString(R.string.unknown_sender);
             tvSender.setText(senderText);
         }
 
         private void setupSubject(Email email, boolean isDraft, boolean isSpam) {
             String subject = email.subject != null && !email.subject.trim().isEmpty()
-                    ? email.subject : "(ללא נושא)";
+                    ? email.subject : itemView.getContext().getString(R.string.no_subject);
 
             if (isDraft) {
-                subject = "טיוטה: " + subject;
-                tvSubject.setTextColor(Color.parseColor("#ff6f00")); // כתום
+                subject = itemView.getContext().getString(R.string.draft_prefix, subject);
+                tvSubject.setTextColor(Color.parseColor("#ff6f00")); // Orange
             } else if (isSpam) {
-                tvSubject.setTextColor(Color.parseColor("#ea4335")); // אדום
+                tvSubject.setTextColor(Color.parseColor("#ea4335")); // Red
             } else {
-                tvSubject.setTextColor(Color.parseColor("#202124")); // שחור רגיל
+                tvSubject.setTextColor(itemView.getContext().getColor(R.color.gmail_text_primary));
             }
             tvSubject.setText(subject);
         }
@@ -241,28 +231,28 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
             if (preview != null && preview.length() > 100) {
                 preview = preview.substring(0, 100) + "...";
             }
-            tvPreview.setText(preview != null ? preview : "(ללא תוכן)");
+            tvPreview.setText(preview != null ? preview : itemView.getContext().getString(R.string.no_content));
         }
 
         private void setupTime(Email email) {
             if (email.timestamp != null) {
                 try {
-                    // פורמט זמן יפה יותר - רק שעה:דקה
+                    // Better time format - just hour:minute
                     String timeStr = email.timestamp.length() > 16
                             ? email.timestamp.substring(11, 16)
                             : email.timestamp;
                     tvTime.setText(timeStr);
                 } catch (Exception e) {
-                    tvTime.setText("--:--");
+                    tvTime.setText(itemView.getContext().getString(R.string.unknown_time));
                 }
             } else {
-                tvTime.setText("--:--");
+                tvTime.setText(itemView.getContext().getString(R.string.unknown_time));
             }
         }
 
         private void setupLabels(Email email) {
             if (email.labels != null && !email.labels.isEmpty()) {
-                // הצג רק תוויות מותאמות (לא מערכת)
+                // Show only custom labels (not system)
                 List<String> customLabels = new ArrayList<>();
                 for (String label : email.labels) {
                     if (!isSystemLabel(label)) {
@@ -271,9 +261,9 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
                 }
 
                 if (!customLabels.isEmpty()) {
-                    String labelsText = customLabels.get(0); // הצג רק תווית אחת
+                    String labelsText = customLabels.get(0); // Show only one label
                     if (customLabels.size() > 1) {
-                        labelsText += " +" + (customLabels.size() - 1);
+                        labelsText += " " + itemView.getContext().getString(R.string.additional_labels, (customLabels.size() - 1));
                     }
 
                     tvLabels.setText(labelsText);
@@ -311,11 +301,11 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
             // Attachment indicator (placeholder logic)
             if (ivAttachment != null) {
-                // כרגע נסתיר כי אין לנו מידע על קבצים מצורפים
+                // Currently hide since we don't have attachment info
                 ivAttachment.setVisibility(View.GONE);
             }
 
-            // הצג/הסתר את layout האינדיקטורים
+            // Show/hide indicators layout
             if (layoutIndicators != null) {
                 layoutIndicators.setVisibility(hasIndicators ? View.VISIBLE : View.GONE);
             }
@@ -327,17 +317,17 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
                 if (isStarred) {
                     ivStar.setImageResource(android.R.drawable.btn_star_big_on);
-                    ivStar.setColorFilter(Color.parseColor("#fbbc04")); // צהוב זהב
+                    ivStar.setColorFilter(Color.parseColor("#fbbc04")); // Gold yellow
                 } else {
                     ivStar.setImageResource(android.R.drawable.btn_star_big_off);
-                    ivStar.setColorFilter(Color.parseColor("#9aa0a6")); // אפור בהיר
+                    ivStar.setColorFilter(Color.parseColor("#9aa0a6")); // Light gray
                 }
             }
         }
 
         private void setupMoreButton() {
             if (ivMore != null) {
-                // הצג כפתור More רק אם יש deleteListener
+                // Show More button only if deleteListener exists
                 if (deleteListener != null) {
                     ivMore.setVisibility(View.VISIBLE);
                 } else {

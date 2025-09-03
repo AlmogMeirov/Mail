@@ -36,7 +36,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="יצירת חשבון חדש"
+                    android:text="Create New Account"
                     android:textSize="24sp"
                     android:textStyle="bold"
                     android:textColor="@color/gmail_text_primary" />
@@ -62,7 +62,7 @@
                     style="@style/GmailTextPrimary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="פרטים אישיים"
+                    android:text="Personal Information"
                     android:textStyle="bold"
                     android:layout_marginBottom="16dp" />
 
@@ -72,7 +72,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:hint="שם פרטי"
+                    android:hint="First Name"
                     app:boxStrokeColor="@color/gmail_blue"
                     app:hintTextColor="@color/gmail_text_secondary">
 
@@ -91,7 +91,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:hint="שם משפחה"
+                    android:hint="Last Name"
                     app:boxStrokeColor="@color/gmail_blue"
                     app:hintTextColor="@color/gmail_text_secondary">
 
@@ -125,7 +125,7 @@
                     style="@style/GmailTextPrimary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="פרטי חשבון"
+                    android:text="Account Information"
                     android:textStyle="bold"
                     android:layout_marginBottom="16dp" />
 
@@ -135,7 +135,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:hint="כתובת מייל"
+                    android:hint="Email Address"
                     app:boxStrokeColor="@color/gmail_blue"
                     app:hintTextColor="@color/gmail_text_secondary"
                     app:startIconDrawable="@android:drawable/ic_dialog_email"
@@ -156,7 +156,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:hint="סיסמה"
+                    android:hint="Password"
                     app:boxStrokeColor="@color/gmail_blue"
                     app:hintTextColor="@color/gmail_text_secondary"
                     app:endIconMode="password_toggle"
@@ -178,7 +178,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:hint="אישור סיסמה"
+                    android:hint="Confirm Password"
                     app:boxStrokeColor="@color/gmail_blue"
                     app:hintTextColor="@color/gmail_text_secondary"
                     app:endIconMode="password_toggle"
@@ -215,7 +215,7 @@
                     style="@style/GmailTextPrimary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="פרטים נוספים (אופציונלי)"
+                    android:text="Additional Information (Optional)"
                     android:textStyle="bold"
                     android:layout_marginBottom="16dp" />
 
@@ -225,7 +225,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:hint="מין"
+                    android:hint="Gender"
                     app:boxStrokeColor="@color/gmail_blue"
                     app:hintTextColor="@color/gmail_text_secondary"
                     app:endIconMode="dropdown_menu">
@@ -246,7 +246,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:hint="תאריך לידה (YYYY-MM-DD)"
+                    android:hint="Birth Date (YYYY-MM-DD)"
                     app:boxStrokeColor="@color/gmail_blue"
                     app:hintTextColor="@color/gmail_text_secondary"
                     app:startIconDrawable="@android:drawable/ic_menu_my_calendar"
@@ -269,7 +269,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
-                    android:hint="מספר טלפון"
+                    android:hint="Phone Number"
                     app:boxStrokeColor="@color/gmail_blue"
                     app:hintTextColor="@color/gmail_text_secondary"
                     app:startIconDrawable="@android:drawable/stat_sys_phone_call"
@@ -280,7 +280,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:inputType="phone"
-                        android:textColor="@color/gmail_text_primary" />
+                        android:textColor="@color/gmail_text_primary"
+                        android:maxLength= "13" />
 
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -289,7 +290,7 @@
                     style="@style/GmailTextSecondary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="תמונת פרופיל"
+                    android:text="Profile Picture"
                     android:layout_marginBottom="8dp" />
 
                 <Button
@@ -297,7 +298,7 @@
                     style="@style/Widget.Material3.Button.OutlinedButton"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="בחר תמונת פרופיל"
+                    android:text="Select Profile Picture"
                     android:textColor="@color/gmail_blue"
                     app:strokeColor="@color/gmail_blue"
                     android:layout_marginBottom="16dp" />
@@ -325,12 +326,20 @@
                     style="@style/Widget.Material3.Button"
                     android:layout_width="match_parent"
                     android:layout_height="56dp"
-                    android:text="הירשם"
+                    android:text="Sign Up"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:backgroundTint="@color/gmail_blue"
                     android:textColor="@android:color/white"
                     android:layout_marginBottom="16dp" />
+
+                <ProgressBar
+                    android:id="@+id/progressBar"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:visibility="gone"
+                    style="?android:attr/progressBarStyle" />
 
                 <!-- Result Text -->
                 <TextView
@@ -349,7 +358,7 @@
                     style="@style/GmailTextSecondary"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="כבר יש לך חשבון? התחבר כאן"
+                    android:text="Already have an account? Sign in here"
                     android:textAlignment="center"
                     android:textColor="@color/gmail_blue"
                     android:textStyle="bold"
@@ -367,7 +376,7 @@
             style="@style/GmailTextSecondary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="על ידי יצירת חשבון, אתה מסכים לתנאי השימוש"
+            android:text="By creating an account, you agree to our Terms of Service"
             android:textAlignment="center"
             android:textSize="12sp"
             android:layout_marginTop="8dp"

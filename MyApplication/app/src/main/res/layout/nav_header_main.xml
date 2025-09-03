@@ -7,7 +7,7 @@
     android:padding="16dp"
     android:gravity="bottom">
 
-    <!-- תמונת פרופיל -->
+    <!-- Profile Image -->
     <ImageView
         android:id="@+id/ivProfileImage"
         android:layout_width="64dp"
@@ -16,17 +16,17 @@
         android:scaleType="centerCrop"
         android:layout_marginBottom="8dp" />
 
-    <!-- שם האפליקציה -->
+    <!-- App Name -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Gmail"
+        android:text="FooMail"
         android:textColor="@android:color/white"
         android:textSize="24sp"
         android:textStyle="normal"
         android:layout_marginBottom="4dp" />
 
-    <!-- מייל המשתמש -->
+    <!-- User Email -->
     <TextView
         android:id="@+id/tvUserEmail"
         android:layout_width="wrap_content"
@@ -37,12 +37,12 @@
         android:alpha="0.9"
         android:layout_marginBottom="16dp" />
 
-    <!-- כפתור יצירת תווית חדשה -->
+    <!-- Create New Label Button -->
     <Button
         android:id="@+id/btnCreateNewLabel"
         android:layout_width="wrap_content"
         android:layout_height="32dp"
-        android:text="+ צור תווית"
+        android:text="+ Create Label"
         android:textColor="@android:color/white"
         android:textSize="12sp"
         android:background="@color/gmail_blue"

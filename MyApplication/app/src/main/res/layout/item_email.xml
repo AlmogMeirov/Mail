@@ -55,7 +55,7 @@
                 android:layout_marginStart="8dp"
                 android:layout_marginEnd="4dp"
                 android:tint="@color/gmail_text_hint"
-                android:contentDescription="סמן בכוכב" />
+                android:contentDescription="Mark with star" />
 
             <TextView
                 android:id="@+id/tvTime"
@@ -72,7 +72,7 @@
             style="@style/GmailEmailSubject"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="נושא המייל"
+            android:text="Email Subject"
             android:layout_marginBottom="2dp" />
 
         <!-- Preview Text -->
@@ -81,7 +81,7 @@
             style="@style/GmailEmailPreview"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="תצוגה מקדימה של תוכן המייל..."
+            android:text="Email content preview..."
             android:layout_marginBottom="4dp" />
 
         <!-- Labels Row -->
@@ -97,7 +97,7 @@
                 style="@style/GmailLabelChip"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="תווית" />
+                android:text="Label" />
 
         </LinearLayout>
 
@@ -116,7 +116,7 @@
                 android:layout_height="16dp"
                 android:src="@drawable/ic_attachment"
                 android:layout_marginEnd="8dp"
-                android:contentDescription="יש קובץ מצורף"
+                android:contentDescription="Has attachment"
                 android:visibility="gone" />
 
             <ImageView
@@ -125,7 +125,7 @@
                 android:layout_height="16dp"
                 android:src="@drawable/ic_important"
                 android:layout_marginEnd="8dp"
-                android:contentDescription="חשוב"
+                android:contentDescription="Important"
                 android:visibility="gone" />
 
             <ImageView
@@ -134,7 +134,7 @@
                 android:layout_height="16dp"
                 android:src="@android:drawable/ic_dialog_alert"
                 android:tint="@color/gmail_red"
-                android:contentDescription="ספאם"
+                android:contentDescription="Spam"
                 android:visibility="gone" />
 
         </LinearLayout>
@@ -146,14 +146,14 @@
         android:id="@+id/ivMore"
         android:layout_width="24dp"
         android:layout_height="24dp"
-        android:src="@android:drawable/ic_menu_more"
+        android:src="@android:drawable/ic_menu_delete"
         android:background="?android:attr/selectableItemBackgroundBorderless"
         android:clickable="true"
         android:focusable="true"
         android:padding="4dp"
         android:layout_marginStart="8dp"
         android:tint="@color/gmail_text_hint"
-        android:contentDescription="אפשרויות נוספות"
+        android:contentDescription="More options"
         android:visibility="gone" />
 
 </LinearLayout>

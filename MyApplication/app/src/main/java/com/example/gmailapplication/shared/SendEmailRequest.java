@@ -8,5 +8,5 @@ public class SendEmailRequest {
     public List<String> recipients;
     public String subject;
     public String content;
-    public List<String> labels; // רשימת תוויות כאובייקטים
+    public List<String> labels; // List of labels as objects
 }

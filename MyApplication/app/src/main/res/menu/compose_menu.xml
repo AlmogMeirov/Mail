@@ -1,35 +1,20 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-        <!-- כפתור שליחה -->
+        <!-- Send Button -->
         <item
             android:id="@+id/action_send"
-            android:title="שלח"
+            android:title="Send"
             android:icon="@android:drawable/ic_menu_send"
             app:showAsAction="always"
             app:iconTint="@color/gmail_blue" />
 
-        <!-- כפתור שמירת טיוטה -->
+        <!-- Save Draft Button -->
         <item
             android:id="@+id/action_save_draft"
-            android:title="שמור טיוטה"
+            android:title="Save Draft"
             android:icon="@android:drawable/ic_menu_save"
             app:showAsAction="ifRoom"
             app:iconTint="@color/gmail_text_secondary" />
 
-        <!-- כפתורים נוספים בתפריט הגלילה -->
-        <item
-            android:id="@+id/action_attach_file"
-            android:title="צרף קובץ"
-            android:icon="@drawable/ic_attachment" />
-
-        <item
-            android:id="@+id/action_format_text"
-            android:title="עיצוב טקסט"
-            android:icon="@android:drawable/ic_menu_edit" />
-
-        <item
-            android:id="@+id/action_schedule_send"
-            android:title="תזמן שליחה"
-            android:icon="@android:drawable/ic_menu_my_calendar" />
 </menu>
