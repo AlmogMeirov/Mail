@@ -210,14 +210,14 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                         } else {
                             System.out.println("✗ Bitmap decoding failed - using default image");
                             runOnUiThread(() -> {
-                                imageView.setImageResource(R.drawable.ic_account_circle);
+                                //imageView.setImageResource(R.drawable.ic_account_circle);
                             });
                         }
                     } catch (Exception e) {
                         System.out.println("✗ Exception in image processing: " + e.getMessage());
                         e.printStackTrace();
                         runOnUiThread(() -> {
-                            imageView.setImageResource(R.drawable.ic_account_circle);
+                            //imageView.setImageResource(R.drawable.ic_account_circle);
                         });
                     }
                 } else {
@@ -225,7 +225,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                     System.out.println("Response code: " + response.code());
                     System.out.println("Response message: " + response.message());
                     runOnUiThread(() -> {
-                        imageView.setImageResource(R.drawable.ic_account_circle);
+                        //imageView.setImageResource(R.drawable.ic_account_circle);
                     });
                 }
             }
@@ -236,7 +236,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                 System.out.println("✗ Failed to load avatar: " + t.getMessage());
                 t.printStackTrace();
                 runOnUiThread(() -> {
-                    imageView.setImageResource(R.drawable.ic_account_circle);
+                    //imageView.setImageResource(R.drawable.ic_account_circle);
                 });
             }
         });
@@ -760,7 +760,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         } else {
             System.out.println("Cannot load profile image");
             if (ivProfileImage != null) {
-                ivProfileImage.setImageResource(R.drawable.ic_account_circle);
+                //ivProfileImage.setImageResource(R.drawable.ic_account_circle);
             }
         }
 

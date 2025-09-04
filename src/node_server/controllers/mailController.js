@@ -3,13 +3,10 @@ const Mail = require('../models/Mail'); // MongoDB Mail model
 const User = require('../models/User'); // User model for validation
 const { extractUrls } = require("../utils/extractUrls");
 const { checkUrlBlacklist } = require("../utils/blacklistClient");
-// const { getAllLabels } = require('../models/labels'); // הגב זמנית
-// const labelModel = require('../models/labels'); // הגב זמנית
 const { addUrlToBlacklist } = require("../utils/blacklistClient");
 const { Label } = require('../models/labels'); 
 
-
-// הוסף פונקציות זמניות במקום labelModel:
+// Add temporary functions instead of labelModel:
 const labelModel = {
     addLabelToMail: (userId, mailId, labelId) => {
         console.log(`[TEMP] Adding label ${labelId} to mail ${mailId} for user ${userId}`);
@@ -21,14 +18,14 @@ const labelModel = {
     }
 };
 
-// ב-mailController.js - הוסף בתחילת הקובץ:
+// System labels that cannot be created/edited/deleted
 const SYSTEM_LABELS = ['inbox', 'sent', 'spam', 'drafts', 'starred', 'trash', 'important'];
 
 const getAllLabels = async (userId) => {
     try {
         const userLabels = await Label.getAllLabelsForUser(userId);
         
-        // תוויות בסיסיות - אותה רשימה כמו ב-labelsController
+        // Basic labels - same list as in labelsController
         const basicLabels = SYSTEM_LABELS.map(name => ({
             id: name, 
             name: name
@@ -48,6 +45,7 @@ const getAllLabels = async (userId) => {
         }));
     }
 };
+
 // Create mail function with MongoDB
 const createMail = async (req, res) => {
     try {
@@ -96,7 +94,7 @@ const createMail = async (req, res) => {
                 
                 // Handle recipients (not sender) - spam
                 for (const r of recipientsList.filter(r => r !== sender)) {
-                    const recipientLabels = await getAllLabels(r); // הוסף await
+                    const recipientLabels = await getAllLabels(r); // Add await
                     let spamLabel = recipientLabels.find(l => l.name.toLowerCase() === "spam");
                     if (!spamLabel) {
                         spamLabel = labelModel.addLabel(r, "Spam");
@@ -121,7 +119,7 @@ const createMail = async (req, res) => {
                 // Handle sender - spam
                 if (recipientsList.includes(sender)) {
                     // Self-send case: one mail with spam label for sender
-                    const senderLabels = await getAllLabels(sender); // הוסף await
+                    const senderLabels = await getAllLabels(sender); // Add await
                     let spamLabel = senderLabels.find(l => l.name.toLowerCase() === "spam");
                     if (!spamLabel) {
                         spamLabel = labelModel.addLabel(sender, "Spam");
@@ -143,7 +141,7 @@ const createMail = async (req, res) => {
                     sent.push(senderMail);
                 } else {
                     // Regular case: sender gets copy with spam + sent labels
-                    const senderLabels = await getAllLabels(sender); // הוסף await
+                    const senderLabels = await getAllLabels(sender); // Add await
                     let spamLabel = senderLabels.find(l => l.name.toLowerCase() === "spam");
                     let sentLabel = senderLabels.find(l => l.name.toLowerCase() === "sent");
                     
@@ -201,7 +199,7 @@ const createMail = async (req, res) => {
         // Handle sender
         if (recipientsList.includes(sender)) {
             // Self-send case: one mail with inbox + sent labels
-            const senderLabels = await getAllLabels(sender); // הוסף await
+            const senderLabels = await getAllLabels(sender); // Add await
             let inboxLabel = senderLabels.find(l => l.name.toLowerCase() === "inbox");
             let sentLabel = senderLabels.find(l => l.name.toLowerCase() === "sent");
             
@@ -228,7 +226,7 @@ const createMail = async (req, res) => {
             sent.push(senderMail);
         } else {
             // Regular case: sender gets copy with sent label only
-            const senderLabels = await getAllLabels(sender); // הוסף await
+            const senderLabels = await getAllLabels(sender); // Add await
             let sentLabel = senderLabels.find(l => l.name.toLowerCase() === "sent");
             
             if (!sentLabel) {
@@ -258,6 +256,7 @@ const createMail = async (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
+
 // Get mails function with MongoDB
 const getMails = async (req, res) => {
     try {
@@ -471,15 +470,15 @@ const deleteMailById = async (req, res) => {
 const searchMails = async (req, res) => {
     try {
         const userEmail = req.user.email;
-        const searchQuery = req.query.q; // פרמטר החיפוש מה-URL
+        const searchQuery = req.query.q; // Search parameter from URL
 
         if (!searchQuery) {
             return res.status(400).json({ error: "Missing search query" });
         }
 
-        const q = searchQuery.toLowerCase(); // התוכן לחיפוש
+        const q = searchQuery.toLowerCase(); // Content to search for
 
-        // MongoDB query - מגביל טיוטות רק למי ששלח אותן
+        // MongoDB query - limits drafts only to sender
         const mongoQuery = {
             $and: [
                 {
@@ -491,18 +490,18 @@ const searchMails = async (req, res) => {
                 },
                 {
                     $or: [
-                        { isDraft: { $ne: true } }, // לא טיוטה
-                        { isDraft: true, sender: userEmail } // טיוטה רק של השולח
+                        { isDraft: { $ne: true } }, // Not a draft
+                        { isDraft: true, sender: userEmail } // Draft only by sender
                     ]
                 }
             ],
             deletedBy: { $ne: userEmail }
         };
 
-        // חיפוש במסד הנתונים
+        // Search in database
         const mails = await Mail.find(mongoQuery).lean();
 
-        // סינון לפי תוכן החיפוש
+        // Filter by search content
         const results = mails.filter(mail => {
             const subject = mail.subject?.toLowerCase() || "";
             const content = mail.content?.toLowerCase() || "";
@@ -521,7 +520,7 @@ const searchMails = async (req, res) => {
             return res.status(404).json({ error: "No matching mails found" });
         }
 
-        // הסרת כפילויות לפי groupId
+        // Remove duplicates by groupId
         const seenGroups = new Set();
         const uniqueResults = results.filter(mail => {
             if (mail.groupId && seenGroups.has(mail.groupId)) return false;
@@ -566,7 +565,7 @@ const updateMailLabelsForUser = async (req, res) => {
             return res.status(403).json({ error: "Not authorized for this mail" });
         }
 
-        // שינוי כאן: await getAllLabels במקום קריאה סינכרונית
+        // Change here: await getAllLabels instead of synchronous call
         const allowed = (await getAllLabels(userEmail)).map(l => l.name.toLowerCase());
         const invalid = labels.filter(l => !allowed.includes(l.toLowerCase()));
 
@@ -618,7 +617,6 @@ const updateMailLabelsForUser = async (req, res) => {
     }
 };
 
-
 const archiveMail = async (req, res) => {
     try {
         const userEmail = req.user.email;
@@ -629,7 +627,7 @@ const archiveMail = async (req, res) => {
             return res.status(404).json({ error: "Mail not found" });
         }
 
-        // הסר inbox מהתוויות של המשתמש
+        // Remove inbox from user's labels
         let userLabelEntry = mail.labels.find(l => l.userEmail === userEmail);
         if (userLabelEntry) {
             userLabelEntry.labelIds = userLabelEntry.labelIds.filter(label => 
@@ -702,7 +700,7 @@ const addLabelToMail = async (req, res) => {
             mail.labels.push(userLabelEntry);
         }
 
-        // הוסף תווית אם לא קיימת
+        // Add label if not exists
         if (!userLabelEntry.labelIds.includes(labelName.toLowerCase())) {
             userLabelEntry.labelIds.push(labelName.toLowerCase());
             await mail.save();
@@ -731,7 +729,7 @@ const removeLabelFromMail = async (req, res) => {
             return res.status(404).json({ error: "Mail not found" });
         }
 
-        // אסור להסיר תוויות מערכת קריטיות
+        // Cannot remove critical system labels
         if (['sent', 'drafts'].includes(labelName.toLowerCase())) {
             return res.status(400).json({ 
                 error: `Cannot remove system label: ${labelName}` 
@@ -831,6 +829,7 @@ const createDraft = async (req, res) => {
     }
 };
 
+// Send draft function
 const sendDraft = async (req, res) => {
     try {
         const userEmail = req.user.email;
@@ -845,25 +844,25 @@ const sendDraft = async (req, res) => {
             return res.status(403).json({ error: "Not authorized to send this draft" });
         }
 
-        // הפוך את הטיוטה למייל רגיל
+        // Convert draft to regular mail
         draft.isDraft = false;
         
-        // עדכן labels - הסר drafts
+        // Update labels - remove drafts
         const senderLabels = draft.labels.find(l => l.userEmail === userEmail);
         if (senderLabels) {
             senderLabels.labelIds = senderLabels.labelIds.filter(label => label !== 'drafts');
         }
 
-        // בדוק אם זה self-send
+        // Check if it's self-send
         const isSelfSend = draft.recipients.includes(userEmail);
         
         if (isSelfSend) {
-            // Self-send: הוסף גם inbox וגם sent
+            // Self-send: add both inbox and sent
             if (senderLabels) {
                 senderLabels.labelIds.push('inbox', 'sent');
             }
         } else {
-            // Regular send: רק sent
+            // Regular send: only sent
             if (senderLabels) {
                 senderLabels.labelIds.push('sent');
             }
@@ -871,7 +870,7 @@ const sendDraft = async (req, res) => {
 
         await draft.save();
 
-        // צור עותקים לנמענים (אם לא self-send)
+        // Create copies for recipients (if not self-send)
         const sent = [draft];
         
         if (!isSelfSend) {
@@ -900,6 +899,7 @@ const sendDraft = async (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
+
 const getDrafts = async (req, res) => {
     try {
         const userEmail = req.user.email;
@@ -945,7 +945,7 @@ const deleteMailByIdPermanently = async (req, res) => {
 
         console.log(`Attempting to permanently delete mail ${mailId} by user ${userEmail}`);
 
-        // מצא ומחק את המייל לצמיתות - ללא .lean() כדי שנוכל להשתמש ב-methods
+        // Find and delete mail permanently - without .lean() so we can use methods
         const result = await Mail.findOneAndDelete({ 
             mailId,
             $or: [
@@ -967,6 +967,7 @@ const deleteMailByIdPermanently = async (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
+
 module.exports = {
     createMail,
     getMails,
@@ -976,13 +977,13 @@ module.exports = {
     searchMails,
     updateMailLabelsForUser,
     deleteMailByIdPermanently,
-    // APIs חדשים:
+    // New APIs:
     archiveMail,
     toggleStarMail,
     addLabelToMail,
     removeLabelFromMail,
     getMailsByLabel,
-    //Draft
+    // Draft
     createDraft,
     sendDraft,
     getDrafts 

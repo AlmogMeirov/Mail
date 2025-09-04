@@ -12,7 +12,6 @@
         android:id="@+id/ivProfileImage"
         android:layout_width="64dp"
         android:layout_height="64dp"
-        android:src="@drawable/ic_account_circle"
         android:scaleType="centerCrop"
         android:layout_marginBottom="8dp" />
 

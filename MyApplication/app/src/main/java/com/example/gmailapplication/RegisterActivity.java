@@ -450,29 +450,45 @@ public class RegisterActivity extends AppCompatActivity {
     // --- Enhanced server error handling ---
     private void handleServerError(Response<UserDto> response) {
         try {
-            String errorBody = response.errorBody() != null ? response.errorBody().string() : getString(R.string.error_registration_failed_retry);
+            String errorBody = response.errorBody() != null ? response.errorBody().string() : "";
             System.err.println("Server error: " + errorBody);
 
             // Try to parse JSON error response
             try {
                 JSONObject errorJson = new JSONObject(errorBody);
-                String message = errorJson.optString("message", getString(R.string.error_registration_failed_retry));
-                tvResult.setText(message);
-                return;
+                String message = errorJson.optString("message", "");
+                if (!TextUtils.isEmpty(message)) {
+                    tvResult.setText(message);
+                    tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+                    return;
+                }
             } catch (JSONException e) {
                 // Fall back to HTTP status codes
             }
 
             switch (response.code()) {
                 case 400:
-                    tvResult.setText(getString(R.string.error_invalid_registration_data));
+                    // Check if this is a duplicate email error (common cause of 400)
+                    if (errorBody.toLowerCase().contains("already") ||
+                            errorBody.toLowerCase().contains("registered") ||
+                            errorBody.toLowerCase().contains("exists")) {
+
+                        tvResult.setText("This email address is already registered");
+                        tilEmail.setError("Email already exists - try logging in instead");
+                        etEmail.requestFocus();
+                    } else {
+                        tvResult.setText(getString(R.string.error_invalid_registration_data));
+                        validateAll(); // Show specific field errors
+                    }
                     break;
                 case 409:
                     tvResult.setText(getString(R.string.error_user_already_exists));
                     tilEmail.setError(getString(R.string.error_email_already_registered));
+                    etEmail.requestFocus(); // Focus on problematic field
                     break;
                 case 422:
                     tvResult.setText(getString(R.string.error_data_validation_failed));
+                    validateAll(); // Show validation errors
                     break;
                 case 500:
                     tvResult.setText(getString(R.string.error_server_internal));
@@ -480,8 +496,13 @@ public class RegisterActivity extends AppCompatActivity {
                 default:
                     tvResult.setText(getString(R.string.error_registration_failed_code, response.code()));
             }
+
+            // Set error color for all cases
+            tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+
         } catch (Exception e) {
             tvResult.setText(getString(R.string.error_registration_failed_retry));
+            tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
         }
     }
 
