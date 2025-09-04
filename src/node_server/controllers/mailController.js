@@ -831,7 +831,6 @@ const createDraft = async (req, res) => {
     }
 };
 
-// Send draft function
 const sendDraft = async (req, res) => {
     try {
         const userEmail = req.user.email;
@@ -849,11 +848,25 @@ const sendDraft = async (req, res) => {
         // הפוך את הטיוטה למייל רגיל
         draft.isDraft = false;
         
-        // עדכן labels - הסר drafts והוסף sent
+        // עדכן labels - הסר drafts
         const senderLabels = draft.labels.find(l => l.userEmail === userEmail);
         if (senderLabels) {
             senderLabels.labelIds = senderLabels.labelIds.filter(label => label !== 'drafts');
-            senderLabels.labelIds.push('sent');
+        }
+
+        // בדוק אם זה self-send
+        const isSelfSend = draft.recipients.includes(userEmail);
+        
+        if (isSelfSend) {
+            // Self-send: הוסף גם inbox וגם sent
+            if (senderLabels) {
+                senderLabels.labelIds.push('inbox', 'sent');
+            }
+        } else {
+            // Regular send: רק sent
+            if (senderLabels) {
+                senderLabels.labelIds.push('sent');
+            }
         }
 
         await draft.save();
@@ -861,21 +874,23 @@ const sendDraft = async (req, res) => {
         // צור עותקים לנמענים (אם לא self-send)
         const sent = [draft];
         
-        for (const recipient of draft.recipients.filter(r => r !== userEmail)) {
-            const recipientMail = new Mail({
-                mailId: uuidv4(),
-                sender: draft.sender,
-                recipient: recipient,
-                recipients: draft.recipients,
-                subject: draft.subject,
-                content: draft.content,
-                labels: [{ userEmail: recipient, labelIds: ['inbox'] }],
-                groupId: draft.groupId,
-                timestamp: new Date()
-            });
+        if (!isSelfSend) {
+            for (const recipient of draft.recipients.filter(r => r !== userEmail)) {
+                const recipientMail = new Mail({
+                    mailId: uuidv4(),
+                    sender: draft.sender,
+                    recipient: recipient,
+                    recipients: draft.recipients,
+                    subject: draft.subject,
+                    content: draft.content,
+                    labels: [{ userEmail: recipient, labelIds: ['inbox'] }],
+                    groupId: draft.groupId,
+                    timestamp: new Date()
+                });
 
-            await recipientMail.save();
-            sent.push(recipientMail);
+                await recipientMail.save();
+                sent.push(recipientMail);
+            }
         }
 
         return res.status(200).json({ message: "Draft sent successfully", sent });
@@ -885,7 +900,6 @@ const sendDraft = async (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
-
 const getDrafts = async (req, res) => {
     try {
         const userEmail = req.user.email;

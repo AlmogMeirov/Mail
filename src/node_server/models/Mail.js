@@ -113,7 +113,6 @@ mailSchema.statics.findByUser = function (userEmail, options = {}) {
     return this.find(query, null, options).sort({ timestamp: -1 });
 };
 
-// השתמש בזה במקום ה-static methods הקיימים:
 
 mailSchema.statics.findInboxByUser = function (userEmail, options = {}) {
     const query = {

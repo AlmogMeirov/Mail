@@ -3,7 +3,7 @@ const { Label, MailLabel } = require("../models/labels");
 const { extractUrls } = require("../utils/extractUrls");
 const { addUrlToBlacklist } = require("../utils/blacklistClient");
 const Mail = require("../models/Mail");
-// תוויות מערכת שלא ניתן ליצור/לערוך/למחוק
+// System labels that cannot be created/edited/deleted
 const SYSTEM_LABELS = ['inbox', 'sent', 'spam', 'drafts', 'starred', 'trash', 'important'];
 
 async function getAll(req, res) {
@@ -16,7 +16,7 @@ async function getAll(req, res) {
     
     console.log("userLabels from DB:", userLabels);
 
-    // תוויות מערכת (תמיד זמינות)
+    // System labels (always available)
     const systemLabels = SYSTEM_LABELS.map(name => ({
       id: name,
       name: name,
@@ -25,7 +25,7 @@ async function getAll(req, res) {
     
     console.log("systemLabels:", systemLabels);
 
-    // תוויות מותאמות אישית  
+    // Custom labels  
     const customLabels = userLabels.map(label => ({
       id: label.labelId,
       name: label.name,
@@ -61,16 +61,12 @@ async function getById(req, res) {
   }
 }
 
-// הוסף בתחילת labelsController.js:
-
-
-
-// פונקציה לבדיקה אם זו תווית מערכת
+// Function to check if this is a system label
 function isSystemLabel(labelName) {
     return SYSTEM_LABELS.includes(labelName.toLowerCase());
 }
 
-// עדכן את פונקציה create:
+// Update the create function:
 async function create(req, res) {
   try {
     const userId = req.user.email;
@@ -80,7 +76,7 @@ async function create(req, res) {
       return res.status(400).json({ error: "Name is required" });
     }
 
-    // בדוק אם זו תווית מערכת
+    // Check if this is a system label
     if (isSystemLabel(name.trim())) {
       return res.status(400).json({ 
         error: "Cannot create system label. System labels are: " + SYSTEM_LABELS.join(", ") 
@@ -122,37 +118,37 @@ async function update(req, res) {
       return res.status(400).json({ error: "Name is required" });
     }
 
-    // בדוק אם מנסים לערוך תווית מערכת (לפני חיפוש במסד)
+    // Check if trying to edit a system label (before searching in database)
     if (SYSTEM_LABELS.includes(labelId)) {
       return res.status(403).json({ 
         error: "Cannot edit system labels" 
       });
     }
 
-    // בדוק אם השם החדש הוא תווית מערכת
+    // Check if the new name is a system label
     if (isSystemLabel(name.trim())) {
       return res.status(400).json({ 
         error: "Cannot use system label name. System labels are: " + SYSTEM_LABELS.join(", ") 
       });
     }
 
-    // *** שלב 1: קבל את התווית הישנה לפני העדכון ***
+    // *** Step 1: Get the old label before the update ***
     const oldLabel = await Label.getLabelById(userId, labelId);
     if (!oldLabel) {
       return res.status(404).json({ error: "Label not found" });
     }
 
-    const oldName = oldLabel.name.toLowerCase(); // השם הישן
-    const newName = name.trim().toLowerCase();   // השם החדש
+    const oldName = oldLabel.name.toLowerCase(); // The old name
+    const newName = name.trim().toLowerCase();   // The new name
 
-    // *** שלב 2: עדכן את התווית ב-Labels collection ***
+    // *** Step 2: Update the label in Labels collection ***
     const updated = await Label.updateLabelForUser(userId, labelId, name);
 
     if (!updated) {
       return res.status(404).json({ error: "Label not found" });
     }
 
-    // *** שלב 3: עדכן את כל המיילים שמשתמשים בתווית הישנה ***
+    // *** Step 3: Update all mails that use the old label ***
     console.log(`[LABEL UPDATE] Updating mails: "${oldName}" → "${newName}" for user ${userId}`);
     
     const updateResult = await Mail.updateMany(
@@ -191,14 +187,14 @@ async function remove(req, res) {
     const userId = req.user.email;
     const labelId = req.params.id;
 
-    // בדוק אם זו תווית מערכת קודם (לפני חיפוש במסד)
+    // Check if this is a system label first (before searching in database)
     if (SYSTEM_LABELS.includes(labelId)) {
       return res.status(403).json({ 
         error: "Cannot delete system labels. System labels are: " + SYSTEM_LABELS.join(", ") 
       });
     }
 
-    // *** שלב 1: קבל את התווית לפני המחיקה ***
+    // *** Step 1: Get the label before deletion ***
     const labelToDelete = await Label.getLabelById(userId, labelId);
     if (!labelToDelete) {
       return res.status(404).json({ error: "Label not found" });
@@ -206,14 +202,14 @@ async function remove(req, res) {
 
     const labelName = labelToDelete.name.toLowerCase();
 
-    // *** שלב 2: מחק את התווית מ-Labels collection ***
+    // *** Step 2: Delete the label from Labels collection ***
     const deleted = await Label.deleteLabelForUser(userId, labelId);
 
     if (!deleted) {
       return res.status(404).json({ error: "Label not found" });
     }
 
-    // *** שלב 3: הסר את התווית מכל המיילים ***
+    // *** Step 3: Remove the label from all mails ***
     console.log(`[LABEL DELETE] Removing label "${labelName}" from all mails for user ${userId}`);
 
     const removeResult = await Mail.updateMany(
@@ -233,7 +229,7 @@ async function remove(req, res) {
 
     console.log(`[LABEL DELETE] Removed label from ${removeResult.modifiedCount} mails`);
 
-    // *** שלב 4: נקה גם את MailLabel collection (תאימות לאחור) ***
+    // *** Step 4: Also clean MailLabel collection (backward compatibility) ***
     await MailLabel.deleteMany({ userId, labelId });
 
     res.status(204).end();

@@ -98,6 +98,9 @@ public interface EmailAPI {
 
     @DELETE("mails/{id}/permanent")
     Call<Void> deleteEmailPermanently(@Path("id") String emailId);
+    // Update email/draft
+    @PATCH("mails/{id}")
+    Call<Void> updateEmail(@Path("id") String emailId, @Body SendEmailRequest request);
 
     // === Blacklist Management ===
     @GET("blacklist")

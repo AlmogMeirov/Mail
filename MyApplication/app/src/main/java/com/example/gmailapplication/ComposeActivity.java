@@ -55,7 +55,7 @@ public class ComposeActivity extends AppCompatActivity {
         btnSaveDraft = findViewById(R.id.btnSaveDraft);
 
         // Setup listeners
-        btnSend.setOnClickListener(v -> sendEmail());
+        btnSend.setOnClickListener(v -> sendDraftOrEmail());
         btnSaveDraft.setOnClickListener(v -> saveDraftToServer());
     }
 
@@ -296,40 +296,83 @@ public class ComposeActivity extends AppCompatActivity {
         boolean isDraft = getIntent().getBooleanExtra("is_draft", false);
 
         if (isDraft && !TextUtils.isEmpty(draftId)) {
-            // Send existing draft
-            if (isSending) return;
-
-            isSending = true;
-            invalidateOptionsMenu();
-
-            emailAPI.sendDraft(draftId).enqueue(new Callback<Void>() {
-                @Override
-                public void onResponse(Call<Void> call, Response<Void> response) {
-                    isSending = false;
-                    invalidateOptionsMenu();
-
-                    if (response.isSuccessful()) {
-                        Toast.makeText(ComposeActivity.this, "Draft sent successfully!", Toast.LENGTH_SHORT).show();
-                        setResult(RESULT_OK);
-                        finish();
-                    } else {
-                        Toast.makeText(ComposeActivity.this, "Error sending draft", Toast.LENGTH_SHORT).show();
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<Void> call, Throwable t) {
-                    isSending = false;
-                    invalidateOptionsMenu();
-                    Toast.makeText(ComposeActivity.this, "Connection error", Toast.LENGTH_SHORT).show();
-                }
-            });
+            // עדכן draft לפני שליחה
+            updateDraftBeforeSending(draftId);
         } else {
             // Send as new email (existing function)
             sendEmail();
         }
     }
 
+    private void updateDraftBeforeSending(String draftId) {
+        if (isSending) return;
+
+        // קבל תוכן עדכני מהממשק
+        String to = etTo.getText().toString().trim();
+        String subject = etSubject.getText().toString().trim();
+        String content = etContent.getText().toString().trim();
+
+        // צור בקשת עדכון
+        SendEmailRequest updateRequest = new SendEmailRequest();
+        updateRequest.sender = currentUserEmail;
+
+        if (!TextUtils.isEmpty(to)) {
+            List<String> recipientsList = parseRecipients(to);
+            if (!recipientsList.isEmpty()) {
+                updateRequest.recipient = recipientsList.get(0);
+                updateRequest.recipients = recipientsList;
+            }
+        }
+
+        updateRequest.subject = subject;
+        updateRequest.content = content;
+
+        isSending = true;
+        invalidateOptionsMenu();
+
+        // עדכן את הdraft במסד הנתונים
+        emailAPI.updateEmail(draftId, updateRequest).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    // עכשיו שלח את הdraft המעודכן
+                    emailAPI.sendDraft(draftId).enqueue(new Callback<Void>() {
+                        @Override
+                        public void onResponse(Call<Void> call, Response<Void> response) {
+                            isSending = false;
+                            invalidateOptionsMenu();
+
+                            if (response.isSuccessful()) {
+                                Toast.makeText(ComposeActivity.this, "Draft sent successfully!", Toast.LENGTH_SHORT).show();
+                                setResult(RESULT_OK);
+                                finish();
+                            } else {
+                                Toast.makeText(ComposeActivity.this, "Error sending draft", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Call<Void> call, Throwable t) {
+                            isSending = false;
+                            invalidateOptionsMenu();
+                            Toast.makeText(ComposeActivity.this, "Connection error", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } else {
+                    isSending = false;
+                    invalidateOptionsMenu();
+                    Toast.makeText(ComposeActivity.this, "Error updating draft", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                isSending = false;
+                invalidateOptionsMenu();
+                Toast.makeText(ComposeActivity.this, "Connection error", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
     private void sendEmail() {
         if (isSending) return;
 

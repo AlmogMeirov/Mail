@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Gmail Application</string>
+    <string name="app_name">FooMail Application</string>
 
     <!-- Navigation Menu Items -->
     <string name="nav_inbox">Inbox</string>

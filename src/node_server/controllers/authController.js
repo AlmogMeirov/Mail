@@ -6,13 +6,6 @@ const bcrypt = require("bcrypt");
 const User = require("../models/User"); // Mongoose model (see models/User.js)
 const Labels = require("../models/labels"); // optional; keep if you already have one
 
-// inboxMap is in-memory; remove it for production. Keeping a guarded call:
-let inboxMap;
-try {
-  inboxMap = require("../utils/inboxMap");
-} catch {
-  inboxMap = null;
-}
 
 const SECRET = process.env.JWT_SECRET || "dev_only_replace";
 
@@ -110,15 +103,7 @@ async function register(req, res) {
     console.log("User ID:", user._id.toString());
     console.log("User has avatar:", !!user.avatar);
 
-    // FIXED: Add user to inboxMap (temporary until we migrate fully to MongoDB)
-    if (inboxMap) {
-      try {
-        inboxMap.set(user.email, []);
-        console.log(`Added ${user.email} to inboxMap`);
-      } catch (err) {
-        console.log("Failed to add user to inboxMap:", err.message);
-      }
-    }
+  
 
     // Create default labels
     if (Labels?.createLabel) {
@@ -209,15 +194,6 @@ async function login(req, res) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    // Add user to inboxMap if not exists (for existing users)
-    if (inboxMap && !inboxMap.has(user.email)) {
-      try {
-        inboxMap.set(user.email, []);
-        console.log(`Added existing user ${user.email} to inboxMap`);
-      } catch (err) {
-        console.log("Failed to add existing user to inboxMap:", err.message);
-      }
-    }
 
     // sign with sub = user._id for consistency with auth middleware
     const token = jwt.sign(

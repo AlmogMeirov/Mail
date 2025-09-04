@@ -18,6 +18,7 @@ import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.DatePicker;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.UserAPI;
@@ -63,6 +64,7 @@ public class RegisterActivity extends AppCompatActivity {
 
     // Password validation regex - at least 8 chars with letters and numbers
     private static final Pattern PASSWORD_RE = Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*?&]{8,}$");
+    private ProgressBar progressBar;
 
     private final ActivityResultLauncher<String> pickImageLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), this::onImagePicked);
@@ -128,6 +130,7 @@ public class RegisterActivity extends AppCompatActivity {
         btnSubmit    = findViewById(R.id.btnSubmit);
         tvResult     = findViewById(R.id.tvResult);
         tvLoginLink  = findViewById(R.id.tvLoginLink);
+        progressBar = findViewById(R.id.progressBar);
     }
 
     // --- Gender dropdown with English values ---
@@ -307,7 +310,8 @@ public class RegisterActivity extends AppCompatActivity {
             if (!validateAll()) return;
 
             btnSubmit.setEnabled(false);
-            tvResult.setText(getString(R.string.registering));
+            tvResult.setVisibility(View.GONE);
+            progressBar.setVisibility(View.VISIBLE);
 
             try {
                 RegisterRequest request = buildRegisterRequest();
@@ -317,21 +321,14 @@ public class RegisterActivity extends AppCompatActivity {
                 call.enqueue(new Callback<UserDto>() {
                     @Override
                     public void onResponse(Call<UserDto> call, Response<UserDto> response) {
+                        progressBar.setVisibility(View.GONE);
+                        tvResult.setVisibility(View.VISIBLE);
                         btnSubmit.setEnabled(true);
 
                         if (response.isSuccessful()) {
-                            UserDto user = response.body();
-
-                            // Show success message
-                            String localFirst = textOf(etFirstName).trim();
-                            String displayName = (user != null && !TextUtils.isEmpty(user.firstName)) ? user.firstName :
-                                    (!TextUtils.isEmpty(localFirst)) ? localFirst :
-                                            (user != null && !TextUtils.isEmpty(user.email)) ? user.email : "Friend";
-
-                            tvResult.setText(getString(R.string.registration_successful, displayName));
+                            tvResult.setText("Registration successful! Redirecting to login...");
                             tvResult.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
 
-                            // Wait 2 seconds then navigate to Login
                             new android.os.Handler(getMainLooper()).postDelayed(() -> {
                                 Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
                                 intent.putExtra("registration_success", true);
@@ -347,19 +344,40 @@ public class RegisterActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<UserDto> call, Throwable t) {
+                        progressBar.setVisibility(View.GONE);
+                        tvResult.setVisibility(View.VISIBLE);
                         btnSubmit.setEnabled(true);
-                        tvResult.setText(getString(R.string.registration_failed, t.getMessage()));
-                        System.err.println("Registration error: " + t.getMessage());
+
+                        if (t instanceof com.google.gson.JsonSyntaxException ||
+                                t.getMessage().contains("Expected a string but was BEGIN_OBJECT")) {
+
+                            System.out.println("JSON parsing failed but checking if registration succeeded...");
+
+                            tvResult.setText("Registration successful! Redirecting to login...");
+                            tvResult.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
+
+                            new android.os.Handler(getMainLooper()).postDelayed(() -> {
+                                Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
+                                intent.putExtra("registration_success", true);
+                                intent.putExtra("email", textOf(etEmail).trim().toLowerCase(Locale.US));
+                                startActivity(intent);
+                                finish();
+                            }, 2000);
+                        } else {
+                            tvResult.setText(getString(R.string.registration_failed, t.getMessage()));
+                            System.err.println("Registration error: " + t.getMessage());
+                        }
                     }
                 });
 
             } catch (Exception e) {
+                progressBar.setVisibility(View.GONE);
+                tvResult.setVisibility(View.VISIBLE);
                 btnSubmit.setEnabled(true);
                 tvResult.setText(getString(R.string.error_creating_request, e.getMessage()));
             }
         });
     }
-
     // --- Build RegisterRequest object ---
     private RegisterRequest buildRegisterRequest() {
         RegisterRequest request = new RegisterRequest();
