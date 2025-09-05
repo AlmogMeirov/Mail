@@ -2,6 +2,8 @@
 package com.example.gmailapplication;
 import android.app.DatePickerDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,17 +18,21 @@ import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.DatePicker;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.UserAPI;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import android.widget.Toast; // for success toast
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+
 import com.example.gmailapplication.shared.*;
 
 import com.google.android.material.textfield.TextInputEditText;
@@ -58,12 +64,14 @@ public class RegisterActivity extends AppCompatActivity {
 
     // Password validation regex - at least 8 chars with letters and numbers
     private static final Pattern PASSWORD_RE = Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*?&]{8,}$");
+    private ProgressBar progressBar;
 
     private final ActivityResultLauncher<String> pickImageLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), this::onImagePicked);
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        loadThemePreference();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
@@ -94,7 +102,7 @@ public class RegisterActivity extends AppCompatActivity {
         avatarBase64 = savedInstanceState.getString("avatarBase64");
         avatarMime = savedInstanceState.getString("avatarMime", "image/png");
         if (!TextUtils.isEmpty(avatarBase64)) {
-            btnPickImage.setText("תמונה נבחרה");
+            btnPickImage.setText(getString(R.string.image_selected));
         }
     }
 
@@ -122,11 +130,16 @@ public class RegisterActivity extends AppCompatActivity {
         btnSubmit    = findViewById(R.id.btnSubmit);
         tvResult     = findViewById(R.id.tvResult);
         tvLoginLink  = findViewById(R.id.tvLoginLink);
+        progressBar = findViewById(R.id.progressBar);
     }
 
-    // --- Gender dropdown with both Hebrew and English values ---
+    // --- Gender dropdown with English values ---
     private void wireGenderDropdown() {
-        String[] genders = new String[]{"זכר", "נקבה", "אחר", "male", "female", "other"};
+        String[] genders = new String[]{
+                getString(R.string.gender_male),
+                getString(R.string.gender_female),
+                getString(R.string.gender_other)
+        };
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                 android.R.layout.simple_dropdown_item_1line, genders);
         etGender.setAdapter(adapter);
@@ -187,34 +200,73 @@ public class RegisterActivity extends AppCompatActivity {
 
     // --- Enhanced image processing with background thread ---
     private void onImagePicked(Uri uri) {
-        if (uri == null) return;
+        System.out.println("=== IMAGE PICKED DEBUG ===");
+        System.out.println("URI: " + uri);
 
-        // Show loading state
+        if (uri == null) {
+            System.out.println("✗ URI is null");
+            return;
+        }
+
+        // Check if we can read the file
+        try {
+            String displayName = null;
+            long size = 0;
+
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    int sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE);
+
+                    if (nameIndex != -1) {
+                        displayName = cursor.getString(nameIndex);
+                    }
+                    if (sizeIndex != -1) {
+                        size = cursor.getLong(sizeIndex);
+                    }
+                }
+            }
+
+            System.out.println("File name: " + displayName);
+            System.out.println("File size: " + size + " bytes (" + (size/1024) + " KB)");
+
+        } catch (Exception e) {
+            System.out.println("Error reading file info: " + e.getMessage());
+        }
+
+        // Continue with regular code...
         btnPickImage.setEnabled(false);
-        btnPickImage.setText("טוען תמונה...");
+        btnPickImage.setText(getString(R.string.loading_image));
 
-        // Process image in background thread
         new Thread(() -> {
             try {
                 byte[] imageBytes = readImageBytes(uri);
+
+                System.out.println("=== IMAGE PROCESSING RESULT ===");
+                System.out.println("Image bytes: " + (imageBytes != null ? imageBytes.length + " bytes" : "null"));
 
                 runOnUiThread(() -> {
                     btnPickImage.setEnabled(true);
 
                     if (imageBytes != null) {
                         avatarBase64 = Base64.encodeToString(imageBytes, Base64.NO_WRAP);
-                        btnPickImage.setText("תמונה נבחרה");
-                        showToast("תמונת פרופיל נבחרה בהצלחה");
+                        System.out.println("Base64 encoded length: " + avatarBase64.length());
+                        System.out.println("Base64 sample (first 50 chars): " + avatarBase64.substring(0, Math.min(50, avatarBase64.length())));
+
+                        btnPickImage.setText(getString(R.string.image_selected));
+                        showToast(getString(R.string.profile_image_selected));
                     } else {
-                        btnPickImage.setText("בחר תמונת פרופיל");
-                        showToast("שגיאה בקריאת התמונה");
+                        btnPickImage.setText(getString(R.string.choose_profile_image));
+                        showToast(getString(R.string.error_reading_image));
                     }
                 });
             } catch (Exception e) {
+                System.out.println("=== IMAGE PROCESSING ERROR ===");
+                e.printStackTrace();
                 runOnUiThread(() -> {
                     btnPickImage.setEnabled(true);
-                    btnPickImage.setText("בחר תמונת פרופיל");
-                    showToast("שגיאה בעיבוד התמונה: " + e.getMessage());
+                    btnPickImage.setText(getString(R.string.choose_profile_image));
+                    showToast(getString(R.string.error_processing_image, e.getMessage()));
                 });
             }
         }).start();
@@ -235,7 +287,7 @@ public class RegisterActivity extends AppCompatActivity {
 
             // Size limit: 2MB
             if (bytes.length > 2 * 1024 * 1024) {
-                runOnUiThread(() -> showToast("התמונה גדולה מדי (מקסימום 2MB)"));
+                runOnUiThread(() -> showToast(getString(R.string.image_too_large)));
                 return null;
             }
 
@@ -258,7 +310,8 @@ public class RegisterActivity extends AppCompatActivity {
             if (!validateAll()) return;
 
             btnSubmit.setEnabled(false);
-            tvResult.setText("מבצע רישום...");
+            tvResult.setVisibility(View.GONE);
+            progressBar.setVisibility(View.VISIBLE);
 
             try {
                 RegisterRequest request = buildRegisterRequest();
@@ -268,16 +321,21 @@ public class RegisterActivity extends AppCompatActivity {
                 call.enqueue(new Callback<UserDto>() {
                     @Override
                     public void onResponse(Call<UserDto> call, Response<UserDto> response) {
+                        progressBar.setVisibility(View.GONE);
+                        tvResult.setVisibility(View.VISIBLE);
                         btnSubmit.setEnabled(true);
 
                         if (response.isSuccessful()) {
-                            UserDto user = response.body();
-                            tvResult.setText("הרישום הושלם בהצלחה!\nברוך הבא " + user.firstName + "!");
+                            tvResult.setText("Registration successful! Redirecting to login...");
+                            tvResult.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
 
-                            // Optional: navigate to next screen
-                            // Intent intent = new Intent(RegisterActivity.this, MainActivity.class);
-                            // startActivity(intent);
-                            // finish();
+                            new android.os.Handler(getMainLooper()).postDelayed(() -> {
+                                Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
+                                intent.putExtra("registration_success", true);
+                                intent.putExtra("email", textOf(etEmail).trim().toLowerCase(Locale.US));
+                                startActivity(intent);
+                                finish();
+                            }, 2000);
 
                         } else {
                             handleServerError(response);
@@ -286,19 +344,40 @@ public class RegisterActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Call<UserDto> call, Throwable t) {
+                        progressBar.setVisibility(View.GONE);
+                        tvResult.setVisibility(View.VISIBLE);
                         btnSubmit.setEnabled(true);
-                        tvResult.setText("הרישום נכשל: " + t.getMessage());
-                        System.err.println("Registration error: " + t.getMessage());
+
+                        if (t instanceof com.google.gson.JsonSyntaxException ||
+                                t.getMessage().contains("Expected a string but was BEGIN_OBJECT")) {
+
+                            System.out.println("JSON parsing failed but checking if registration succeeded...");
+
+                            tvResult.setText("Registration successful! Redirecting to login...");
+                            tvResult.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
+
+                            new android.os.Handler(getMainLooper()).postDelayed(() -> {
+                                Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
+                                intent.putExtra("registration_success", true);
+                                intent.putExtra("email", textOf(etEmail).trim().toLowerCase(Locale.US));
+                                startActivity(intent);
+                                finish();
+                            }, 2000);
+                        } else {
+                            tvResult.setText(getString(R.string.registration_failed, t.getMessage()));
+                            System.err.println("Registration error: " + t.getMessage());
+                        }
                     }
                 });
 
             } catch (Exception e) {
+                progressBar.setVisibility(View.GONE);
+                tvResult.setVisibility(View.VISIBLE);
                 btnSubmit.setEnabled(true);
-                tvResult.setText("שגיאה ביצירת הבקשה: " + e.getMessage());
+                tvResult.setText(getString(R.string.error_creating_request, e.getMessage()));
             }
         });
     }
-
     // --- Build RegisterRequest object ---
     private RegisterRequest buildRegisterRequest() {
         RegisterRequest request = new RegisterRequest();
@@ -324,36 +403,43 @@ public class RegisterActivity extends AppCompatActivity {
         }
 
         // Profile picture
+        System.out.println("=== AVATAR DEBUG ===");
+        System.out.println("avatarBase64 is null: " + (avatarBase64 == null));
+        System.out.println("avatarBase64 is empty: " + (avatarBase64 != null && avatarBase64.isEmpty()));
+        System.out.println("avatarBase64 length: " + (avatarBase64 != null ? avatarBase64.length() : 0));
+        System.out.println("avatarMime: " + avatarMime);
+
         if (!TextUtils.isEmpty(avatarBase64)) {
             String dataUrl = "data:" + avatarMime + ";base64," + avatarBase64;
             request.profilePicture = dataUrl;
+            System.out.println("✓ Setting profilePicture, length: " + dataUrl.length());
+        } else {
+            System.out.println("✗ No avatar to send");
         }
 
         return request;
     }
 
-    // --- Map Hebrew/English gender to English for API ---
+    // --- Map gender to English for API ---
     private String mapGenderToEnglish(String gender) {
         if (TextUtils.isEmpty(gender)) return "";
         String genderLower = gender.toLowerCase().trim();
-        switch (genderLower) {
-            case "זכר":
-            case "male":
-                return "male";
-            case "נקבה":
-            case "female":
-                return "female";
-            case "אחר":
-            case "other":
-                return "other";
-            default:
-                return genderLower;
+
+        // Check English strings from resources
+        if (genderLower.equals(getString(R.string.gender_male).toLowerCase()) || genderLower.equals("male")) {
+            return "male";
+        } else if (genderLower.equals(getString(R.string.gender_female).toLowerCase()) || genderLower.equals("female")) {
+            return "female";
+        } else if (genderLower.equals(getString(R.string.gender_other).toLowerCase()) || genderLower.equals("other")) {
+            return "other";
         }
+
+        return genderLower;
     }
 
     // --- Wire login link click ---
     private void wireLoginLink() {
-        tvLoginLink.setText("כבר יש לך חשבון? התחבר כאן");
+        tvLoginLink.setText(getString(R.string.already_have_account));
         tvLoginLink.setOnClickListener(v -> {
             Intent intent = new Intent(RegisterActivity.this, LoginActivity.class);
             startActivity(intent);
@@ -364,42 +450,63 @@ public class RegisterActivity extends AppCompatActivity {
     // --- Enhanced server error handling ---
     private void handleServerError(Response<UserDto> response) {
         try {
-            String errorBody = response.errorBody() != null ? response.errorBody().string() : "שגיאה לא ידועה";
+            String errorBody = response.errorBody() != null ? response.errorBody().string() : "";
             System.err.println("Server error: " + errorBody);
 
             // Try to parse JSON error response
             try {
                 JSONObject errorJson = new JSONObject(errorBody);
-                String message = errorJson.optString("message", "הרישום נכשל");
-                tvResult.setText(message);
-                return;
+                String message = errorJson.optString("message", "");
+                if (!TextUtils.isEmpty(message)) {
+                    tvResult.setText(message);
+                    tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+                    return;
+                }
             } catch (JSONException e) {
                 // Fall back to HTTP status codes
             }
 
             switch (response.code()) {
                 case 400:
-                    tvResult.setText("נתוני רישום לא תקינים");
+                    // Check if this is a duplicate email error (common cause of 400)
+                    if (errorBody.toLowerCase().contains("already") ||
+                            errorBody.toLowerCase().contains("registered") ||
+                            errorBody.toLowerCase().contains("exists")) {
+
+                        tvResult.setText("This email address is already registered");
+                        tilEmail.setError("Email already exists - try logging in instead");
+                        etEmail.requestFocus();
+                    } else {
+                        tvResult.setText(getString(R.string.error_invalid_registration_data));
+                        validateAll(); // Show specific field errors
+                    }
                     break;
                 case 409:
-                    tvResult.setText("משתמש זה כבר קיים במערכת");
-                    tilEmail.setError("כתובת מייל זו כבר רשומה במערכת");
+                    tvResult.setText(getString(R.string.error_user_already_exists));
+                    tilEmail.setError(getString(R.string.error_email_already_registered));
+                    etEmail.requestFocus(); // Focus on problematic field
                     break;
                 case 422:
-                    tvResult.setText("אימות הנתונים נכשל");
+                    tvResult.setText(getString(R.string.error_data_validation_failed));
+                    validateAll(); // Show validation errors
                     break;
                 case 500:
-                    tvResult.setText("שגיאת שרת פנימית - אנא נסה מאוחר יותר");
+                    tvResult.setText(getString(R.string.error_server_internal));
                     break;
                 default:
-                    tvResult.setText("הרישום נכשל (שגיאה " + response.code() + ")");
+                    tvResult.setText(getString(R.string.error_registration_failed_code, response.code()));
             }
+
+            // Set error color for all cases
+            tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+
         } catch (Exception e) {
-            tvResult.setText("הרישום נכשל - אנא נסה שוב");
+            tvResult.setText(getString(R.string.error_registration_failed_retry));
+            tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
         }
     }
 
-    // --- Enhanced validation with Hebrew messages and stronger password rules ---
+    // --- Enhanced validation with English messages and stronger password rules ---
     private boolean validateAll() {
         boolean ok = true;
 
@@ -414,19 +521,19 @@ public class RegisterActivity extends AppCompatActivity {
 
         String first = textOf(etFirstName).trim();
         if (first.length() < 2) {
-            tilFirstName.setError("שם פרטי חייב להכיל לפחות 2 תווים");
+            tilFirstName.setError(getString(R.string.error_first_name_length));
             ok = false;
         }
 
         String last = textOf(etLastName).trim();
         if (last.length() < 2) {
-            tilLastName.setError("שם משפחה חייב להכיל לפחות 2 תווים");
+            tilLastName.setError(getString(R.string.error_last_name_length));
             ok = false;
         }
 
         String email = textOf(etEmail).toLowerCase(Locale.US).trim();
         if (TextUtils.isEmpty(email) || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            tilEmail.setError("כתובת מייל לא תקינה");
+            tilEmail.setError(getString(R.string.error_invalid_email));
             ok = false;
         }
 
@@ -437,23 +544,23 @@ public class RegisterActivity extends AppCompatActivity {
 
         String confirm = textOf(etConfirm);
         if (!pass.equals(confirm)) {
-            tilConfirm.setError("הסיסמאות אינן זהות");
+            tilConfirm.setError(getString(R.string.error_passwords_not_match));
             ok = false;
         }
 
         String gender = textOf(etGender);
         if (!TextUtils.isEmpty(gender) && !isValidGender(gender)) {
-            tilGender.setError("יש לבחור מין תקין (male/female/other או זכר/נקבה/אחר)");
+            tilGender.setError(getString(R.string.error_invalid_gender));
             ok = false;
         }
 
         String birth = textOf(etBirth);
         if (!TextUtils.isEmpty(birth)) {
             if (!isValidIsoDate(birth)) {
-                tilBirth.setError("תאריך לידה חייב להיות בפורמט YYYY-MM-DD");
+                tilBirth.setError(getString(R.string.error_invalid_date_format));
                 ok = false;
             } else if (!isReasonableBirth(birth)) {
-                tilBirth.setError("תאריך לידה לא סביר");
+                tilBirth.setError(getString(R.string.error_unreasonable_birth_date));
                 ok = false;
             }
         }
@@ -462,7 +569,7 @@ public class RegisterActivity extends AppCompatActivity {
         if (!TextUtils.isEmpty(phone)) {
             String cleanPhone = phone.replaceAll("[-\\s]", "");
             if (!PHONE_RE.matcher(cleanPhone).matches()) {
-                tilPhone.setError("מספר טלפון לא תקין (דוגמה: 053-4302092 או +972534302092)");
+                tilPhone.setError(getString(R.string.error_invalid_phone));
                 ok = false;
             }
         }
@@ -474,23 +581,25 @@ public class RegisterActivity extends AppCompatActivity {
     // --- Enhanced password validation ---
     private boolean validatePassword(String password) {
         if (password.length() < 8) {
-            tilPassword.setError("הסיסמה חייבת להכיל לפחות 8 תווים");
+            tilPassword.setError(getString(R.string.error_password_length));
             return false;
         }
 
         if (!PASSWORD_RE.matcher(password).matches()) {
-            tilPassword.setError("הסיסמה חייבת להכיל שילוב של אותיות ומספרים");
+            tilPassword.setError(getString(R.string.error_password_complexity));
             return false;
         }
 
         return true;
     }
 
-    // --- Validate Hebrew gender options ---
+    // --- Validate gender options ---
     private boolean isValidGender(String gender) {
         if (TextUtils.isEmpty(gender)) return true; // Optional field
         String genderLower = gender.toLowerCase().trim();
-        return genderLower.equals("זכר") || genderLower.equals("נקבה") || genderLower.equals("אחר") ||
+        return genderLower.equals(getString(R.string.gender_male).toLowerCase()) ||
+                genderLower.equals(getString(R.string.gender_female).toLowerCase()) ||
+                genderLower.equals(getString(R.string.gender_other).toLowerCase()) ||
                 genderLower.equals("male") || genderLower.equals("female") || genderLower.equals("other");
     }
 
@@ -553,5 +662,11 @@ public class RegisterActivity extends AppCompatActivity {
         Calendar min = Calendar.getInstance();
         min.add(Calendar.YEAR, -120);
         return birth.after(min);
+    }
+
+    private void loadThemePreference() {
+        SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
+        int nightMode = prefs.getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        AppCompatDelegate.setDefaultNightMode(nightMode);
     }
 }

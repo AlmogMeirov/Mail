@@ -67,6 +67,10 @@ const mailSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    isDraft: {
+    type: Boolean,
+    default: false
+    },
 
     // Track which users have deleted this mail
     deletedBy: [{
@@ -109,13 +113,16 @@ mailSchema.statics.findByUser = function (userEmail, options = {}) {
     return this.find(query, null, options).sort({ timestamp: -1 });
 };
 
+
 mailSchema.statics.findInboxByUser = function (userEmail, options = {}) {
     const query = {
-        $or: [
-            { recipient: userEmail },
-            { recipients: userEmail }
-        ],
-        deletedBy: { $ne: userEmail }
+        'labels': {
+            $elemMatch: {
+                'userEmail': userEmail,
+                'labelIds': 'inbox'
+            }
+        },
+        deletedBy: { $ne: userEmail },
     };
 
     return this.find(query, null, options).sort({ timestamp: -1 });
@@ -123,13 +130,30 @@ mailSchema.statics.findInboxByUser = function (userEmail, options = {}) {
 
 mailSchema.statics.findSentByUser = function (userEmail, options = {}) {
     const query = {
-        sender: userEmail,
-        deletedBy: { $ne: userEmail }
+        'labels': {
+            $elemMatch: {
+                'userEmail': userEmail,
+                'labelIds': 'sent'
+            }
+        },
+        deletedBy: { $ne: userEmail },
     };
 
     return this.find(query, null, options).sort({ timestamp: -1 });
 };
 
+mailSchema.statics.findDraftsByUser = function (userEmail, options = {}) {
+    const query = {
+        'labels': {
+            $elemMatch: {
+                'userEmail': userEmail,
+                'labelIds': 'drafts'
+            }
+        },
+        deletedBy: { $ne: userEmail }
+    };
+    return this.find(query, null, options).sort({ timestamp: -1 });
+};
 const Mail = mongoose.model('Mail', mailSchema);
 
 module.exports = Mail;

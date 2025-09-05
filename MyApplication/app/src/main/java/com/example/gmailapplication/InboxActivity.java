@@ -2,601 +2,1018 @@ package com.example.gmailapplication;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.SubMenu;
 import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import android.content.Intent;
-import android.view.Menu;
-import android.view.MenuItem;
-import com.example.gmailapplication.repository.UserRepository;
-
-
-import androidx.annotation.Nullable;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import com.example.gmailapplication.adapters.EmailAdapter;
 import com.example.gmailapplication.API.BackendClient;
-import com.example.gmailapplication.API.EmailAPI;
-import com.example.gmailapplication.repository.EmailRepository;
-import com.example.gmailapplication.repository.UserRepository;
-import com.example.gmailapplication.shared.*;
-import com.example.gmailapplication.utils.EmailRefreshManager;
+import com.example.gmailapplication.API.LabelAPI;
+import com.example.gmailapplication.API.UserAPI;
+import com.example.gmailapplication.adapters.EmailAdapter;
+import com.example.gmailapplication.shared.CreateLabelRequest;
+import com.example.gmailapplication.shared.Email;
+import com.example.gmailapplication.shared.Label;
+import com.example.gmailapplication.shared.TokenManager;
+import com.example.gmailapplication.shared.UpdateLabelRequest;
+import com.example.gmailapplication.viewmodels.InboxViewModel;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.tabs.TabLayout;
+import com.google.android.material.navigation.NavigationView;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class InboxActivity extends AppCompatActivity {
+public class InboxActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
-    private RecyclerView recyclerViewEmails;
-    private EmailAdapter emailAdapter;
-    private List<Email> emailList = new ArrayList<>();
-    private List<Email> allEmails = new ArrayList<>();
+    private RecyclerView recyclerView;
+    private EmailAdapter adapter;
+    private InboxViewModel viewModel;
 
-    private TextView tvWelcome, tvEmpty;
-    private UserRepository userRepository;
+    // Navigation Drawer components
+    private DrawerLayout drawerLayout;
+    private NavigationView navigationView;
 
-    private TabLayout tabLayout;
-    private FloatingActionButton fabCompose;
-
-    private EmailAPI emailAPI;
-    private String authToken;
-    private String currentFilter = "inbox"; // "inbox", "spam", "sent"
-
-    // Repository and refresh manager
-    private EmailRepository emailRepository;
-    private EmailRefreshManager refreshManager;
-    private SwipeRefreshLayout swipeRefreshLayout;
-
-    // Store the refresh listener to remove it later
-    private EmailRefreshManager.RefreshListener refreshListener;
+    // Current filter state
+    private String currentFilter = "inbox";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        loadThemePreference();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_inbox);
+        System.out.println("=== INBOX ACTIVITY STARTED ===");
 
+        // Init views
         initViews();
-        setupAPI();
-        setupRepository();
-        setupUserRepository();
-        setupAutoRefresh();
-        setupSwipeRefresh();
-        setupLogoutButton(); // הוסף את זה
+
+        // Init ViewModel
+        viewModel = new ViewModelProvider(this).get(InboxViewModel.class);
+
         setupRecyclerView();
-        setupTabs();
-        setupFab();
-        observeEmails();
-    }
+        setupObservers();
+        setupNavigationDrawer();
+        setupHeader();
+        setupPaginationControls();
 
-    private void setupUserRepository() {
-        userRepository = new UserRepository(this);
-    }
-    private void setupLogoutButton() {
-        // אם הוספת כפתור אייקון
-        ImageView ivLogout = findViewById(R.id.ivLogout);
-        if (ivLogout != null) {
-            ivLogout.setOnClickListener(v -> showLogoutConfirmation());
-        }
-    }
-
-
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.inbox_menu, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int itemId = item.getItemId();
-
-        if (itemId == R.id.action_refresh) {
-            // רענון ידני
-            refreshManager.refreshNow();
-            return true;
-        } else if (itemId == R.id.action_search) {
-            // פתח חיפוש
-            openSearchActivity();
-            return true;
-        } else if (itemId == R.id.action_settings) {
-            // פתח הגדרות רענון
-            showRefreshSettings();
-            return true;
-        } else if (itemId == R.id.action_logout) {
-            // התנתקות
-            showLogoutConfirmation();
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    private void showLogoutConfirmation() {
-        new AlertDialog.Builder(this)
-                .setTitle("התנתקות")
-                .setMessage("האם אתה בטוח שברצונך להתנתק?")
-                .setPositiveButton("התנתק", (dialog, which) -> {
-                    performLogout();
-                })
-                .setNegativeButton("ביטול", null)
-                .setIcon(android.R.drawable.ic_dialog_alert)
-                .show();
-    }
-
-    private void performLogout() {
-        // הצג התקדמות
-        Toast.makeText(this, "מתנתק...", Toast.LENGTH_SHORT).show();
-
-        // עצור רענון אוטומטי
-        if (refreshManager != null) {
-            refreshManager.stopAutoRefresh();
-        }
-
-        // נקה נתונים מקומיים
-        if (emailRepository != null) {
-            emailRepository.clearAllLocalData();
-        }
-
-        // התנתק דרך UserRepository
-        if (userRepository != null) {
-            userRepository.logout();
-        }
-
-        // נקה SharedPreferences
-        clearUserSession();
-
-        // חזור למסך הכניסה
-        navigateToLogin();
-    }
-
-    private void clearUserSession() {
-        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
-        editor.clear();
-        editor.apply();
-
-        // נקה גם אחסון אחר אם יש
-        SharedPreferences draftPrefs = getSharedPreferences("drafts", MODE_PRIVATE);
-        SharedPreferences.Editor draftEditor = draftPrefs.edit();
-        draftEditor.clear();
-        draftEditor.apply();
-    }
-
-    private void navigateToLogin() {
-        Intent intent = new Intent(this, MainActivity.class); // או LoginActivity
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
-
-        // אנימציית מעבר
-        overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
-    }
-
-    private void openSearchActivity() {
-        // TODO: יישום חיפוש
-        Toast.makeText(this, "חיפוש - בקרוב!", Toast.LENGTH_SHORT).show();
-    }
-
-    private void showRefreshSettings() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("הגדרות רענון אוטומטי");
-
-        String[] options = {
-                "מהיר (10 שניות)",
-                "רגיל (30 שניות)",
-                "איטי (60 שניות)",
-                "ביטול רענון אוטומטי"
-        };
-
-        // בדוק מצב נוכחי
-        int currentSelection = getCurrentRefreshSetting();
-
-        builder.setSingleChoiceItems(options, currentSelection, (dialog, which) -> {
-            switch (which) {
-                case 0: // מהיר
-                    refreshManager.setRefreshInterval(10000);
-                    saveRefreshSetting(0);
-                    Toast.makeText(this, "רענון מהיר הופעל", Toast.LENGTH_SHORT).show();
-                    break;
-                case 1: // רגיל
-                    refreshManager.enableNormalRefresh();
-                    saveRefreshSetting(1);
-                    Toast.makeText(this, "רענון רגיל הופעל", Toast.LENGTH_SHORT).show();
-                    break;
-                case 2: // איטי
-                    refreshManager.enableSlowRefresh();
-                    saveRefreshSetting(2);
-                    Toast.makeText(this, "רענון איטי הופעל", Toast.LENGTH_SHORT).show();
-                    break;
-                case 3: // ביטול
-                    refreshManager.stopAutoRefresh();
-                    saveRefreshSetting(3);
-                    Toast.makeText(this, "רענון אוטומטי בוטל", Toast.LENGTH_SHORT).show();
-                    break;
-            }
-            dialog.dismiss();
-        });
-
-        builder.setNegativeButton("ביטול", null);
-        builder.show();
-    }
-
-    private int getCurrentRefreshSetting() {
-        SharedPreferences prefs = getSharedPreferences("app_settings", MODE_PRIVATE);
-        return prefs.getInt("refresh_setting", 1); // רגיל כברירת מחדל
-    }
-
-    private void saveRefreshSetting(int setting) {
-        SharedPreferences prefs = getSharedPreferences("app_settings", MODE_PRIVATE);
-        prefs.edit().putInt("refresh_setting", setting).apply();
+        // Load emails
+        viewModel.loadEmails();
     }
 
     private void initViews() {
-        recyclerViewEmails = findViewById(R.id.recyclerViewEmails);
-        tvWelcome = findViewById(R.id.tvWelcome);
-        tvEmpty = findViewById(R.id.tvEmpty);
-        tabLayout = findViewById(R.id.tabLayout);
-        fabCompose = findViewById(R.id.fabCompose);
-        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayout);
+        recyclerView = findViewById(R.id.recyclerViewEmails);
+        FloatingActionButton fab = findViewById(R.id.fabCompose);
+
+        // Navigation Drawer
+        drawerLayout = findViewById(R.id.drawerLayout);
+        navigationView = findViewById(R.id.navigationView);
+
+        setupFab(fab);
     }
 
-    private void setupAPI() {
-        emailAPI = BackendClient.get(this).create(EmailAPI.class);
+    private void loadThemePreference() {
+        SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
+        int nightMode = prefs.getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        AppCompatDelegate.setDefaultNightMode(nightMode);
+    }
 
-        // Get auth info
-        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
-        authToken = prefs.getString("auth_token", "");
-        String currentUserEmail = prefs.getString("user_email", "");
+    private void setupNavigationDrawer() {
+        navigationView.setNavigationItemSelectedListener(this);
+        navigationView.setCheckedItem(R.id.nav_inbox);
 
-        if (tvWelcome != null) {
-            tvWelcome.setText("שלום " + (currentUserEmail.isEmpty() ? "משתמש" : currentUserEmail));
+        setupNavigationHeader();
+        loadCustomLabels();
+    }
+
+    private void setupNavigationHeader() {
+        // Get header view
+        View headerView = navigationView.getHeaderView(0);
+
+        // Find views in header
+        TextView tvUserEmail = headerView.findViewById(R.id.tvUserEmail);
+        ImageView ivProfileImage = headerView.findViewById(R.id.ivProfileImage);
+        Button btnCreateNewLabel = headerView.findViewById(R.id.btnCreateNewLabel);
+
+        // Set current user email
+        String currentUserEmail = TokenManager.getCurrentUserEmail(this);
+        String currentUserId = TokenManager.getCurrentUserId(this);
+
+        System.out.println("=== NAVIGATION HEADER DEBUG ===");
+        System.out.println("User email: " + currentUserEmail);
+        System.out.println("User ID: " + currentUserId);
+
+        if (currentUserEmail != null) {
+            tvUserEmail.setText(currentUserEmail);
+
+            if (currentUserId != null && ivProfileImage != null) {
+                loadProfileImage(currentUserId, ivProfileImage);
+            } else {
+                System.out.println("User ID is null or ImageView not found - cannot load avatar");
+            }
+        }
+
+        // Setup create label button
+        btnCreateNewLabel.setOnClickListener(v -> {
+            drawerLayout.closeDrawer(GravityCompat.START);
+            showCreateLabelDialog();
+        });
+    }
+
+    private void loadProfileImage(String userId, ImageView imageView) {
+        System.out.println("=== LOADING AVATAR FOR USER: " + userId + " ===");
+        System.out.println("ImageView: " + imageView.toString());
+
+        UserAPI userAPI = BackendClient.get(this).create(UserAPI.class);
+
+        userAPI.getAvatar(userId).enqueue(new Callback<ResponseBody>() {
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                System.out.println("=== AVATAR API RESPONSE ===");
+                System.out.println("Response code: " + response.code());
+                System.out.println("Response successful: " + response.isSuccessful());
+                System.out.println("Response body exists: " + (response.body() != null));
+
+                if (response.isSuccessful() && response.body() != null) {
+                    try {
+                        byte[] imageBytes = response.body().bytes();
+                        System.out.println("✓ Image loaded successfully, size: " + imageBytes.length + " bytes");
+
+                        // Check magic bytes - is this actually PNG?
+                        if (imageBytes.length >= 8) {
+                            String header = String.format("%02X%02X%02X%02X%02X%02X%02X%02X",
+                                    imageBytes[0], imageBytes[1], imageBytes[2], imageBytes[3],
+                                    imageBytes[4], imageBytes[5], imageBytes[6], imageBytes[7]);
+                            System.out.println("Image header (first 8 bytes): " + header);
+
+                            // PNG header should be: 89504E470D0A1A0A
+                            boolean isPNG = header.equals("89504E470D0A1A0A");
+                            System.out.println("Is valid PNG: " + isPNG);
+                        }
+
+                        // Try decoding with BitmapFactory options
+                        BitmapFactory.Options options = new BitmapFactory.Options();
+                        options.inJustDecodeBounds = true; // Info only, no decoding
+                        BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length, options);
+
+                        System.out.println("Image format: " + options.outMimeType);
+                        System.out.println("Image dimensions: " + options.outWidth + "x" + options.outHeight);
+
+                        // Now decode for real
+                        options.inJustDecodeBounds = false;
+                        Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length, options);
+
+                        System.out.println("✓ Bitmap decoded successfully: " + (bitmap != null));
+
+                        if (bitmap != null) {
+                            System.out.println("Bitmap config: " + bitmap.getConfig());
+                            System.out.println("Bitmap size: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+
+                            runOnUiThread(() -> {
+                                System.out.println("=== SETTING IMAGE ON UI THREAD ===");
+                                System.out.println("ImageView before: " + imageView.getDrawable());
+
+                                // Create circular image
+                                Bitmap circularBitmap = createCircularBitmap(bitmap);
+                                imageView.setImageBitmap(circularBitmap);
+
+                                System.out.println("✓ ImageView updated successfully");
+                                System.out.println("ImageView after: " + imageView.getDrawable());
+                            });
+                        } else {
+                            System.out.println("✗ Bitmap decoding failed - using default image");
+                            runOnUiThread(() -> {
+                                //imageView.setImageResource(R.drawable.ic_account_circle);
+                            });
+                        }
+                    } catch (Exception e) {
+                        System.out.println("✗ Exception in image processing: " + e.getMessage());
+                        e.printStackTrace();
+                        runOnUiThread(() -> {
+                            //imageView.setImageResource(R.drawable.ic_account_circle);
+                        });
+                    }
+                } else {
+                    System.out.println("✗ API response failed or empty body");
+                    System.out.println("Response code: " + response.code());
+                    System.out.println("Response message: " + response.message());
+                    runOnUiThread(() -> {
+                        //imageView.setImageResource(R.drawable.ic_account_circle);
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                System.out.println("=== AVATAR API FAILURE ===");
+                System.out.println("✗ Failed to load avatar: " + t.getMessage());
+                t.printStackTrace();
+                runOnUiThread(() -> {
+                    //imageView.setImageResource(R.drawable.ic_account_circle);
+                });
+            }
+        });
+    }
+
+    private Bitmap createCircularBitmap(Bitmap bitmap) {
+        System.out.println("=== CREATING CIRCULAR BITMAP ===");
+        System.out.println("Input bitmap: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        int size = Math.min(width, height);
+
+        Bitmap output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(output);
+
+        Paint paint = new Paint();
+        paint.setAntiAlias(true);
+
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint);
+        paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+
+        canvas.drawBitmap(bitmap, (size - width) / 2f, (size - height) / 2f, paint);
+
+        System.out.println("✓ Circular bitmap created: " + output.getWidth() + "x" + output.getHeight());
+        return output;
+    }
+
+    private void loadCustomLabels() {
+        LabelAPI labelAPI = BackendClient.get(this).create(LabelAPI.class);
+
+        labelAPI.getAllLabels().enqueue(new Callback<List<Label>>() {
+            @Override
+            public void onResponse(Call<List<Label>> call, Response<List<Label>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    addCustomLabelsToMenu(response.body());
+                } else {
+                    System.out.println("Failed to load labels: " + response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Label>> call, Throwable t) {
+                System.out.println("Error loading labels: " + t.getMessage());
+            }
+        });
+    }
+
+    private void addCustomLabelsToMenu(List<Label> allLabels) {
+        // Filter only custom labels (not system)
+        List<Label> customLabels = new ArrayList<>();
+        for (Label label : allLabels) {
+            if (!label.isSystem) {
+                customLabels.add(label);
+            }
+        }
+
+        if (customLabels.isEmpty()) {
+            return; // No custom labels
+        }
+
+        // Get the Navigation View menu
+        Menu menu = navigationView.getMenu();
+
+        // Remove existing labels in custom group
+        menu.removeGroup(R.id.group_custom_labels);
+
+        // Add header for custom labels
+        menu.add(R.id.group_custom_labels, Menu.NONE, Menu.NONE, getString(R.string.nav_personal_labels))
+                .setEnabled(false);
+
+        // Add the new labels
+        for (int i = 0; i < customLabels.size(); i++) {
+            Label label = customLabels.get(i);
+            MenuItem item = menu.add(R.id.group_custom_labels,
+                    View.generateViewId(), i + 1, label.name);
+            item.setIcon(android.R.drawable.ic_menu_mylocation);
+
+            setupLongClickForCustomLabel(item, label);
         }
     }
 
-    private void setupRepository() {
-        emailRepository = EmailRepository.getInstance(this);
+    private void setupLongClickForCustomLabel(MenuItem menuItem, Label label) {
+        // Android doesn't support long click directly on MenuItem
+        // Use alternative solution - add ContextMenu on regular click if it's custom label
+
+        // Store the label in Intent for handling in onNavigationItemSelected
+        menuItem.getIntent();
+        if (menuItem.getIntent() == null) {
+            menuItem.setIntent(new android.content.Intent());
+        }
+        menuItem.getIntent().putExtra("custom_label_id", label.id);
+        menuItem.getIntent().putExtra("custom_label_name", label.name);
     }
 
-    private void setupAutoRefresh() {
-        refreshManager = EmailRefreshManager.getInstance();
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        drawerLayout.closeDrawer(GravityCompat.START);
 
-        // Create and store the listener
-        refreshListener = new EmailRefreshManager.RefreshListener() {
-            @Override
-            public void onRefreshRequested() {
-                // הרענון מתבצע דרך Repository
-                emailRepository.fetchEmailsFromServer();
+        int itemId = item.getItemId();
+        int groupId = item.getGroupId();
+
+        // System labels (existing code)
+        if (itemId == R.id.nav_inbox) {
+            viewModel.loadEmails();
+            return true;
+        } else if (itemId == R.id.nav_sent) {
+            viewModel.loadEmailsByLabel("sent", getString(R.string.nav_sent));
+            return true;
+        } else if (itemId == R.id.nav_drafts) {
+            viewModel.loadEmailsByLabel("drafts", getString(R.string.nav_drafts));
+            return true;
+        } else if (itemId == R.id.nav_starred) {
+            viewModel.loadStarredEmails();
+            return true;
+        } else if (itemId == R.id.nav_spam) {
+            viewModel.loadSpamEmails();
+            return true;
+        } else if (itemId == R.id.nav_trash) {
+            viewModel.loadEmailsByLabel("trash", getString(R.string.nav_trash));
+            return true;
+        }
+
+        // Custom personal labels
+        else if (groupId == R.id.group_custom_labels) {
+            String labelName = item.getTitle().toString();
+
+            // Skip the header "Personal Labels"
+            if (labelName.equals(getString(R.string.nav_personal_labels))) {
+                return true;
             }
 
-            @Override
-            public void onRefreshStarted() {
-                runOnUiThread(() -> {
-                    if (swipeRefreshLayout != null) {
-                        swipeRefreshLayout.setRefreshing(true);
-                    }
-                });
-            }
+            // Check if we have custom label info
+            if (item.getIntent() != null &&
+                    item.getIntent().hasExtra("custom_label_id")) {
 
-            @Override
-            public void onRefreshCompleted(boolean success) {
-                runOnUiThread(() -> {
-                    if (swipeRefreshLayout != null) {
-                        swipeRefreshLayout.setRefreshing(false);
-                    }
+                String labelId = item.getIntent().getStringExtra("custom_label_id");
 
-                    if (success) {
-                        // אין צורך להציג הודעה - הנתונים מתעדכנים אוטומטית דרך LiveData
-                    } else {
-                        Toast.makeText(InboxActivity.this, "שגיאה ברענון מיילים", Toast.LENGTH_SHORT).show();
-                    }
-                });
+                // Show options menu for custom label
+                showCustomLabelOptions(labelId, labelName);
+                return true;
+            } else {
+                // Regular label - open it
+                viewModel.loadEmailsByLabel(labelName, labelName);
+                return true;
             }
+        }
+
+        return false;
+    }
+
+    private void showCustomLabelOptions(String labelId, String labelName) {
+        String[] options = {
+                getString(R.string.show_emails),
+                getString(R.string.edit_label),
+                getString(R.string.delete_label)
         };
 
-        // Add the listener
-        refreshManager.addRefreshListener(refreshListener);
+        new AlertDialog.Builder(this)
+                .setTitle("'" + labelName + "'")
+                .setItems(options, (dialog, which) -> {
+                    switch (which) {
+                        case 0: // Show emails
+                            viewModel.loadEmailsByLabel(labelName, labelName);
+                            break;
+                        case 1: // Edit label
+                            showEditLabelDialog(labelId, labelName);
+                            break;
+                        case 2: // Delete label
+                            showDeleteLabelDialog(labelId, labelName);
+                            break;
+                    }
+                })
+                .setNegativeButton(getString(R.string.cancel), null)
+                .show();
     }
 
-    private void setupSwipeRefresh() {
-        if (swipeRefreshLayout != null) {
-            swipeRefreshLayout.setOnRefreshListener(() -> {
-                // רענון ידני על ידי המשתמש
-                refreshManager.refreshNow();
-            });
+    private void showEditLabelDialog(String labelId, String currentName) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(getString(R.string.edit_label_title));
 
-            // עיצוב האינדיקטור
-            swipeRefreshLayout.setColorSchemeResources(
-                    android.R.color.holo_blue_bright,
-                    android.R.color.holo_green_light,
-                    android.R.color.holo_orange_light,
-                    android.R.color.holo_red_light
-            );
-        }
+        final EditText input = new EditText(this);
+        input.setText(currentName);
+        input.setSelection(currentName.length());
+        input.setPadding(32, 32, 32, 32);
+        builder.setView(input);
 
-        // הוספת לחיצה לכפתור הרענון בheader
-        ImageView ivRefresh = findViewById(R.id.ivRefresh);
-        if (ivRefresh != null) {
-            ivRefresh.setOnClickListener(v -> {
-                refreshManager.refreshNow();
-            });
-        }
-    }
-
-    private void observeEmails() {
-        // צפייה במיילים בזמן אמת דרך LiveData
-        emailRepository.getInboxEmails().observe(this, emails -> {
-            if (emails != null) {
-                // המר EmailEntity ל-Email עבור האדפטר הקיים
-                List<Email> emailList = EmailMapper.toEmails(emails);
-                updateEmailList(emailList);
-            }
-        });
-
-        // צפייה בסטטוס טעינה
-        emailRepository.isLoading().observe(this, isLoading -> {
-            if (swipeRefreshLayout != null && !refreshManager.isCurrentlyRefreshing()) {
-                swipeRefreshLayout.setRefreshing(isLoading != null ? isLoading : false);
-            }
-        });
-
-        // צפייה בשגיאות
-        emailRepository.getLastError().observe(this, error -> {
-            if (error != null && !error.isEmpty()) {
-                Toast.makeText(this, "שגיאה: " + error, Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        // צפייה במספר מיילים לא נקראים
-        emailRepository.getUnreadCount().observe(this, count -> {
-            if (count != null && count > 0) {
-                // עדכן את התצוגה או הtitle עם מספר המיילים הלא נקראים
-                if (tvWelcome != null) {
-                    tvWelcome.setText("תיבת דואר (" + count + " לא נקראו)");
+        builder.setPositiveButton(getString(R.string.update), (dialog, which) -> {
+            String newName = input.getText().toString().trim();
+            if (!newName.isEmpty()) {
+                if (!newName.equals(currentName)) {
+                    updateLabel(labelId, newName);
+                } else {
+                    Toast.makeText(this, getString(R.string.error_no_changes), Toast.LENGTH_SHORT).show();
                 }
             } else {
-                if (tvWelcome != null) {
-                    tvWelcome.setText("תיבת דואר");
+                Toast.makeText(this, getString(R.string.error_label_name_required), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton(getString(R.string.cancel), null);
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        input.requestFocus();
+    }
+
+    private void showDeleteLabelDialog(String labelId, String labelName) {
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.delete_label_title))
+                .setMessage(getString(R.string.delete_label_message, labelName))
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setPositiveButton(getString(R.string.delete), (dialog, which) -> deleteLabel(labelId, labelName))
+                .setNegativeButton(getString(R.string.cancel), null)
+                .show();
+    }
+
+    private void updateLabel(String labelId, String newName) {
+        LabelAPI labelAPI = BackendClient.get(this).create(LabelAPI.class);
+        UpdateLabelRequest request = new UpdateLabelRequest(newName);
+
+        labelAPI.updateLabel(labelId, request).enqueue(new Callback<Label>() {
+            @Override
+            public void onResponse(Call<Label> call, Response<Label> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Toast.makeText(InboxActivity.this,
+                            getString(R.string.label_updated, response.body().name), Toast.LENGTH_SHORT).show();
+                    refreshNavigationMenu();
+                } else {
+                    handleLabelError(getString(R.string.update), response.code());
                 }
+            }
+
+            @Override
+            public void onFailure(Call<Label> call, Throwable t) {
+                Toast.makeText(InboxActivity.this,
+                        getString(R.string.error_server_connection, t.getMessage()), Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    private void updateEmailList(List<Email> emails) {
-        if (emailAdapter != null) {
-            emailAdapter.updateEmails(emails);
-        }
+    private void deleteLabel(String labelId, String labelName) {
+        LabelAPI labelAPI = BackendClient.get(this).create(LabelAPI.class);
 
-        // הצג/הסתר empty state
-        if (emails == null || emails.isEmpty()) {
-            if (tvEmpty != null) tvEmpty.setVisibility(View.VISIBLE);
-            if (recyclerViewEmails != null) recyclerViewEmails.setVisibility(View.GONE);
-        } else {
-            if (tvEmpty != null) tvEmpty.setVisibility(View.GONE);
-            if (recyclerViewEmails != null) recyclerViewEmails.setVisibility(View.VISIBLE);
-        }
-    }
+        labelAPI.deleteLabel(labelId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    Toast.makeText(InboxActivity.this,
+                            getString(R.string.label_deleted, labelName), Toast.LENGTH_SHORT).show();
 
-    private void setupRecyclerView() {
-        if (recyclerViewEmails != null) {
-            recyclerViewEmails.setLayoutManager(new LinearLayoutManager(this));
-
-            // EmailAdapter with click listeners
-            emailAdapter = new EmailAdapter(new ArrayList<>(), new EmailAdapter.OnEmailClickListener() {
-                @Override
-                public void onEmailClick(Email email) {
-                    // פתח מייל לצפייה
-                    openEmailDetail(email);
-
-                    // סמן כנקרא אם לא נקרא
-                    if (email != null && !email.isRead) {
-                        emailRepository.markAsRead(email.id);
+                    String currentFilter = viewModel.getCurrentFilter().getValue();
+                    // Compare both original case and lowercase
+                    if (labelName.equalsIgnoreCase(currentFilter) ||
+                            labelName.toLowerCase().equals(currentFilter)) {
+                        viewModel.loadEmails(); // Return to inbox
+                        Toast.makeText(InboxActivity.this,
+                                getString(R.string.label_deleted_returning_inbox), Toast.LENGTH_SHORT).show();
                     }
+
+                    refreshNavigationMenu();
+                } else {
+                    handleLabelError(getString(R.string.delete), response.code());
                 }
+            }
 
-                @Override
-                public void onEmailLongClick(Email email) {
-                    // הצג תפריט פעולות מהירות
-                    showQuickActionMenu(email);
-                }
-            });
-
-            recyclerViewEmails.setAdapter(emailAdapter);
-        }
-    }
-
-    private void showQuickActionMenu(Email email) {
-        if (email == null) return;
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("פעולות מהירות");
-
-        String[] actions = {
-                email.isRead ? "סמן כלא נקרא" : "סמן כנקרא",
-                email.isStarred ? "הסר כוכב" : "הוסף כוכב",
-                "ארכב",
-                "מחק",
-                "השב"
-        };
-
-        builder.setItems(actions, (dialog, which) -> {
-            switch (which) {
-                case 0: // סימון קריאה
-                    if (email.isRead) {
-                        emailRepository.markAsUnread(email.id);
-                    } else {
-                        emailRepository.markAsRead(email.id);
-                    }
-                    break;
-                case 1: // כוכב
-                    emailRepository.toggleStar(email.id);
-                    break;
-                case 2: // ארכוב
-                    emailRepository.archiveEmail(email.id);
-                    Toast.makeText(this, "המייל הועבר לארכיון", Toast.LENGTH_SHORT).show();
-                    break;
-                case 3: // מחיקה
-                    emailRepository.deleteEmail(email.id);
-                    Toast.makeText(this, "המייל הועבר לפח", Toast.LENGTH_SHORT).show();
-                    break;
-                case 4: // השב
-                    replyToEmail(email);
-                    break;
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                Toast.makeText(InboxActivity.this,
+                        getString(R.string.error_server_connection, t.getMessage()), Toast.LENGTH_SHORT).show();
             }
         });
-
-        builder.show();
     }
 
-    private void openEmailDetail(Email email) {
-        if (email == null) return;
-
-        // TODO: פתח EmailDetailActivity
-        // Intent intent = new Intent(this, EmailDetailActivity.class);
-        // intent.putExtra("email_id", email.id);
-        // startActivity(intent);
-
-        // בינתיים - הצג toast
-        Toast.makeText(this, "פתיחת מייל: " + email.subject, Toast.LENGTH_SHORT).show();
+    private void handleLabelError(String action, int responseCode) {
+        String message;
+        switch (responseCode) {
+            case 404:
+                message = getString(R.string.error_label_not_found);
+                break;
+            case 409:
+                message = getString(R.string.error_label_exists);
+                break;
+            case 403:
+                message = getString(R.string.error_no_permission);
+                break;
+            default:
+                if (action.equals(getString(R.string.update))) {
+                    message = getString(R.string.error_updating_label, responseCode);
+                } else if (action.equals(getString(R.string.delete))) {
+                    message = getString(R.string.error_deleting_label, responseCode);
+                } else {
+                    message = "Error " + action + " label (code " + responseCode + ")";
+                }
+        }
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
-    private void replyToEmail(Email email) {
-        if (email == null) return;
+    private void refreshNavigationMenu() {
+        // Refresh labels after creating new label
+        loadCustomLabels();
+    }
 
+    private void handleEditDraft(Email email) {
         Intent intent = new Intent(this, ComposeActivity.class);
-        intent.putExtra("reply_to", email.sender);
-        intent.putExtra("reply_subject", "Re: " + (email.subject != null ? email.subject : ""));
-        intent.putExtra("reply_content", "\n\n--- הודעה מקורית ---\n" +
-                (email.content != null ? email.content : ""));
+        intent.putExtra("is_draft", true);
+        intent.putExtra("draft_id", email.id);
+        intent.putExtra("draft_to", email.recipients != null ? String.join(", ", email.recipients) : "");
+        intent.putExtra("draft_subject", email.subject);
+        intent.putExtra("draft_content", email.content);
         startActivity(intent);
     }
 
-    private void setupTabs() {
-        if (tabLayout != null) {
-            tabLayout.addTab(tabLayout.newTab().setText("דואר נכנס"));
-            tabLayout.addTab(tabLayout.newTab().setText("נשלח"));
-            tabLayout.addTab(tabLayout.newTab().setText("טיוטות"));
-            tabLayout.addTab(tabLayout.newTab().setText("כוכב"));
+    private void setupRecyclerView() {
+        String currentUserEmail = TokenManager.getCurrentUserEmail(this);
+        System.out.println("Current user email from token: " + currentUserEmail);
 
-            tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-                @Override
-                public void onTabSelected(TabLayout.Tab tab) {
-                    switch (tab.getPosition()) {
-                        case 0: // דואר נכנס
-                            observeInboxEmails();
-                            currentFilter = "inbox";
-                            break;
-                        case 1: // נשלח
-                            observeSentEmails();
-                            currentFilter = "sent";
-                            break;
-                        case 2: // טיוטות
-                            observeDrafts();
-                            currentFilter = "drafts";
-                            break;
-                        case 3: // כוכב
-                            observeStarredEmails();
-                            currentFilter = "starred";
-                            break;
-                    }
-                }
+        adapter = new EmailAdapter(email -> {
+            // Check if it's a draft
+            boolean isDraft = (email.labels != null && email.labels.contains("drafts"));
 
-                @Override
-                public void onTabUnselected(TabLayout.Tab tab) {}
-
-                @Override
-                public void onTabReselected(TabLayout.Tab tab) {}
-            });
-        }
-    }
-
-    private void setupFab() {
-        if (fabCompose != null) {
-            fabCompose.setOnClickListener(v -> {
-                Intent intent = new Intent(InboxActivity.this, ComposeActivity.class);
+            if (isDraft) {
+                // Draft - open for editing
+                handleEditDraft(email);
+            } else {
+                // Regular email - show details
+                Intent intent = new Intent(this, EmailDetailActivity.class);
+                intent.putExtra("email_id", email.id);
+                intent.putExtra("sender", email.sender);
+                intent.putExtra("subject", email.subject);
+                intent.putExtra("content", email.content);
+                intent.putExtra("timestamp", email.timestamp);
                 startActivity(intent);
+            }
+        }, currentUserEmail);
+
+        // Set other listeners
+        adapter.setDeleteListener(this::handleEmailDelete);
+        adapter.setStarListener(this::handleEmailStar);
+        adapter.setEditDraftListener(this::handleEditDraft);
+
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(adapter);
+    }
+
+    private void handleEmailDelete(Email email) {
+        // Simple logic based on server:
+        // If in trash → permanent delete (DELETE API)
+        // Otherwise → move to trash (replace all labels with "trash" only)
+
+        if ("trash".equals(currentFilter)) {
+            // In trash - confirm permanent delete
+            showPermanentDeleteConfirmation(email);
+        } else {
+            // Regular mode - move to trash (replace all labels with trash)
+            viewModel.moveToTrash(email.id, success -> {
+                if (success) {
+                    Toast.makeText(this, getString(R.string.moved_to_trash), Toast.LENGTH_SHORT).show();
+                    viewModel.refreshCurrentFilter(); // Refresh list
+                } else {
+                    Toast.makeText(this, getString(R.string.error_moving_to_trash), Toast.LENGTH_SHORT).show();
+                }
             });
         }
     }
 
-    private void observeInboxEmails() {
-        emailRepository.getInboxEmails().observe(this, emails -> {
-            if (emails != null) {
-                List<Email> emailList = EmailMapper.toEmails(emails);
-                updateEmailList(emailList);
-            }
-        });
+    private void showPermanentDeleteConfirmation(Email email) {
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.permanent_delete_title))
+                .setMessage(getString(R.string.permanent_delete_message))
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setPositiveButton(getString(R.string.delete_permanently), (dialog, which) -> {
+                    // Use DELETE API
+                    viewModel.deleteEmail(email.id, success -> {
+                        if (success) {
+                            Toast.makeText(InboxActivity.this, getString(R.string.permanently_deleted), Toast.LENGTH_SHORT).show();
+                            viewModel.refreshCurrentFilter(); // Refresh list
+                        } else {
+                            Toast.makeText(InboxActivity.this, getString(R.string.error_deleting_email), Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                })
+                .setNegativeButton(getString(R.string.cancel), null)
+                .show();
     }
 
-    private void observeSentEmails() {
-        emailRepository.getSentEmails().observe(this, emails -> {
-            if (emails != null) {
-                List<Email> emailList = EmailMapper.toEmails(emails);
-                updateEmailList(emailList);
-            }
-        });
-    }
+    private void setupObservers() {
+        System.out.println("=== SETTING UP OBSERVERS ===");
 
-    private void observeDrafts() {
-        emailRepository.getDrafts().observe(this, emails -> {
-            if (emails != null) {
-                List<Email> emailList = EmailMapper.toEmails(emails);
-                updateEmailList(emailList);
-            }
-        });
-    }
+        viewModel.getEmails().observe(this, emails -> {
+            System.out.println("=== ADAPTER DEBUG ===");
+            System.out.println("updateEmails called with emails: " + (emails != null ? emails.size() : "null"));
 
-    private void observeStarredEmails() {
-        emailRepository.getStarredEmails().observe(this, emails -> {
-            if (emails != null) {
-                List<Email> emailList = EmailMapper.toEmails(emails);
-                updateEmailList(emailList);
+            if (emails != null && adapter != null) {
+                adapter.updateEmails(emails);
+                System.out.println("Final adapter size: " + adapter.getItemCount());
+            }
+            System.out.println("==================");
+        });
+
+        viewModel.getRoomEmails().observe(this, roomEmails -> {
+            System.out.println("=== ROOM DEBUG 6: Observer triggered ===");
+            System.out.println("roomEmails is null: " + (roomEmails == null));
+            if (roomEmails != null) {
+                System.out.println("roomEmails size: " + roomEmails.size());
+            }
+            System.out.println("===============================");
+        });
+
+        // Observer for screen title update
+        viewModel.getCurrentFilterDisplayName().observe(this, displayName -> {
+            TextView tvWelcome = findViewById(R.id.tvWelcome);
+            if (tvWelcome != null && displayName != null) {
+                tvWelcome.setText(displayName);
             }
         });
+
+        // Observer for current filter tracking
+        viewModel.getCurrentFilter().observe(this, filter -> {
+            currentFilter = filter != null ? filter : "inbox";
+            System.out.println("Current filter changed to: " + currentFilter);
+        });
+
+        // Add within setupObservers()
+        viewModel.getSearchResults().observe(this, searchResults -> {
+            if (searchResults != null) {
+                adapter.updateEmails(searchResults);
+                System.out.println("Search results: " + searchResults.size() + " emails found");
+            }
+        });
+
+        viewModel.getIsSearching().observe(this, isSearching -> {
+            if (isSearching != null && isSearching) {
+                Toast.makeText(this, getString(R.string.searching), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        viewModel.getRoomEmails().observe(this, roomEmails -> {
+            System.out.println("=== ROOM OBSERVER TRIGGERED ===");
+            System.out.println("Room emails count: " + (roomEmails != null ? roomEmails.size() : "null"));
+
+            if (roomEmails != null) {
+                System.out.println("First 3 Room emails:");
+                for (int i = 0; i < Math.min(3, roomEmails.size()); i++) {
+                    Email email = roomEmails.get(i);
+                    System.out.println("  " + (i+1) + ". " + email.subject + " (from: " + email.sender + ")");
+                }
+            }
+            System.out.println("==============================");
+        });
+
+        viewModel.getHasNextPage().observe(this, hasNext -> {
+            Button btnNext = findViewById(R.id.btnNextPage);
+            if (btnNext != null) {
+                btnNext.setEnabled(hasNext != null && hasNext);
+            }
+        });
+
+        viewModel.getHasPreviousPage().observe(this, hasPrev -> {
+            Button btnPrev = findViewById(R.id.btnPreviousPage);
+            if (btnPrev != null) {
+                btnPrev.setEnabled(hasPrev != null && hasPrev);
+            }
+        });
+
+        viewModel.getTotalPages().observe(this, totalPages -> {
+            TextView tvPageInfo = findViewById(R.id.tvPageInfo);
+            if (tvPageInfo != null && totalPages != null) {
+                tvPageInfo.setText(getString(R.string.page_info, viewModel.getCurrentPage(), totalPages));
+            }
+        });
+
+        System.out.println("Observer setup complete");
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (refreshManager != null) {
-            refreshManager.resumeAutoRefresh();
-            refreshManager.enableNormalRefresh();
+        viewModel.refreshCurrentFilter();
+    }
+
+    private void setupFab(FloatingActionButton fab) {
+        fab.setOnClickListener(v -> {
+            startActivity(new Intent(this, ComposeActivity.class));
+        });
+    }
+
+    private void setupHeader() {
+        ImageView ivMenu = findViewById(R.id.ivMenu);
+        ImageView ivThemeToggle = findViewById(R.id.ivThemeToggle);
+        TextView tvProfileAvatar = findViewById(R.id.tvProfileAvatar);
+        LinearLayout searchBar = findViewById(R.id.searchBar);
+        ImageView ivProfileImage = findViewById(R.id.ivProfileImageHeader); // This refers to the one in the upper bar
+
+        // Menu hamburger button
+        if (ivMenu != null) {
+            ivMenu.setOnClickListener(v -> {
+                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                    drawerLayout.closeDrawer(GravityCompat.START);
+                } else {
+                    drawerLayout.openDrawer(GravityCompat.START);
+                }
+            });
         }
 
-        // בדוק אם יש שינויים שצריכים סנכרון
-        if (emailRepository != null) {
-            emailRepository.syncPendingChanges();
+        // Theme toggle button
+        if (ivThemeToggle != null) {
+            updateThemeIcon(ivThemeToggle);
+            ivThemeToggle.setOnClickListener(v -> {
+                toggleTheme();
+                updateThemeIcon(ivThemeToggle);
+            });
+        }
+
+        String currentUserId = TokenManager.getCurrentUserId(this);
+        System.out.println("=== PROFILE IMAGE DEBUG ===");
+        System.out.println("User ID: " + currentUserId);
+        System.out.println("ImageView found: " + (ivProfileImage != null));
+
+        if (currentUserId != null && ivProfileImage != null) {
+            loadProfileImage(currentUserId, ivProfileImage);
+        } else {
+            System.out.println("Cannot load profile image");
+            if (ivProfileImage != null) {
+                //ivProfileImage.setImageResource(R.drawable.ic_account_circle);
+            }
+        }
+
+        // Profile avatar - user options (only refresh and logout for now)
+        if (tvProfileAvatar != null) {
+            String userEmail = TokenManager.getCurrentUserEmail(this);
+            if (userEmail != null && !userEmail.isEmpty()) {
+                tvProfileAvatar.setText(userEmail.substring(0, 1).toUpperCase());
+            }
+
+            tvProfileAvatar.setOnClickListener(v -> showUserProfileMenu());
+        }
+
+        // Search
+        if (searchBar != null) {
+            searchBar.setOnClickListener(v -> showSearchDialog());
         }
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (refreshManager != null) {
-            refreshManager.pauseAutoRefresh();
+    private void updateThemeIcon(ImageView themeIcon) {
+        int currentMode = AppCompatDelegate.getDefaultNightMode();
+        if (currentMode == AppCompatDelegate.MODE_NIGHT_YES) {
+            // Dark mode - show sun (to switch to light)
+            themeIcon.setImageResource(R.drawable.ic_theme_light);
+        } else {
+            // Light mode - show moon (to switch to dark)
+            themeIcon.setImageResource(R.drawable.ic_theme_dark);
         }
     }
 
+    private void showUserProfileMenu() {
+        String[] options = {
+                getString(R.string.refresh),
+                getString(R.string.logout)
+        };
+
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.user_options))
+                .setItems(options, (dialog, which) -> {
+                    switch (which) {
+                        case 0: // Refresh
+                            viewModel.refreshCurrentFilter();
+                            Toast.makeText(this, getString(R.string.refreshing), Toast.LENGTH_SHORT).show();
+                            break;
+                        case 1: // Logout
+                            showLogoutConfirmation();
+                            break;
+                    }
+                })
+                .setNegativeButton(getString(R.string.cancel), null)
+                .show();
+    }
+
+    private void toggleTheme() {
+        int currentMode = AppCompatDelegate.getDefaultNightMode();
+        int newMode = (currentMode == AppCompatDelegate.MODE_NIGHT_YES) ?
+                AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_YES;
+
+        // Save preference
+        SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
+        prefs.edit().putInt("night_mode", newMode).apply();
+
+        // Switch theme
+        AppCompatDelegate.setDefaultNightMode(newMode);
+    }
+
+    private void showUserOptions() {
+        String[] options = {
+                getString(R.string.refresh),
+                getString(R.string.logout)
+        };
+
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.user_options))
+                .setItems(options, (dialog, which) -> {
+                    switch (which) {
+                        case 0: // Refresh
+                            viewModel.refreshCurrentFilter();
+                            Toast.makeText(this, getString(R.string.refreshing), Toast.LENGTH_SHORT).show();
+                            break;
+                        case 1: // Logout
+                            showLogoutConfirmation();
+                            break;
+                    }
+                })
+                .show();
+    }
+
+    private void showSearchDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(getString(R.string.search_title));
+
+        final EditText input = new EditText(this);
+        input.setHint(getString(R.string.search_hint));
+        input.setPadding(32, 32, 32, 32);
+        builder.setView(input);
+
+        builder.setPositiveButton(getString(R.string.search), (dialog, which) -> {
+            String query = input.getText().toString().trim();
+            if (!query.isEmpty()) {
+                performSearch(query);
+            } else {
+                Toast.makeText(this, getString(R.string.error_search_terms_required), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton(getString(R.string.cancel), null);
+
+        builder.setNeutralButton(getString(R.string.clear), (dialog, which) -> {
+            clearSearch();
+        });
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        input.requestFocus();
+    }
+
+    private void performSearch(String query) {
+        viewModel.searchEmails(query);
+        currentFilter = "search"; // Update state
+        TextView tvWelcome = findViewById(R.id.tvWelcome);
+        tvWelcome.setText(getString(R.string.search_results, query));
+    }
+
+    private void clearSearch() {
+        viewModel.clearSearch();
+        viewModel.refreshCurrentFilter(); // Return to previous state
+        Toast.makeText(this, getString(R.string.search_cleared), Toast.LENGTH_SHORT).show();
+    }
+
+    private void showCreateLabelDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(getString(R.string.create_label_title));
+
+        final EditText input = new EditText(this);
+        input.setHint(getString(R.string.label_name_hint));
+        input.setPadding(32, 32, 32, 32);
+        builder.setView(input);
+
+        builder.setPositiveButton(getString(R.string.create), (dialog, which) -> {
+            String labelName = input.getText().toString().trim();
+            if (!labelName.isEmpty()) {
+                createLabel(labelName);
+            } else {
+                Toast.makeText(InboxActivity.this,
+                        getString(R.string.error_label_name_required), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setNegativeButton(getString(R.string.cancel), null);
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+
+        // Focus on input
+        input.requestFocus();
+    }
+
+    private void createLabel(String labelName) {
+        LabelAPI labelAPI = BackendClient.get(this).create(LabelAPI.class);
+        CreateLabelRequest request = new CreateLabelRequest(labelName);
+
+        labelAPI.createLabel(request).enqueue(new Callback<Label>() {
+            @Override
+            public void onResponse(Call<Label> call, Response<Label> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    Label newLabel = response.body();
+                    Toast.makeText(InboxActivity.this,
+                            getString(R.string.label_created, newLabel.name), Toast.LENGTH_SHORT).show();
+
+                    // Refresh menu to show new label
+                    refreshNavigationMenu();
+
+                } else {
+                    Toast.makeText(InboxActivity.this,
+                            getString(R.string.error_creating_label, response.code()), Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Label> call, Throwable t) {
+                Toast.makeText(InboxActivity.this,
+                        getString(R.string.error_server_connection, t.getMessage()), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (refreshManager != null && refreshListener != null) {
-            refreshManager.removeRefreshListener(refreshListener);
+    public void onBackPressed() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    private void showLogoutConfirmation() {
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.logout_title))
+                .setMessage(getString(R.string.logout_message))
+                .setPositiveButton(getString(R.string.logout), (dialog, which) -> logout())
+                .setNegativeButton(getString(R.string.cancel), null)
+                .show();
+    }
+
+    private void logout() {
+        System.out.println("=== LOGOUT PROCESS STARTED ===");
+
+        // Clear content from all locations
+        TokenManager.clear(this);
+
+        android.content.SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+        prefs.edit().clear().apply();
+
+        System.out.println("=== USER DATA CLEARED ===");
+
+        // Return to login screen and clear stack
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+
+        Toast.makeText(this, getString(R.string.logout_successful), Toast.LENGTH_SHORT).show();
+        System.out.println("=== LOGOUT COMPLETED ===");
+    }
+
+    private void handleEmailStar(Email email) {
+        boolean isCurrentlyStarred = email.labels != null && email.labels.contains("starred");
+
+        viewModel.toggleStar(email.id, success -> {
+            if (success) {
+                if (isCurrentlyStarred) {
+                    Toast.makeText(this, getString(R.string.star_removed), Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, getString(R.string.star_added), Toast.LENGTH_SHORT).show();
+                }
+                viewModel.refreshCurrentFilter(); // Refresh list
+            } else {
+                Toast.makeText(this, getString(R.string.error_updating_star), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void setupPaginationControls() {
+        Button btnNext = findViewById(R.id.btnNextPage);
+        Button btnPrev = findViewById(R.id.btnPreviousPage);
+
+        if (btnNext != null) {
+            btnNext.setOnClickListener(v -> viewModel.goToNextPage());
+        }
+
+        if (btnPrev != null) {
+            btnPrev.setOnClickListener(v -> viewModel.goToPreviousPage());
         }
     }
 }

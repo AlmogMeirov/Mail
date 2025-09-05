@@ -1,50 +1,76 @@
-// עדכן את EmailAdapter.java עם DiffUtil לביצועים טובים יותר:
 package com.example.gmailapplication.adapters;
 
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import com.example.gmailapplication.R;
 import com.example.gmailapplication.shared.Email;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 
 public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHolder> {
 
     private List<Email> emails = new ArrayList<>();
     private OnEmailClickListener listener;
+    private OnEmailDeleteListener deleteListener;
+    private OnStarClickListener starListener;
+    private OnEditDraftListener editDraftListener;
+    private String currentUserEmail;
 
+    // Interfaces remain the same
     public interface OnEmailClickListener {
         void onEmailClick(Email email);
-        void onEmailLongClick(Email email);
     }
 
-    public EmailAdapter(List<Email> emails, OnEmailClickListener listener) {
-        this.emails = emails != null ? emails : new ArrayList<>();
+    public interface OnEmailDeleteListener {
+        void onEmailDelete(Email email);
+    }
+
+    public interface OnStarClickListener {
+        void onStar(Email email);
+    }
+
+    public interface OnEditDraftListener {
+        void onEditDraft(Email email);
+    }
+
+    public EmailAdapter(OnEmailClickListener listener, String currentUserEmail) {
         this.listener = listener;
+        this.currentUserEmail = currentUserEmail;
     }
 
-    // מתודה מעודכנת לעדכון הרשימה עם DiffUtil
-    public void updateEmails(List<Email> newEmails) {
-        if (newEmails == null) {
-            newEmails = new ArrayList<>();
-        }
+    // Setters remain the same
+    public void setDeleteListener(OnEmailDeleteListener deleteListener) {
+        this.deleteListener = deleteListener;
+    }
 
-        EmailDiffCallback diffCallback = new EmailDiffCallback(this.emails, newEmails);
-        DiffUtil.DiffResult diffResult = DiffUtil.calculateDiff(diffCallback);
+    public void setStarListener(OnStarClickListener starListener) {
+        this.starListener = starListener;
+    }
+
+    public void setEditDraftListener(OnEditDraftListener editDraftListener) {
+        this.editDraftListener = editDraftListener;
+    }
+
+    public void updateEmails(List<Email> newEmails) {
+        System.out.println("=== ADAPTER DEBUG ===");
+        System.out.println("updateEmails called with emails: " + (newEmails != null ? newEmails.size() : "null"));
 
         this.emails.clear();
-        this.emails.addAll(newEmails);
-        diffResult.dispatchUpdatesTo(this);
+        if (newEmails != null) {
+            this.emails.addAll(newEmails);
+        }
+        System.out.println("Final adapter size: " + this.emails.size());
+        notifyDataSetChanged();
+        System.out.println("notifyDataSetChanged() called");
+        System.out.println("==================");
     }
 
     @NonNull
@@ -57,8 +83,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
     @Override
     public void onBindViewHolder(@NonNull EmailViewHolder holder, int position) {
-        Email email = emails.get(position);
-        holder.bind(email);
+        holder.bind(emails.get(position));
     }
 
     @Override
@@ -67,21 +92,33 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
     }
 
     class EmailViewHolder extends RecyclerView.ViewHolder {
-        private TextView tvSender, tvSubject, tvPreview, tvTime;
-        private ImageView ivStar, ivRead;
-        private View spamIndicator, unreadIndicator;
+        private TextView tvSenderAvatar, tvSender, tvSubject, tvPreview, tvTime;
+        private TextView tvLabels;
+        private LinearLayout layoutLabels, layoutIndicators;
+        private ImageView ivStar, ivMore, ivAttachment, ivImportant, ivSpamIndicator;
 
         public EmailViewHolder(@NonNull View itemView) {
             super(itemView);
+            // Views from new layout
+            tvSenderAvatar = itemView.findViewById(R.id.tvSenderAvatar);
             tvSender = itemView.findViewById(R.id.tvSender);
             tvSubject = itemView.findViewById(R.id.tvSubject);
             tvPreview = itemView.findViewById(R.id.tvPreview);
             tvTime = itemView.findViewById(R.id.tvTime);
+            tvLabels = itemView.findViewById(R.id.tvLabels);
+            layoutLabels = itemView.findViewById(R.id.layoutLabels);
+            layoutIndicators = itemView.findViewById(R.id.layoutIndicators);
             ivStar = itemView.findViewById(R.id.ivStar);
-            ivRead = itemView.findViewById(R.id.ivRead);
-            spamIndicator = itemView.findViewById(R.id.spamIndicator);
-            unreadIndicator = itemView.findViewById(R.id.unreadIndicator);
+            ivMore = itemView.findViewById(R.id.ivMore);
+            ivAttachment = itemView.findViewById(R.id.ivAttachment);
+            ivImportant = itemView.findViewById(R.id.ivImportant);
+            ivSpamIndicator = itemView.findViewById(R.id.ivSpamIndicator);
 
+            setupClickListeners();
+        }
+
+        private void setupClickListeners() {
+            // Click on email itself
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
                     int position = getAdapterPosition();
@@ -91,180 +128,230 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
                 }
             });
 
-            itemView.setOnLongClickListener(v -> {
-                if (listener != null) {
-                    int position = getAdapterPosition();
-                    if (position != RecyclerView.NO_POSITION) {
-                        listener.onEmailLongClick(emails.get(position));
-                        return true;
+            // Click on star
+            if (ivStar != null) {
+                ivStar.setOnClickListener(v -> {
+                    if (starListener != null) {
+                        int position = getAdapterPosition();
+                        if (position != RecyclerView.NO_POSITION) {
+                            starListener.onStar(emails.get(position));
+                        }
                     }
-                }
-                return false;
-            });
+                });
+            }
+
+            // Click on More button (options menu)
+            if (ivMore != null) {
+                ivMore.setOnClickListener(v -> {
+                    if (deleteListener != null) {
+                        int position = getAdapterPosition();
+                        if (position != RecyclerView.NO_POSITION) {
+                            // Currently using this for deletion, but could add PopupMenu
+                            deleteListener.onEmailDelete(emails.get(position));
+                        }
+                    }
+                });
+            }
         }
 
         public void bind(Email email) {
-            // Display sender or recipient based on direction
-            if ("sent".equals(email.direction)) {
-                if (email.otherParty != null) {
-                    tvSender.setText("אל: " + email.otherParty.getDisplayName());
-                } else if (email.recipients != null && !email.recipients.isEmpty()) {
-                    tvSender.setText("אל: " + email.recipients.get(0));
-                } else {
-                    tvSender.setText("אל: " + (email.recipient != null ? email.recipient : "לא ידוע"));
-                }
-            } else {
-                if (email.otherParty != null) {
-                    tvSender.setText(email.otherParty.getDisplayName());
-                } else {
-                    tvSender.setText(email.sender != null ? email.sender : "שולח לא ידוע");
-                }
-            }
+            boolean isDraft = isDraft(email);
+            boolean isSpam = isSpam(email);
+            boolean isImportant = isImportant(email);
 
-            // Subject
-            String subject = email.subject;
-            if (subject == null || subject.trim().isEmpty()) {
-                subject = "(ללא נושא)";
-            }
-            tvSubject.setText(subject);
+            // Avatar - first letter of sender
+            setupSenderAvatar(email);
+
+            // Sender
+            setupSender(email);
+
+            // Subject - add indication for draft and spam
+            setupSubject(email, isDraft, isSpam);
 
             // Preview
-            String preview = email.preview;
-            if (preview == null || preview.trim().isEmpty()) {
-                preview = email.content;
-                if (preview != null && preview.length() > 100) {
-                    preview = preview.substring(0, 100) + "...";
-                }
-            }
-            if (preview == null || preview.trim().isEmpty()) {
-                preview = "(ללא תוכן)";
-            }
-            tvPreview.setText(preview);
+            setupPreview(email);
 
-            // Time
-            tvTime.setText(formatTime(email.timestamp));
+            // Time - better format
+            setupTime(email);
+
+            // Labels
+            setupLabels(email);
+
+            // Set indicators (attachments, importance, spam)
+            setupIndicators(email, isImportant, isSpam);
+
+            // Set star button
+            setupStarButton(email);
+
+            // Set More button
+            setupMoreButton();
+        }
+
+        private void setupSenderAvatar(Email email) {
+            String senderEmail = email.sender != null ? email.sender : "?";
+            String firstLetter = senderEmail.substring(0, 1).toUpperCase();
+            tvSenderAvatar.setText(firstLetter);
+
+            // Dynamic background color based on first letter
+            int[] colors = {
+                    Color.parseColor("#1a73e8"), // Blue
+                    Color.parseColor("#34a853"), // Green
+                    Color.parseColor("#fbbc04"), // Yellow
+                    Color.parseColor("#ea4335"), // Red
+                    Color.parseColor("#9c27b0"), // Purple
+                    Color.parseColor("#ff6f00"), // Orange
+            };
+
+            int colorIndex = Math.abs(firstLetter.hashCode()) % colors.length;
+            tvSenderAvatar.setBackgroundColor(colors[colorIndex]);
+        }
+
+        private void setupSender(Email email) {
+            String senderText = email.sender != null ? email.sender : itemView.getContext().getString(R.string.unknown_sender);
+            tvSender.setText(senderText);
+        }
+
+        private void setupSubject(Email email, boolean isDraft, boolean isSpam) {
+            String subject = email.subject != null && !email.subject.trim().isEmpty()
+                    ? email.subject : itemView.getContext().getString(R.string.no_subject);
+
+            if (isDraft) {
+                subject = itemView.getContext().getString(R.string.draft_prefix, subject);
+                tvSubject.setTextColor(Color.parseColor("#ff6f00")); // Orange
+            } else if (isSpam) {
+                tvSubject.setTextColor(Color.parseColor("#ea4335")); // Red
+            } else {
+                tvSubject.setTextColor(itemView.getContext().getColor(R.color.gmail_text_primary));
+            }
+            tvSubject.setText(subject);
+        }
+
+        private void setupPreview(Email email) {
+            String preview = email.content;
+            if (preview != null && preview.length() > 100) {
+                preview = preview.substring(0, 100) + "...";
+            }
+            tvPreview.setText(preview != null ? preview : itemView.getContext().getString(R.string.no_content));
+        }
+
+        private void setupTime(Email email) {
+            if (email.timestamp != null) {
+                try {
+                    // Better time format - just hour:minute
+                    String timeStr = email.timestamp.length() > 16
+                            ? email.timestamp.substring(11, 16)
+                            : email.timestamp;
+                    tvTime.setText(timeStr);
+                } catch (Exception e) {
+                    tvTime.setText(itemView.getContext().getString(R.string.unknown_time));
+                }
+            } else {
+                tvTime.setText(itemView.getContext().getString(R.string.unknown_time));
+            }
+        }
+
+        private void setupLabels(Email email) {
+            if (email.labels != null && !email.labels.isEmpty()) {
+                // Show only custom labels (not system)
+                List<String> customLabels = new ArrayList<>();
+                for (String label : email.labels) {
+                    if (!isSystemLabel(label)) {
+                        customLabels.add(label);
+                    }
+                }
+
+                if (!customLabels.isEmpty()) {
+                    String labelsText = customLabels.get(0); // Show only one label
+                    if (customLabels.size() > 1) {
+                        labelsText += " " + itemView.getContext().getString(R.string.additional_labels, (customLabels.size() - 1));
+                    }
+
+                    tvLabels.setText(labelsText);
+                    layoutLabels.setVisibility(View.VISIBLE);
+                } else {
+                    layoutLabels.setVisibility(View.GONE);
+                }
+            } else {
+                layoutLabels.setVisibility(View.GONE);
+            }
+        }
+
+        private void setupIndicators(Email email, boolean isImportant, boolean isSpam) {
+            boolean hasIndicators = false;
 
             // Spam indicator
-            if (email.isSpam()) {
-                spamIndicator.setVisibility(View.VISIBLE);
-            } else {
-                spamIndicator.setVisibility(View.GONE);
+            if (ivSpamIndicator != null) {
+                if (isSpam) {
+                    ivSpamIndicator.setVisibility(View.VISIBLE);
+                    hasIndicators = true;
+                } else {
+                    ivSpamIndicator.setVisibility(View.GONE);
+                }
             }
 
-            // Star indicator
+            // Important indicator
+            if (ivImportant != null) {
+                if (isImportant) {
+                    ivImportant.setVisibility(View.VISIBLE);
+                    hasIndicators = true;
+                } else {
+                    ivImportant.setVisibility(View.GONE);
+                }
+            }
+
+            // Attachment indicator (placeholder logic)
+            if (ivAttachment != null) {
+                // Currently hide since we don't have attachment info
+                ivAttachment.setVisibility(View.GONE);
+            }
+
+            // Show/hide indicators layout
+            if (layoutIndicators != null) {
+                layoutIndicators.setVisibility(hasIndicators ? View.VISIBLE : View.GONE);
+            }
+        }
+
+        private void setupStarButton(Email email) {
             if (ivStar != null) {
-                if (email.isStarred) {
-                    ivStar.setVisibility(View.VISIBLE);
+                boolean isStarred = email.labels != null && email.labels.contains("starred");
+
+                if (isStarred) {
                     ivStar.setImageResource(android.R.drawable.btn_star_big_on);
+                    ivStar.setColorFilter(Color.parseColor("#fbbc04")); // Gold yellow
                 } else {
-                    ivStar.setVisibility(View.GONE);
+                    ivStar.setImageResource(android.R.drawable.btn_star_big_off);
+                    ivStar.setColorFilter(Color.parseColor("#9aa0a6")); // Light gray
                 }
             }
+        }
 
-            // Read/Unread indicators
-            if (ivRead != null) {
-                if (email.isRead) {
-                    ivRead.setImageResource(android.R.drawable.ic_menu_view);
+        private void setupMoreButton() {
+            if (ivMore != null) {
+                // Show More button only if deleteListener exists
+                if (deleteListener != null) {
+                    ivMore.setVisibility(View.VISIBLE);
                 } else {
-                    ivRead.setImageResource(android.R.drawable.ic_menu_edit);
+                    ivMore.setVisibility(View.GONE);
                 }
             }
-
-            if (unreadIndicator != null) {
-                unreadIndicator.setVisibility(email.isRead ? View.GONE : View.VISIBLE);
-            }
-
-            // Visual styling based on read status
-            float alpha = email.isRead ? 0.7f : 1.0f;
-            tvSender.setAlpha(alpha);
-            tvSubject.setAlpha(alpha);
-            tvPreview.setAlpha(alpha);
-
-            // Bold text for unread emails
-            if (!email.isRead) {
-                tvSender.setTypeface(null, android.graphics.Typeface.BOLD);
-                tvSubject.setTypeface(null, android.graphics.Typeface.BOLD);
-            } else {
-                tvSender.setTypeface(null, android.graphics.Typeface.NORMAL);
-                tvSubject.setTypeface(null, android.graphics.Typeface.NORMAL);
-            }
         }
 
-        private String formatTime(String timestamp) {
-            try {
-                // Parse ISO timestamp
-                SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
-                Date date = isoFormat.parse(timestamp);
-
-                // Check if it's today
-                SimpleDateFormat dayFormat = new SimpleDateFormat("yyyyMMdd", Locale.US);
-                String today = dayFormat.format(new Date());
-                String emailDay = dayFormat.format(date);
-
-                if (today.equals(emailDay)) {
-                    // Show time for today
-                    SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.US);
-                    return timeFormat.format(date);
-                } else {
-                    // Show date for older emails
-                    SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM", Locale.US);
-                    return dateFormat.format(date);
-                }
-            } catch (Exception e) {
-                // Fallback: show as-is or just time part
-                if (timestamp != null && timestamp.length() > 10) {
-                    return timestamp.substring(11, 16); // HH:mm
-                }
-                return "לא ידוע";
-            }
-        }
-    }
-
-    // DiffCallback for efficient updates
-    private static class EmailDiffCallback extends DiffUtil.Callback {
-        private final List<Email> oldList;
-        private final List<Email> newList;
-
-        EmailDiffCallback(List<Email> oldList, List<Email> newList) {
-            this.oldList = oldList;
-            this.newList = newList;
+        private boolean isSystemLabel(String label) {
+            return label.equals("inbox") || label.equals("sent") || label.equals("drafts") ||
+                    label.equals("spam") || label.equals("starred") || label.equals("trash") ||
+                    label.equals("important");
         }
 
-        @Override
-        public int getOldListSize() {
-            return oldList.size();
+        private boolean isDraft(Email email) {
+            return (email.labels != null && email.labels.contains("drafts"));
         }
 
-        @Override
-        public int getNewListSize() {
-            return newList.size();
+        private boolean isSpam(Email email) {
+            return (email.labels != null && email.labels.contains("spam"));
         }
 
-        @Override
-        public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
-            Email oldEmail = oldList.get(oldItemPosition);
-            Email newEmail = newList.get(newItemPosition);
-            return oldEmail.id != null && oldEmail.id.equals(newEmail.id);
-        }
-
-        @Override
-        public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
-            Email oldEmail = oldList.get(oldItemPosition);
-            Email newEmail = newList.get(newItemPosition);
-
-            return oldEmail.isRead == newEmail.isRead &&
-                    oldEmail.isStarred == newEmail.isStarred &&
-                    oldEmail.isArchived == newEmail.isArchived &&
-                    oldEmail.isDeleted == newEmail.isDeleted &&
-                    objectsEqual(oldEmail.subject, newEmail.subject) &&
-                    objectsEqual(oldEmail.sender, newEmail.sender) &&
-                    objectsEqual(oldEmail.preview, newEmail.preview) &&
-                    objectsEqual(oldEmail.timestamp, newEmail.timestamp);
-        }
-
-        private boolean objectsEqual(Object obj1, Object obj2) {
-            return (obj1 == null && obj2 == null) ||
-                    (obj1 != null && obj1.equals(obj2));
+        private boolean isImportant(Email email) {
+            return (email.labels != null && email.labels.contains("important"));
         }
     }
 }

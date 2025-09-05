@@ -11,6 +11,7 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.gmailapplication.viewmodels.LoginViewModel;
@@ -24,12 +25,13 @@ public class LoginActivity extends AppCompatActivity {
     private TextInputLayout tilEmail, tilPassword;
     private TextInputEditText etEmail, etPassword;
     private Button btnLogin;
-    private TextView tvResult, tvRegisterLink, tvForgotPassword;
+    private TextView tvResult, tvRegisterLink;
 
     private LoginViewModel viewModel;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        loadThemePreference();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
 
@@ -55,7 +57,6 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin = findViewById(R.id.btnLogin);
         tvResult = findViewById(R.id.tvResult);
         tvRegisterLink = findViewById(R.id.tvRegisterLink);
-        tvForgotPassword = findViewById(R.id.tvForgotPassword);
     }
 
     // --- Wire text fields to ViewModel ---
@@ -85,15 +86,11 @@ public class LoginActivity extends AppCompatActivity {
     // --- Wire links ---
     private void wireLinks() {
         // Register link
-        tvRegisterLink.setText("אין לך חשבון? הירשם כאן");
+        tvRegisterLink.setText(getString(R.string.no_account_register));
         tvRegisterLink.setOnClickListener(v -> {
             Intent intent = new Intent(LoginActivity.this, RegisterActivity.class);
             startActivity(intent);
         });
-
-        // Forgot password link
-        tvForgotPassword.setText("שכחת סיסמה?");
-        tvForgotPassword.setOnClickListener(v -> viewModel.requestPasswordReset());
     }
 
     // --- Handle intent data from registration ---
@@ -107,7 +104,7 @@ public class LoginActivity extends AppCompatActivity {
                 viewModel.prefillEmail(email);
                 etEmail.setText(email);
             }
-            showToast("הרישום הושלם בהצלחה! אנא התחבר עם הסיסמה שלך");
+            showToast(getString(R.string.registration_completed));
         }
     }
 
@@ -117,7 +114,7 @@ public class LoginActivity extends AppCompatActivity {
         viewModel.getIsLoading().observe(this, isLoading -> {
             btnLogin.setEnabled(!isLoading);
             if (isLoading) {
-                tvResult.setText("מתחבר...");
+                tvResult.setText(getString(R.string.logging_in));
             }
         });
 
@@ -153,7 +150,7 @@ public class LoginActivity extends AppCompatActivity {
                     saveLoginData(loginResponse, user);
 
                     // Show success message briefly then navigate to inbox
-                    showToast("התחברות מוצלחת! מעביר לתיבת הדואר...");
+                    showToast(getString(R.string.login_successful));
 
                     // Navigate to inbox activity after a short delay
                     new android.os.Handler(getMainLooper()).postDelayed(() -> {
@@ -232,5 +229,11 @@ public class LoginActivity extends AppCompatActivity {
 
     private void showToast(String msg) {
         android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_SHORT).show();
+    }
+
+    private void loadThemePreference() {
+        SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
+        int nightMode = prefs.getInt("night_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        AppCompatDelegate.setDefaultNightMode(nightMode);
     }
 }

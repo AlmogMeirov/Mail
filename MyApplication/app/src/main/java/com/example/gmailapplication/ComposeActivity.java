@@ -1,10 +1,12 @@
 package com.example.gmailapplication;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -16,11 +18,7 @@ import androidx.appcompat.widget.Toolbar;
 
 import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.EmailAPI;
-import com.example.gmailapplication.shared.Email;
-import com.example.gmailapplication.shared.Label;
 import com.example.gmailapplication.shared.SendEmailRequest;
-import com.example.gmailapplication.shared.SendEmailResponse;
-import com.example.gmailapplication.utils.EmailRefreshManager;
 
 import java.util.Arrays;
 import java.util.List;
@@ -37,9 +35,9 @@ public class ComposeActivity extends AppCompatActivity {
     private EmailAPI emailAPI;
     private String authToken;
     private String currentUserEmail;
-    private EmailRefreshManager refreshManager; // הוספת מנהל הרענון
 
     private boolean isSending = false;
+    private Button btnSend, btnSaveDraft;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -50,8 +48,15 @@ public class ComposeActivity extends AppCompatActivity {
         setupToolbar();
         setupAPI();
         handleReplyData();
-        setupBackPressHandler(); // הוספת הטיפול בלחיצת החזור
-        setupRefreshManager(); // הוספת מנהל הרענון
+        setupBackPressHandler();
+
+        // New buttons
+        btnSend = findViewById(R.id.btnSend);
+        btnSaveDraft = findViewById(R.id.btnSaveDraft);
+
+        // Setup listeners
+        btnSend.setOnClickListener(v -> sendDraftOrEmail());
+        btnSaveDraft.setOnClickListener(v -> saveDraftToServer());
     }
 
     private void initViews() {
@@ -65,8 +70,26 @@ public class ComposeActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("כתיבת מייל");
+            getSupportActionBar().setTitle("Compose Email");
         }
+    }
+
+    private void saveDraftToServer() {
+        String to = etTo.getText().toString().trim();
+        String subject = etSubject.getText().toString().trim();
+        String content = etContent.getText().toString().trim();
+
+        if (TextUtils.isEmpty(to) && TextUtils.isEmpty(subject) && TextUtils.isEmpty(content)) {
+            Toast.makeText(this, "No content to save", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Create draft request
+        // Need to add this to EmailAPI if not already exists
+        Toast.makeText(this, "Saving draft...", Toast.LENGTH_SHORT).show();
+
+        // For now save locally
+        saveDraft();
     }
 
     private void setupAPI() {
@@ -81,7 +104,7 @@ public class ComposeActivity extends AppCompatActivity {
         }
 
         if (authToken.isEmpty()) {
-            Toast.makeText(this, "שגיאה: לא נמצא token", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Error: Token not found", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -98,40 +121,24 @@ public class ComposeActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * הגדרת מנהל הרענון האוטומטי
-     */
-    private void setupRefreshManager() {
-        refreshManager = EmailRefreshManager.getInstance();
-    }
-
-    /**
-     * הגדרת הטיפול בלחיצת החזור עם OnBackPressedDispatcher
-     */
     private void setupBackPressHandler() {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                // אם נמצא בתהליך שליחה - לא לאפשר יציאה
                 if (isSending) {
-                    Toast.makeText(ComposeActivity.this, "מייל נשלח כעת, אנא המתן...", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ComposeActivity.this, "Email is being sent, please wait...", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                // בדיקה אם למשתמש יש תוכן שלא נשמר
                 if (hasUnsavedContent()) {
                     showExitConfirmationDialog();
                 } else {
-                    // יציאה רגילה - אין תוכן לא נשמר
                     finishActivity();
                 }
             }
         });
     }
 
-    /**
-     * בדיקה אם יש תוכן שלא נשמר
-     */
     private boolean hasUnsavedContent() {
         String to = etTo.getText().toString().trim();
         String subject = etSubject.getText().toString().trim();
@@ -140,56 +147,79 @@ public class ComposeActivity extends AppCompatActivity {
         return !TextUtils.isEmpty(to) || !TextUtils.isEmpty(subject) || !TextUtils.isEmpty(content);
     }
 
-    /**
-     * הצגת דיאלוג אישור יציאה עם אפשרות לשמירת טיוטה
-     */
     private void showExitConfirmationDialog() {
         new AlertDialog.Builder(this)
-                .setTitle("שמירת טיוטה")
-                .setMessage("יש לך תוכן שלא נשמר. מה תרצה לעשות?")
-                .setPositiveButton("שמור כטיוטה", (dialog, which) -> {
+                .setTitle("Save Draft")
+                .setMessage("You have unsaved content. What would you like to do?")
+                .setPositiveButton("Save as Draft", (dialog, which) -> {
                     saveDraft();
                     finishActivity();
                 })
-                .setNegativeButton("יציאה בלי שמירה", (dialog, which) -> {
-                    Toast.makeText(ComposeActivity.this, "טיוטה לא נשמרה", Toast.LENGTH_SHORT).show();
+                .setNegativeButton("Exit without Saving", (dialog, which) -> {
+                    Toast.makeText(ComposeActivity.this, "Draft not saved", Toast.LENGTH_SHORT).show();
                     finishActivity();
                 })
-                .setNeutralButton("ביטול", (dialog, which) -> {
-                    // נשאר באקטיביטי - לא עושים כלום
+                .setNeutralButton("Cancel", (dialog, which) -> {
+                    // Stay in activity
                 })
-                .setCancelable(true) // אפשרות לביטול בלחיצה מחוץ לדיאלוג
+                .setCancelable(true)
                 .show();
     }
 
-    /**
-     * שמירת טיוטה (יש להוסיף את הלוגיקה בהתאם לצרכים)
-     */
     private void saveDraft() {
-        // TODO: מימוש שמירת טיוטה למסד נתונים או SharedPreferences
+        // Instead of SharedPreferences, send to server
+        String to = etTo.getText().toString().trim();
+        String subject = etSubject.getText().toString().trim();
+        String content = etContent.getText().toString().trim();
 
-        // לדוגמה - שמירה ל-SharedPreferences:
-        SharedPreferences draftPrefs = getSharedPreferences("drafts", MODE_PRIVATE);
-        SharedPreferences.Editor editor = draftPrefs.edit();
+        String existingDraftId = getIntent().getStringExtra("draft_id");
 
-        String timestamp = String.valueOf(System.currentTimeMillis());
-        editor.putString("draft_" + timestamp + "_to", etTo.getText().toString().trim());
-        editor.putString("draft_" + timestamp + "_subject", etSubject.getText().toString().trim());
-        editor.putString("draft_" + timestamp + "_content", etContent.getText().toString().trim());
-        editor.apply();
+        if (!TextUtils.isEmpty(existingDraftId)) {
+            // This is existing draft - don't save again, just notify user
+            Toast.makeText(this, "Draft already saved", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        Toast.makeText(this, "טיוטה נשמרה בהצלחה", Toast.LENGTH_SHORT).show();
+        // Create draft request
+        SendEmailRequest draftRequest = new SendEmailRequest();
+        draftRequest.sender = currentUserEmail;
+
+        // If there's a recipient, add it
+        if (!TextUtils.isEmpty(to)) {
+            List<String> recipientsList = parseRecipients(to);
+            if (!recipientsList.isEmpty()) {
+                draftRequest.recipient = recipientsList.get(0);
+                draftRequest.recipients = recipientsList;
+            }
+        }
+
+        draftRequest.subject = subject;
+        draftRequest.content = content;
+        // Drafts don't need additional labels - server will add "drafts" automatically
+
+        emailAPI.createDraft(draftRequest).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    Toast.makeText(ComposeActivity.this, "Draft saved successfully", Toast.LENGTH_SHORT).show();
+                    finish();
+                } else {
+                    Toast.makeText(ComposeActivity.this, "Error saving draft", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                Toast.makeText(ComposeActivity.this, "Connection error", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
-    /**
-     * יציאה מהאקטיביטי
-     */
     private void finishActivity() {
         finish();
     }
 
     private void handleReplyData() {
-        // Check if this is a reply
         String replyTo = getIntent().getStringExtra("reply_to");
         String replySubject = getIntent().getStringExtra("reply_subject");
         String replyContent = getIntent().getStringExtra("reply_content");
@@ -204,8 +234,32 @@ public class ComposeActivity extends AppCompatActivity {
 
         if (!TextUtils.isEmpty(replyContent)) {
             etContent.setText(replyContent);
-            // Position cursor at the beginning for user to type
             etContent.setSelection(0);
+        }
+
+        boolean isDraft = getIntent().getBooleanExtra("is_draft", false);
+        if (isDraft) {
+            String draftTo = getIntent().getStringExtra("draft_to");
+            String draftSubject = getIntent().getStringExtra("draft_subject");
+            String draftContent = getIntent().getStringExtra("draft_content");
+
+            if (!TextUtils.isEmpty(draftTo)) {
+                etTo.setText(draftTo);
+            }
+
+            if (!TextUtils.isEmpty(draftSubject)) {
+                etSubject.setText(draftSubject);
+            }
+
+            if (!TextUtils.isEmpty(draftContent)) {
+                etContent.setText(draftContent);
+                etContent.setSelection(0);
+            }
+
+            // Change title
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setTitle("Edit Draft");
+            }
         }
     }
 
@@ -213,7 +267,6 @@ public class ComposeActivity extends AppCompatActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.compose_menu, menu);
 
-        // Update send button state
         MenuItem sendItem = menu.findItem(R.id.action_send);
         sendItem.setEnabled(!isSending);
 
@@ -225,81 +278,202 @@ public class ComposeActivity extends AppCompatActivity {
         int itemId = item.getItemId();
 
         if (itemId == android.R.id.home) {
-            // השתמש ב-OnBackPressedDispatcher במקום finish() ישירות
             getOnBackPressedDispatcher().onBackPressed();
             return true;
         } else if (itemId == R.id.action_send) {
-            sendEmail();
+            sendDraftOrEmail(); // Change here
+            return true;
+        } else if (itemId == R.id.action_save_draft) {
+            saveDraft();
             return true;
         } else {
             return super.onOptionsItemSelected(item);
         }
     }
 
+    private void sendDraftOrEmail() {
+        String draftId = getIntent().getStringExtra("draft_id");
+        boolean isDraft = getIntent().getBooleanExtra("is_draft", false);
+
+        if (isDraft && !TextUtils.isEmpty(draftId)) {
+            // עדכן draft לפני שליחה
+            updateDraftBeforeSending(draftId);
+        } else {
+            // Send as new email (existing function)
+            sendEmail();
+        }
+    }
+
+    private void updateDraftBeforeSending(String draftId) {
+        if (isSending) return;
+
+        // קבל תוכן עדכני מהממשק
+        String to = etTo.getText().toString().trim();
+        String subject = etSubject.getText().toString().trim();
+        String content = etContent.getText().toString().trim();
+
+        // צור בקשת עדכון
+        SendEmailRequest updateRequest = new SendEmailRequest();
+        updateRequest.sender = currentUserEmail;
+
+        if (!TextUtils.isEmpty(to)) {
+            List<String> recipientsList = parseRecipients(to);
+            if (!recipientsList.isEmpty()) {
+                updateRequest.recipient = recipientsList.get(0);
+                updateRequest.recipients = recipientsList;
+            }
+        }
+
+        updateRequest.subject = subject;
+        updateRequest.content = content;
+
+        isSending = true;
+        invalidateOptionsMenu();
+
+        // עדכן את הdraft במסד הנתונים
+        emailAPI.updateEmail(draftId, updateRequest).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful()) {
+                    // עכשיו שלח את הdraft המעודכן
+                    emailAPI.sendDraft(draftId).enqueue(new Callback<Void>() {
+                        @Override
+                        public void onResponse(Call<Void> call, Response<Void> response) {
+                            isSending = false;
+                            invalidateOptionsMenu();
+
+                            if (response.isSuccessful()) {
+                                Toast.makeText(ComposeActivity.this, "Draft sent successfully!", Toast.LENGTH_SHORT).show();
+                                setResult(RESULT_OK);
+                                finish();
+                            } else {
+                                Toast.makeText(ComposeActivity.this, "Error sending draft", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Call<Void> call, Throwable t) {
+                            isSending = false;
+                            invalidateOptionsMenu();
+                            Toast.makeText(ComposeActivity.this, "Connection error", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } else {
+                    isSending = false;
+                    invalidateOptionsMenu();
+                    Toast.makeText(ComposeActivity.this, "Error updating draft", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                isSending = false;
+                invalidateOptionsMenu();
+                Toast.makeText(ComposeActivity.this, "Connection error", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
     private void sendEmail() {
         if (isSending) return;
 
-        // Validate input FIRST
         String to = etTo.getText().toString().trim();
         String subject = etSubject.getText().toString().trim();
         String content = etContent.getText().toString().trim();
 
         if (TextUtils.isEmpty(to)) {
-            etTo.setError("יש להזין כתובת נמען");
+            etTo.setError("Please enter at least one recipient address");
             etTo.requestFocus();
             return;
         }
 
-        // Validate email format
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(to).matches()) {
-            etTo.setError("כתובת מייל לא תקינה");
+        // Validate all recipients
+        List<String> recipientsList = parseRecipients(to);
+        if (recipientsList.isEmpty()) {
+            etTo.setError("No valid email addresses found");
             etTo.requestFocus();
             return;
         }
 
-        // Start sending
+        // Check that all addresses are valid
+        for (String recipient : recipientsList) {
+            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(recipient).matches()) {
+                etTo.setError("Invalid email address: " + recipient);
+                etTo.requestFocus();
+                return;
+            }
+        }
+
+        // *** Check for missing subject/content ***
+        if (shouldShowWarningDialog(subject, content)) {
+            showSendWarningDialog(to, subject, content, recipientsList);
+            return; // Don't continue sending
+        }
+
+        // Continue with sending
+        sendEmailActual(to, subject, content, recipientsList);
+    }
+
+    // *** New functions for subject/content checking ***
+    private boolean shouldShowWarningDialog(String subject, String content) {
+        boolean noSubject = TextUtils.isEmpty(subject);
+        boolean noContent = TextUtils.isEmpty(content);
+        return noSubject || noContent;
+    }
+
+    private void showSendWarningDialog(String to, String subject, String content, List<String> recipientsList) {
+        String message = getWarningMessage(subject, content);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Send without " + (TextUtils.isEmpty(subject) ? "subject" : "content"))
+                .setMessage(message)
+                .setPositiveButton("Send Anyway", (dialog, which) -> {
+                    sendEmailActual(to, subject, content, recipientsList);
+                })
+                .setNegativeButton("Cancel", null)
+                .setCancelable(true)
+                .show();
+    }
+
+    private String getWarningMessage(String subject, String content) {
+        boolean noSubject = TextUtils.isEmpty(subject);
+        boolean noContent = TextUtils.isEmpty(content);
+
+        if (noSubject && noContent) {
+            return "The email has no subject or content. Are you sure you want to send?";
+        } else if (noSubject) {
+            return "The email has no subject. Are you sure you want to send?";
+        } else {
+            return "The email has no content. Are you sure you want to send?";
+        }
+    }
+
+    private void sendEmailActual(String to, String subject, String content, List<String> recipientsList) {
         isSending = true;
-        invalidateOptionsMenu(); // Update send button state
+        invalidateOptionsMenu();
 
-        // Create request WITH ALL DATA
         SendEmailRequest request = new SendEmailRequest();
         request.sender = currentUserEmail;
 
-        // Parse recipients
-        List<String> recipientsList = parseRecipients(to);
-
-        // Set both recipient (for single) and recipients (for multiple) for backward compatibility
         if (!recipientsList.isEmpty()) {
-            request.recipient = recipientsList.get(0); // First recipient for single field
-            request.recipients = recipientsList; // All recipients for array field
+            request.recipient = recipientsList.get(0);
+            request.recipients = recipientsList;
         }
 
         request.subject = subject;
         request.content = content;
-        request.labels = Arrays.asList("inbox"); // Default label
+        request.labels = Arrays.asList("inbox");
 
-        // NOW debug with actual data
         System.out.println("=== DETAILED DEBUG ===");
         System.out.println("Current user email: " + currentUserEmail);
         System.out.println("Request sender: " + request.sender);
         System.out.println("Request recipient: " + request.recipient);
         System.out.println("Request subject: " + request.subject);
         System.out.println("Request content length: " + (request.content != null ? request.content.length() : 0));
-
-        // Check TokenManager
-        String tokenFromManager = com.example.gmailapplication.shared.TokenManager.get(this);
-        System.out.println("Token from TokenManager: " + (tokenFromManager != null ? tokenFromManager.substring(0, Math.min(20, tokenFromManager.length())) + "..." : "NULL"));
-
-        // Check SharedPreferences
-        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
-        String tokenFromPrefs = prefs.getString("auth_token", "");
-        System.out.println("Token from SharedPrefs: " + (tokenFromPrefs.isEmpty() ? "EMPTY" : tokenFromPrefs.substring(0, Math.min(20, tokenFromPrefs.length())) + "..."));
         System.out.println("===================");
 
-        // Send email
-        emailAPI.sendEmail(request).enqueue(new Callback<SendEmailResponse>() {
+        emailAPI.sendEmail(request).enqueue(new Callback<Void>() {
             @Override
-            public void onResponse(Call<SendEmailResponse> call, Response<SendEmailResponse> response) {
+            public void onResponse(Call<Void> call, Response<Void> response) {
                 isSending = false;
                 invalidateOptionsMenu();
 
@@ -307,37 +481,22 @@ public class ComposeActivity extends AppCompatActivity {
                 System.out.println("Response code: " + response.code());
                 System.out.println("Response successful: " + response.isSuccessful());
 
-                // *** התמקדות בקוד התגובה במקום בפענוח JSON ***
                 if (response.isSuccessful()) {
                     System.out.println("*** EMAIL SENT SUCCESSFULLY - RESPONSE CODE: " + response.code() + " ***");
-
-                    // הצגת הודעת הצלחה
-                    Toast.makeText(ComposeActivity.this, "המייל נשלח בהצלחה!", Toast.LENGTH_SHORT).show();
-
-                    // *** הפעלת רענון מהיר אחרי שליחת מייל ***
-                    if (refreshManager != null) {
-                        System.out.println("*** ENABLING FAST REFRESH AFTER EMAIL SENT ***");
-                        refreshManager.enableFastRefresh();
-                    }
-
-                    // חזרה לInboxActivity עם תוצאה חיובית
+                    Toast.makeText(ComposeActivity.this, "Email sent successfully!", Toast.LENGTH_SHORT).show();
                     setResult(RESULT_OK);
                     finish();
-
-                    // *** לא מנסים לפענח JSON כלל - סומכים על קוד התגובה ***
                     System.out.println("*** RETURNING TO INBOX ACTIVITY ***");
-
                 } else {
-                    // כשלון בשליחה
                     System.out.println("*** EMAIL SEND FAILED - RESPONSE CODE: " + response.code() + " ***");
-                    handleSendError(response);
+                    handleSendError(response.code());
                 }
 
                 System.out.println("================================");
             }
 
             @Override
-            public void onFailure(Call<SendEmailResponse> call, Throwable t) {
+            public void onFailure(Call<Void> call, Throwable t) {
                 isSending = false;
                 invalidateOptionsMenu();
 
@@ -346,13 +505,12 @@ public class ComposeActivity extends AppCompatActivity {
                 System.out.println("Error type: " + t.getClass().getSimpleName());
                 System.out.println("==========================");
 
-                Toast.makeText(ComposeActivity.this, "שגיאת חיבור: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(ComposeActivity.this, "Connection error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
-        }); // *** תיקון: הוספת הסוגריים החסרות ***
-    } // *** תיקון: הוספת הסוגריים החסרות לסגירת השיטה ***
+        });
+    }
 
     private List<String> parseRecipients(String to) {
-        // Split by comma and clean up
         String[] recipients = to.split(",");
         return Arrays.stream(recipients)
                 .map(String::trim)
@@ -360,25 +518,19 @@ public class ComposeActivity extends AppCompatActivity {
                 .collect(java.util.stream.Collectors.toList());
     }
 
-    private void handleSendError(Response<SendEmailResponse> response) {
-        try {
-            String errorBody = response.errorBody() != null ? response.errorBody().string() : "שגיאה לא ידועה";
-
-            switch (response.code()) {
-                case 400:
-                    Toast.makeText(this, "נתונים לא תקינים - בדוק את כתובות הנמענים", Toast.LENGTH_SHORT).show();
-                    break;
-                case 403:
-                    Toast.makeText(this, "אין הרשאה לשלוח מכתובת זו", Toast.LENGTH_SHORT).show();
-                    break;
-                case 500:
-                    Toast.makeText(this, "שגיאת שרת - נסה שוב מאוחר יותר", Toast.LENGTH_SHORT).show();
-                    break;
-                default:
-                    Toast.makeText(this, "שליחת המייל נכשלה (קוד " + response.code() + ")", Toast.LENGTH_SHORT).show();
-            }
-        } catch (Exception e) {
-            Toast.makeText(this, "שליחת המייל נכשלה", Toast.LENGTH_SHORT).show();
+    private void handleSendError(int responseCode) {
+        switch (responseCode) {
+            case 400:
+                Toast.makeText(this, "Invalid data - check recipient addresses", Toast.LENGTH_SHORT).show();
+                break;
+            case 403:
+                Toast.makeText(this, "Not authorized to send from this address", Toast.LENGTH_SHORT).show();
+                break;
+            case 500:
+                Toast.makeText(this, "Server error - try again later", Toast.LENGTH_SHORT).show();
+                break;
+            default:
+                Toast.makeText(this, "Failed to send email (code " + responseCode + ")", Toast.LENGTH_SHORT).show();
         }
     }
 }

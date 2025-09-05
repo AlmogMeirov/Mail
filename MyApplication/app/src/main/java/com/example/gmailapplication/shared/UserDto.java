@@ -48,7 +48,7 @@ public class UserDto {
         } else if (email != null) {
             return email;
         } else {
-            return "משתמש";
+            return "User";
         }
     }
 }

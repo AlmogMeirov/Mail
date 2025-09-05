@@ -173,59 +173,59 @@ public class RegisterViewModel extends AndroidViewModel {
         // First name validation
         String firstNameVal = firstName.getValue();
         if (TextUtils.isEmpty(firstNameVal) || firstNameVal.trim().length() < 2) {
-            firstNameError.setValue("שם פרטי חייב להכיל לפחות 2 תווים");
+            firstNameError.setValue("First name must contain at least 2 characters");
             isValid = false;
         }
 
         // Last name validation
         String lastNameVal = lastName.getValue();
         if (TextUtils.isEmpty(lastNameVal) || lastNameVal.trim().length() < 2) {
-            lastNameError.setValue("שם משפחה חייב להכיל לפחות 2 תווים");
+            lastNameError.setValue("Last name must contain at least 2 characters");
             isValid = false;
         }
 
         // Email validation
         String emailVal = email.getValue();
         if (TextUtils.isEmpty(emailVal) || !Patterns.EMAIL_ADDRESS.matcher(emailVal.trim()).matches()) {
-            emailError.setValue("כתובת מייל לא תקינה");
+            emailError.setValue("Invalid email address");
             isValid = false;
         }
 
         // Password validation
         String passwordVal = password.getValue();
         if (TextUtils.isEmpty(passwordVal) || passwordVal.length() < 8) {
-            passwordError.setValue("הסיסמה חייבת להכיל לפחות 8 תווים");
+            passwordError.setValue("Password must contain at least 8 characters");
             isValid = false;
         } else if (!PASSWORD_RE.matcher(passwordVal).matches()) {
-            passwordError.setValue("הסיסמה חייבת להכיל שילוב של אותיות ומספרים");
+            passwordError.setValue("Password must contain a combination of letters and numbers");
             isValid = false;
         }
 
         // Confirm password validation
         String confirmPasswordVal = confirmPassword.getValue();
         if (!passwordVal.equals(confirmPasswordVal)) {
-            confirmPasswordError.setValue("הסיסמאות אינן זהות");
+            confirmPasswordError.setValue("Passwords do not match");
             isValid = false;
         }
 
         // Gender validation (optional)
         String genderVal = gender.getValue();
         if (!TextUtils.isEmpty(genderVal) && !isValidGender(genderVal)) {
-            genderError.setValue("יש לבחור מין תקין");
+            genderError.setValue("Please select a valid gender");
             isValid = false;
         }
 
         // Birth date validation (optional)
         String birthDateVal = birthDate.getValue();
         if (!TextUtils.isEmpty(birthDateVal) && !isValidBirthDate(birthDateVal)) {
-            birthDateError.setValue("תאריך לידה לא תקין");
+            birthDateError.setValue("Invalid birth date");
             isValid = false;
         }
 
         // Phone validation (optional)
         String phoneVal = phone.getValue();
         if (!TextUtils.isEmpty(phoneVal) && !PHONE_RE.matcher(phoneVal.trim()).matches()) {
-            phoneError.setValue("מספר טלפון לא תקין");
+            phoneError.setValue("Invalid phone number");
             isValid = false;
         }
 
@@ -252,7 +252,7 @@ public class RegisterViewModel extends AndroidViewModel {
                 if (response.isSuccessful()) {
                     UserDto user = response.body();
                     registeredUser.setValue(user);
-                    successMessage.setValue("הרישום הושלם בהצלחה! מעביר לדף התחברות...");
+                    successMessage.setValue("Registration completed successfully! Redirecting to login page...");
                 } else {
                     handleServerError(response);
                 }
@@ -261,7 +261,7 @@ public class RegisterViewModel extends AndroidViewModel {
             @Override
             public void onFailure(Call<UserDto> call, Throwable t) {
                 isLoading.setValue(false);
-                errorMessage.setValue("הרישום נכשל: " + t.getMessage());
+                errorMessage.setValue("Registration failed: " + t.getMessage());
             }
         });
     }
@@ -303,27 +303,27 @@ public class RegisterViewModel extends AndroidViewModel {
     // --- Server error handling ---
     private void handleServerError(Response<UserDto> response) {
         try {
-            String errorBody = response.errorBody() != null ? response.errorBody().string() : "שגיאה לא ידועה";
+            String errorBody = response.errorBody() != null ? response.errorBody().string() : "Unknown error";
 
             switch (response.code()) {
                 case 400:
-                    errorMessage.setValue("נתוני רישום לא תקינים");
+                    errorMessage.setValue("Invalid registration data");
                     break;
                 case 409:
-                    errorMessage.setValue("משתמש זה כבר קיים במערכת");
-                    emailError.setValue("כתובת מייל זו כבר רשומה במערכת");
+                    errorMessage.setValue("This user already exists in the system");
+                    emailError.setValue("This email address is already registered in the system");
                     break;
                 case 422:
-                    errorMessage.setValue("אימות הנתונים נכשל");
+                    errorMessage.setValue("Data validation failed");
                     break;
                 case 500:
-                    errorMessage.setValue("שגיאת שרת פנימית - אנא נסה מאוחר יותר");
+                    errorMessage.setValue("Internal server error - please try again later");
                     break;
                 default:
-                    errorMessage.setValue("הרישום נכשל (שגיאה " + response.code() + ")");
+                    errorMessage.setValue("Registration failed (error " + response.code() + ")");
             }
         } catch (Exception e) {
-            errorMessage.setValue("הרישום נכשל - אנא נסה שוב");
+            errorMessage.setValue("Registration failed - please try again");
         }
     }
 
@@ -331,9 +331,9 @@ public class RegisterViewModel extends AndroidViewModel {
     private String mapGenderToEnglish(String hebrewGender) {
         if (TextUtils.isEmpty(hebrewGender)) return "";
         switch (hebrewGender.trim()) {
-            case "זכר": return "male";
-            case "נקבה": return "female";
-            case "אחר": return "other";
+            case "Male": return "male";
+            case "Female": return "female";
+            case "Other": return "other";
             default: return hebrewGender.toLowerCase(Locale.US);
         }
     }
@@ -341,7 +341,7 @@ public class RegisterViewModel extends AndroidViewModel {
     private boolean isValidGender(String gender) {
         if (TextUtils.isEmpty(gender)) return true;
         String trimmed = gender.trim();
-        return trimmed.equals("זכר") || trimmed.equals("נקבה") || trimmed.equals("אחר");
+        return trimmed.equals("Male") || trimmed.equals("Female") || trimmed.equals("Other");
     }
 
     private boolean isValidBirthDate(String dateStr) {

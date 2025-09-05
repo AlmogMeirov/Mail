@@ -8,10 +8,10 @@ public class LabelDeserializer implements JsonDeserializer<Label> {
             throws JsonParseException {
 
         if (json.isJsonPrimitive()) {
-            // אם השרת מחזיר רק ID של תווית
+            // If server returns only label ID
             return new Label(json.getAsString(), json.getAsString());
         } else if (json.isJsonObject()) {
-            // אם השרת מחזיר אובייקט מלא
+            // If server returns full object
             JsonObject obj = json.getAsJsonObject();
             Label label = new Label();
 
