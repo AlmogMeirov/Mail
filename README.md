@@ -43,11 +43,11 @@ please ensure your emulator/device is set to English language before running the
 
 * Blacklist Server: C++17 multi-threaded TCP server using Bloom Filter
 
-**Project** Management: Development progress tracked in JIRA
+**Project Management**: Development progress tracked in JIRA
 
 **Documentation**: See /wiki directory for detailed guides and API reference.
 
-להוסיף כאן מבנה פרויקט
+add in here project strucute
 
 ## Team
 
