@@ -10,7 +10,6 @@ A Gmail-like email application with a **Node.js/Express backend**, **Android (Ja
 ### Prerequisites
 - Docker & Docker Compose
 - Android Emulator / Device (set to English language)
-- Web browser
 
 Run the server from the **src folder**
 ```bash
@@ -21,7 +20,7 @@ docker-compose up -d
 
 ## Features
 
- * User registration & JWT authentication
+ * User registration/login & JWT authentication
 
  * Gmail-style labels (system & custom)
 
@@ -35,9 +34,9 @@ docker-compose up -d
 
 **Architecture**: 
 
-* Frontend: Android (Java) with MVVM pattern
+* Frontend: * Android (Java) - Mobile client with MVVM pattern + Room for local data persistence
 
-* Backend: Node.js + Express, RESTful API
+** Backend: Node.js + Express - RESTful API with MongoDB
 
 * Blacklist Server: C++17 multi-threaded TCP server using Bloom Filter
 
@@ -62,7 +61,6 @@ MAIL/
   * Almog Meirov
   * Tomer Grady
   * Meir Crown
-
 
 
 ## Technologies Used
