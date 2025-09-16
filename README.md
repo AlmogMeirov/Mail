@@ -47,7 +47,14 @@ please ensure your emulator/device is set to English language before running the
 
 **Documentation**: See /wiki directory for detailed guides and API reference.
 
-add in here project strucute
+MAIL/
+├── .myapplication/                         →  Android frontend (Java)
+
+├── src/
+
+│   ├── cpp_server/                         →  C++ blacklist server
+
+│   ├── node_server/                       → Node.js backend AND MongoDB
 
 ## Team
 
