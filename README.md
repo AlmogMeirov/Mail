@@ -11,4 +11,6 @@ Features: User registration & authentication, Gmail-style labels, email search, 
 
 Architecture: RESTful API with JWT auth, MVVM Android client, automated blacklist filtering.
 
+Project Management: Development progress tracked in JIRA
+
 Documentation: See /wiki directory for detailed guides and API reference.
