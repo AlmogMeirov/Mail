@@ -71,6 +71,5 @@ add in here project strucute
 
 
 
-** Enjoy exploring the Gmail Application!
+**Enjoy exploring the Gmail Application!**
 
-**
