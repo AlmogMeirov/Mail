@@ -1,3 +1,7 @@
+> **Note:** This README is intended as a brief overview of the project.  
+> For complete documentation, detailed guides, and full API references, please refer to the `/wiki` directory.
+
+
 Gmail Application - Email Management System
 A full-stack Gmail-like email application with Node.js/Express backend, Android (Java) frontend, and MongoDB database.
 
