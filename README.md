@@ -12,7 +12,7 @@ A Gmail-like email application with a **Node.js/Express backend**, **Android (Ja
 - Android Emulator / Device (set to English language)
 - Web browser
 
-### Run the SERVER from the **src folder**
+### Run the server from the **src folder**
 ```bash
 docker-compose up -d
 ```
