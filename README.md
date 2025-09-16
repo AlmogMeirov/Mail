@@ -12,7 +12,7 @@ A Gmail-like email application with a **Node.js/Express backend**, **Android (Ja
 - Android Emulator / Device (set to English language)
 - Web browser
 
-### Run the Application
+### Run the SERVER
 ```bash
 # From the** src folder**
 docker-compose up -d
@@ -41,14 +41,7 @@ please ensure your emulator/device is set to English language before running the
 
 **Documentation**: See /wiki directory for detailed guides and API reference.
 
-MAIL/
-├── client/            → Android frontend (Java)
-├── node_server/       → Node.js backend
-├── cpp_server/        → C++ blacklist server
-├── data/              → Shared data (e.g., urls.txt)
-├── docker-compose.yml
-└── README.md
-
+להוסיף כאן מבנה פרויקט
 
 ## Team
 
