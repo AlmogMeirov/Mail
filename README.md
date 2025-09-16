@@ -70,7 +70,6 @@ MAIL/
   * *C++17 (multi-threaded) - Blacklist server*
   * *Docker + Docker Compose - Containerization*
   * *C++17 (multi-threaded)*
-  * *Docker + Docker Compose*
   * *JWT Authentication - Secure token-based auth*
   * *Bloom Filter* for blacklist
   * *TCP Socket Communication*
