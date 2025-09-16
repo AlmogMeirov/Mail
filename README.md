@@ -1,7 +1,7 @@
 Gmail Application - Email Management System
 A full-stack Gmail-like email application with Node.js/Express backend, Android (Java) frontend, and MongoDB database.
 
-🚀 Navigate to the src directory and run in bash:
+🚀** Navigate to the src directory and run in bash:**
 
  ```
  docker-compose up -d
