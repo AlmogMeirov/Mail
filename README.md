@@ -17,21 +17,24 @@ Project Management: Development progress tracked in JIRA
 
 Documentation: See /wiki directory for detailed guides and API reference.
 
-Team
+## Team
 
-Almog Meirov
-Tomer Grady
-Meir Crown
+  * Almog Meirov
+  * Tomer Grady
+  * Meir Crown
 
-Technologies Used
 
-Android (Java) - Mobile client with MVVM pattern
-Node.js + Express - REST API server
-MongoDB - Document database
-C++17 (multi-threaded) - Blacklist server
-Docker + Docker Compose - Containerization
-JWT Authentication - Secure token-based auth
-bcrypt - Password hashing
-TCP Socket Communication - Inter-service communication
+
+## Technologies Used
+  * *React 19.1.0* 
+  * *React Router 7.6.2*
+  * *React Icons 5.5.0*
+  * *CSS Variables*
+  * *Node.js + Express*
+  * *C++17 (multi-threaded)*
+  * *Docker + Docker Compose*
+  * *JWT Authentication*
+  * *Bloom Filter* for blacklist
+  * *TCP Socket Communication*
 
 
