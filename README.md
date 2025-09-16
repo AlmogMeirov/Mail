@@ -48,6 +48,7 @@ please ensure your emulator/device is set to English language before running the
 **Documentation**: See /wiki directory for detailed guides and API reference.
 
 MAIL/
+
 ├── .myapplication/                         →  Android frontend (Java)
 
 ├── src/
