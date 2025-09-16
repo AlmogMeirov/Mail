@@ -35,7 +35,13 @@ please ensure your emulator/device is set to English language before running the
 
  * Dark mode with full UI adaptation
 
-**Architecture**: RESTful API with JWT auth, MVVM Android client, automated blacklist filtering.
+**Architecture**: 
+
+* Frontend: Android (Java) with MVVM pattern
+
+* Backend: Node.js + Express, RESTful API
+
+* Blacklist Server: C++17 multi-threaded TCP server using Bloom Filter
 
 **Project** Management: Development progress tracked in JIRA
 
