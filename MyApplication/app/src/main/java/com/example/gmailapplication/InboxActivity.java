@@ -85,7 +85,26 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         setupPaginationControls();
 
         // Load emails
-        viewModel.loadEmails();
+        // Load emails - restore saved filter if exists
+        SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
+        String savedFilter = prefs.getString("saved_filter", null);
+        String savedDisplayName = prefs.getString("saved_display_name", null);
+
+        if (savedFilter != null && !savedFilter.equals("inbox")) {
+            // Restore the saved filter
+            if (savedFilter.equals("starred")) {
+                viewModel.loadStarredEmails();
+            } else if (savedFilter.equals("spam")) {
+                viewModel.loadSpamEmails();
+            } else {
+                viewModel.loadEmailsByLabel(savedFilter, savedDisplayName);
+            }
+
+            // Clear the saved filter
+            prefs.edit().remove("saved_filter").remove("saved_display_name").apply();
+        } else {
+            viewModel.loadEmails(); // Default inbox
+        }
     }
 
     private void initViews() {
@@ -113,6 +132,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         loadCustomLabels();
     }
 
+
     private void setupNavigationHeader() {
         // Get header view
         View headerView = navigationView.getHeaderView(0);
@@ -120,6 +140,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         // Find views in header
         TextView tvUserEmail = headerView.findViewById(R.id.tvUserEmail);
         ImageView ivProfileImage = headerView.findViewById(R.id.ivProfileImage);
+        TextView tvProfileAvatar = headerView.findViewById(R.id.tvProfileAvatar);
         Button btnCreateNewLabel = headerView.findViewById(R.id.btnCreateNewLabel);
 
         // Set current user email
@@ -133,10 +154,13 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         if (currentUserEmail != null) {
             tvUserEmail.setText(currentUserEmail);
 
+            // Set default letter avatar
+            String firstLetter = currentUserEmail.substring(0, 1).toUpperCase();
+            tvProfileAvatar.setText(firstLetter);
+
+            // Try to load profile image
             if (currentUserId != null && ivProfileImage != null) {
-                loadProfileImage(currentUserId, ivProfileImage);
-            } else {
-                System.out.println("User ID is null or ImageView not found - cannot load avatar");
+                loadProfileImageInDrawer(currentUserId, ivProfileImage, tvProfileAvatar);
             }
         }
 
@@ -147,96 +171,69 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         });
     }
 
-    private void loadProfileImage(String userId, ImageView imageView) {
-        System.out.println("=== LOADING AVATAR FOR USER: " + userId + " ===");
-        System.out.println("ImageView: " + imageView.toString());
+    private void loadProfileImageInDrawer(String userId, ImageView imageView, TextView textView) {
+        System.out.println("=== LOADING AVATAR FOR DRAWER: " + userId + " ===");
 
         UserAPI userAPI = BackendClient.get(this).create(UserAPI.class);
 
         userAPI.getAvatar(userId).enqueue(new Callback<ResponseBody>() {
             @Override
             public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
-                System.out.println("=== AVATAR API RESPONSE ===");
+                System.out.println("=== DRAWER AVATAR API RESPONSE ===");
                 System.out.println("Response code: " + response.code());
-                System.out.println("Response successful: " + response.isSuccessful());
-                System.out.println("Response body exists: " + (response.body() != null));
 
                 if (response.isSuccessful() && response.body() != null) {
                     try {
                         byte[] imageBytes = response.body().bytes();
                         System.out.println("✓ Image loaded successfully, size: " + imageBytes.length + " bytes");
 
-                        // Check magic bytes - is this actually PNG?
-                        if (imageBytes.length >= 8) {
-                            String header = String.format("%02X%02X%02X%02X%02X%02X%02X%02X",
-                                    imageBytes[0], imageBytes[1], imageBytes[2], imageBytes[3],
-                                    imageBytes[4], imageBytes[5], imageBytes[6], imageBytes[7]);
-                            System.out.println("Image header (first 8 bytes): " + header);
-
-                            // PNG header should be: 89504E470D0A1A0A
-                            boolean isPNG = header.equals("89504E470D0A1A0A");
-                            System.out.println("Is valid PNG: " + isPNG);
-                        }
-
-                        // Try decoding with BitmapFactory options
                         BitmapFactory.Options options = new BitmapFactory.Options();
-                        options.inJustDecodeBounds = true; // Info only, no decoding
-                        BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length, options);
-
-                        System.out.println("Image format: " + options.outMimeType);
-                        System.out.println("Image dimensions: " + options.outWidth + "x" + options.outHeight);
-
-                        // Now decode for real
                         options.inJustDecodeBounds = false;
                         Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length, options);
 
-                        System.out.println("✓ Bitmap decoded successfully: " + (bitmap != null));
-
                         if (bitmap != null) {
-                            System.out.println("Bitmap config: " + bitmap.getConfig());
-                            System.out.println("Bitmap size: " + bitmap.getWidth() + "x" + bitmap.getHeight());
-
                             runOnUiThread(() -> {
-                                System.out.println("=== SETTING IMAGE ON UI THREAD ===");
-                                System.out.println("ImageView before: " + imageView.getDrawable());
+                                System.out.println("=== SWITCHING TO IMAGE IN DRAWER ===");
 
-                                // Create circular image
+                                textView.setVisibility(View.GONE);
+                                imageView.setVisibility(View.VISIBLE);
+
+                                // Create circular image and set it
                                 Bitmap circularBitmap = createCircularBitmap(bitmap);
                                 imageView.setImageBitmap(circularBitmap);
 
-                                System.out.println("✓ ImageView updated successfully");
-                                System.out.println("ImageView after: " + imageView.getDrawable());
+                                System.out.println("✓ Image set in drawer successfully");
                             });
                         } else {
-                            System.out.println("✗ Bitmap decoding failed - using default image");
+                            System.out.println("✗ Bitmap decoding failed - keeping letter avatar");
                             runOnUiThread(() -> {
-                                //imageView.setImageResource(R.drawable.ic_account_circle);
+                                textView.setVisibility(View.VISIBLE);
+                                imageView.setVisibility(View.GONE);
                             });
                         }
                     } catch (Exception e) {
                         System.out.println("✗ Exception in image processing: " + e.getMessage());
-                        e.printStackTrace();
                         runOnUiThread(() -> {
-                            //imageView.setImageResource(R.drawable.ic_account_circle);
+                            textView.setVisibility(View.VISIBLE);
+                            imageView.setVisibility(View.GONE);
                         });
                     }
                 } else {
-                    System.out.println("✗ API response failed or empty body");
-                    System.out.println("Response code: " + response.code());
-                    System.out.println("Response message: " + response.message());
+                    System.out.println("✗ API response failed - keeping letter avatar");
                     runOnUiThread(() -> {
-                        //imageView.setImageResource(R.drawable.ic_account_circle);
+                        textView.setVisibility(View.VISIBLE);
+                        imageView.setVisibility(View.GONE);
                     });
                 }
             }
 
             @Override
             public void onFailure(Call<ResponseBody> call, Throwable t) {
-                System.out.println("=== AVATAR API FAILURE ===");
+                System.out.println("=== DRAWER AVATAR API FAILURE ===");
                 System.out.println("✗ Failed to load avatar: " + t.getMessage());
-                t.printStackTrace();
                 runOnUiThread(() -> {
-                    //imageView.setImageResource(R.drawable.ic_account_circle);
+                    textView.setVisibility(View.VISIBLE);
+                    imageView.setVisibility(View.GONE);
                 });
             }
         });
@@ -554,6 +551,9 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         System.out.println("Current user email from token: " + currentUserEmail);
 
         adapter = new EmailAdapter(email -> {
+            // Mark email as read when clicked
+            markEmailAsRead(email.id);
+
             // Check if it's a draft
             boolean isDraft = (email.labels != null && email.labels.contains("drafts"));
 
@@ -570,7 +570,7 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                 intent.putExtra("timestamp", email.timestamp);
                 startActivity(intent);
             }
-        }, currentUserEmail);
+        }, currentUserEmail, this::isEmailRead);  // הוספנו פרמטר שלישי
 
         // Set other listeners
         adapter.setDeleteListener(this::handleEmailDelete);
@@ -727,8 +727,8 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         ImageView ivMenu = findViewById(R.id.ivMenu);
         ImageView ivThemeToggle = findViewById(R.id.ivThemeToggle);
         TextView tvProfileAvatar = findViewById(R.id.tvProfileAvatar);
+        ImageView ivProfileImageHeader = findViewById(R.id.ivProfileImageHeader);
         LinearLayout searchBar = findViewById(R.id.searchBar);
-        ImageView ivProfileImage = findViewById(R.id.ivProfileImageHeader); // This refers to the one in the upper bar
 
         // Menu hamburger button
         if (ivMenu != null) {
@@ -751,33 +751,92 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         }
 
         String currentUserId = TokenManager.getCurrentUserId(this);
-        System.out.println("=== PROFILE IMAGE DEBUG ===");
-        System.out.println("User ID: " + currentUserId);
-        System.out.println("ImageView found: " + (ivProfileImage != null));
+        String userEmail = TokenManager.getCurrentUserEmail(this);
 
-        if (currentUserId != null && ivProfileImage != null) {
-            loadProfileImage(currentUserId, ivProfileImage);
-        } else {
-            System.out.println("Cannot load profile image");
-            if (ivProfileImage != null) {
-                //ivProfileImage.setImageResource(R.drawable.ic_account_circle);
+        System.out.println("=== HEADER PROFILE IMAGE DEBUG ===");
+        System.out.println("User ID: " + currentUserId);
+        System.out.println("User Email: " + userEmail);
+
+        if (userEmail != null && !userEmail.isEmpty()) {
+            // Set default letter avatar
+            String firstLetter = userEmail.substring(0, 1).toUpperCase();
+            tvProfileAvatar.setText(firstLetter);
+
+            // Try to load profile image
+            if (currentUserId != null && ivProfileImageHeader != null) {
+                loadProfileImageInHeader(currentUserId, ivProfileImageHeader, tvProfileAvatar);
             }
         }
 
-        // Profile avatar - user options (only refresh and logout for now)
+        // Profile avatar - user options
         if (tvProfileAvatar != null) {
-            String userEmail = TokenManager.getCurrentUserEmail(this);
-            if (userEmail != null && !userEmail.isEmpty()) {
-                tvProfileAvatar.setText(userEmail.substring(0, 1).toUpperCase());
-            }
-
             tvProfileAvatar.setOnClickListener(v -> showUserProfileMenu());
+        }
+
+        if (ivProfileImageHeader != null) {
+            ivProfileImageHeader.setOnClickListener(v -> showUserProfileMenu());
         }
 
         // Search
         if (searchBar != null) {
             searchBar.setOnClickListener(v -> showSearchDialog());
         }
+    }
+
+    private void loadProfileImageInHeader(String userId, ImageView imageView, TextView textView) {
+        System.out.println("=== LOADING AVATAR FOR HEADER: " + userId + " ===");
+
+        UserAPI userAPI = BackendClient.get(this).create(UserAPI.class);
+
+        userAPI.getAvatar(userId).enqueue(new Callback<ResponseBody>() {
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    try {
+                        byte[] imageBytes = response.body().bytes();
+                        Bitmap bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+
+                        if (bitmap != null) {
+                            runOnUiThread(() -> {
+                                System.out.println("=== SWITCHING TO IMAGE IN HEADER ===");
+
+                                textView.setVisibility(View.GONE);
+                                imageView.setVisibility(View.VISIBLE);
+
+                                // Create circular image and set it
+                                Bitmap circularBitmap = createCircularBitmap(bitmap);
+                                imageView.setImageBitmap(circularBitmap);
+
+                                System.out.println("✓ Image set in header successfully");
+                            });
+                        } else {
+                            runOnUiThread(() -> {
+                                textView.setVisibility(View.VISIBLE);
+                                imageView.setVisibility(View.GONE);
+                            });
+                        }
+                    } catch (Exception e) {
+                        runOnUiThread(() -> {
+                            textView.setVisibility(View.VISIBLE);
+                            imageView.setVisibility(View.GONE);
+                        });
+                    }
+                } else {
+                    runOnUiThread(() -> {
+                        textView.setVisibility(View.VISIBLE);
+                        imageView.setVisibility(View.GONE);
+                    });
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                runOnUiThread(() -> {
+                    textView.setVisibility(View.VISIBLE);
+                    imageView.setVisibility(View.GONE);
+                });
+            }
+        });
     }
 
     private void updateThemeIcon(ImageView themeIcon) {
@@ -819,14 +878,20 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         int newMode = (currentMode == AppCompatDelegate.MODE_NIGHT_YES) ?
                 AppCompatDelegate.MODE_NIGHT_NO : AppCompatDelegate.MODE_NIGHT_YES;
 
-        // Save preference
+        // Save current filter before theme change
         SharedPreferences prefs = getSharedPreferences("theme_prefs", MODE_PRIVATE);
-        prefs.edit().putInt("night_mode", newMode).apply();
+        String currentFilter = viewModel.getCurrentFilter().getValue();
+        String currentDisplayName = viewModel.getCurrentFilterDisplayName().getValue();
+
+        prefs.edit()
+                .putInt("night_mode", newMode)
+                .putString("saved_filter", currentFilter != null ? currentFilter : "inbox")
+                .putString("saved_display_name", currentDisplayName != null ? currentDisplayName : "Inbox")
+                .apply();
 
         // Switch theme
         AppCompatDelegate.setDefaultNightMode(newMode);
     }
-
     private void showUserOptions() {
         String[] options = {
                 getString(R.string.refresh),
@@ -934,6 +999,15 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
                     // Refresh menu to show new label
                     refreshNavigationMenu();
 
+                } else if (response.code() == 409) {
+                    // Handle duplicate label error specifically
+                    Toast.makeText(InboxActivity.this,
+                            "Label already exists (labels are case insensitive)",
+                            Toast.LENGTH_LONG).show();
+                } else if (response.code() == 400) {
+                    // Handle invalid input (system label names, empty names, etc.)
+                    Toast.makeText(InboxActivity.this,
+                            "Invalid label name", Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(InboxActivity.this,
                             getString(R.string.error_creating_label, response.code()), Toast.LENGTH_SHORT).show();
@@ -1015,5 +1089,28 @@ public class InboxActivity extends AppCompatActivity implements NavigationView.O
         if (btnPrev != null) {
             btnPrev.setOnClickListener(v -> viewModel.goToPreviousPage());
         }
+    }
+
+    // Helper methods for read/unread functionality
+    private String getCurrentUserEmail() {
+        return TokenManager.getCurrentUserEmail(this);
+    }
+
+    private boolean isEmailRead(String emailId) {
+        String userEmail = getCurrentUserEmail();
+        if (userEmail == null || userEmail.isEmpty()) return false;
+
+        SharedPreferences readEmails = getSharedPreferences("read_emails_" + userEmail, MODE_PRIVATE);
+        return readEmails.getBoolean(emailId, false);
+    }
+
+    private void markEmailAsRead(String emailId) {
+        String userEmail = getCurrentUserEmail();
+        if (userEmail == null || userEmail.isEmpty()) return;
+
+        SharedPreferences readEmails = getSharedPreferences("read_emails_" + userEmail, MODE_PRIVATE);
+        readEmails.edit().putBoolean(emailId, true).apply();
+
+        System.out.println("Marked email as read: " + emailId + " for user: " + userEmail);
     }
 }

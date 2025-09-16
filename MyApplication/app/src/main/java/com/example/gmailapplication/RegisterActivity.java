@@ -18,7 +18,6 @@ import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.DatePicker;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import com.example.gmailapplication.API.BackendClient;
 import com.example.gmailapplication.API.UserAPI;
@@ -64,7 +63,6 @@ public class RegisterActivity extends AppCompatActivity {
 
     // Password validation regex - at least 8 chars with letters and numbers
     private static final Pattern PASSWORD_RE = Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d@$!%*?&]{8,}$");
-    private ProgressBar progressBar;
 
     private final ActivityResultLauncher<String> pickImageLauncher =
             registerForActivityResult(new ActivityResultContracts.GetContent(), this::onImagePicked);
@@ -130,7 +128,6 @@ public class RegisterActivity extends AppCompatActivity {
         btnSubmit    = findViewById(R.id.btnSubmit);
         tvResult     = findViewById(R.id.tvResult);
         tvLoginLink  = findViewById(R.id.tvLoginLink);
-        progressBar = findViewById(R.id.progressBar);
     }
 
     // --- Gender dropdown with English values ---
@@ -310,8 +307,7 @@ public class RegisterActivity extends AppCompatActivity {
             if (!validateAll()) return;
 
             btnSubmit.setEnabled(false);
-            tvResult.setVisibility(View.GONE);
-            progressBar.setVisibility(View.VISIBLE);
+            tvResult.setText(getString(R.string.registering));
 
             try {
                 RegisterRequest request = buildRegisterRequest();
@@ -321,8 +317,6 @@ public class RegisterActivity extends AppCompatActivity {
                 call.enqueue(new Callback<UserDto>() {
                     @Override
                     public void onResponse(Call<UserDto> call, Response<UserDto> response) {
-                        progressBar.setVisibility(View.GONE);
-                        tvResult.setVisibility(View.VISIBLE);
                         btnSubmit.setEnabled(true);
 
                         if (response.isSuccessful()) {
@@ -339,13 +333,12 @@ public class RegisterActivity extends AppCompatActivity {
 
                         } else {
                             handleServerError(response);
+                            tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
                         }
                     }
 
                     @Override
                     public void onFailure(Call<UserDto> call, Throwable t) {
-                        progressBar.setVisibility(View.GONE);
-                        tvResult.setVisibility(View.VISIBLE);
                         btnSubmit.setEnabled(true);
 
                         if (t instanceof com.google.gson.JsonSyntaxException ||
@@ -371,13 +364,12 @@ public class RegisterActivity extends AppCompatActivity {
                 });
 
             } catch (Exception e) {
-                progressBar.setVisibility(View.GONE);
-                tvResult.setVisibility(View.VISIBLE);
                 btnSubmit.setEnabled(true);
                 tvResult.setText(getString(R.string.error_creating_request, e.getMessage()));
             }
         });
     }
+
     // --- Build RegisterRequest object ---
     private RegisterRequest buildRegisterRequest() {
         RegisterRequest request = new RegisterRequest();
@@ -447,48 +439,43 @@ public class RegisterActivity extends AppCompatActivity {
         });
     }
 
-    // --- Enhanced server error handling ---
     private void handleServerError(Response<UserDto> response) {
         try {
-            String errorBody = response.errorBody() != null ? response.errorBody().string() : "";
+            String errorBody = response.errorBody() != null ? response.errorBody().string() : getString(R.string.error_registration_failed_retry);
             System.err.println("Server error: " + errorBody);
 
             // Try to parse JSON error response
             try {
                 JSONObject errorJson = new JSONObject(errorBody);
-                String message = errorJson.optString("message", "");
-                if (!TextUtils.isEmpty(message)) {
+                String message = errorJson.optString("error", getString(R.string.error_registration_failed_retry));
+
+                if (message.contains("already registered") || message.contains("Email already registered")) {
+                    tvResult.setText("User already exists");
+                    tilEmail.setError("Email already registered");
+                } else {
                     tvResult.setText(message);
-                    tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
-                    return;
                 }
+                tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+                return;
             } catch (JSONException e) {
                 // Fall back to HTTP status codes
             }
 
             switch (response.code()) {
                 case 400:
-                    // Check if this is a duplicate email error (common cause of 400)
-                    if (errorBody.toLowerCase().contains("already") ||
-                            errorBody.toLowerCase().contains("registered") ||
-                            errorBody.toLowerCase().contains("exists")) {
-
-                        tvResult.setText("This email address is already registered");
-                        tilEmail.setError("Email already exists - try logging in instead");
-                        etEmail.requestFocus();
+                    if (errorBody.contains("already registered")) {
+                        tvResult.setText("User already exists");
+                        tilEmail.setError("Email already registered");
                     } else {
                         tvResult.setText(getString(R.string.error_invalid_registration_data));
-                        validateAll(); // Show specific field errors
                     }
                     break;
                 case 409:
                     tvResult.setText(getString(R.string.error_user_already_exists));
                     tilEmail.setError(getString(R.string.error_email_already_registered));
-                    etEmail.requestFocus(); // Focus on problematic field
                     break;
                 case 422:
                     tvResult.setText(getString(R.string.error_data_validation_failed));
-                    validateAll(); // Show validation errors
                     break;
                 case 500:
                     tvResult.setText(getString(R.string.error_server_internal));
@@ -497,7 +484,6 @@ public class RegisterActivity extends AppCompatActivity {
                     tvResult.setText(getString(R.string.error_registration_failed_code, response.code()));
             }
 
-            // Set error color for all cases
             tvResult.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
 
         } catch (Exception e) {

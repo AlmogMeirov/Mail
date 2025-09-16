@@ -3,42 +3,30 @@ const Mail = require('../models/Mail'); // MongoDB Mail model
 const User = require('../models/User'); // User model for validation
 const { extractUrls } = require("../utils/extractUrls");
 const { checkUrlBlacklist } = require("../utils/blacklistClient");
+// const { getAllLabels } = require('../models/labels'); // הגב זמנית
+// const labelModel = require('../models/labels'); // הגב זמנית
 const { addUrlToBlacklist } = require("../utils/blacklistClient");
 const { Label } = require('../models/labels'); 
 
-// COMPLETELY FIXED: Real functions that create labels in database
+
+
 const labelModel = {
-    addLabelToMail: async (userId, mailId, labelId) => {
-        console.log(`Adding label ${labelId} to mail ${mailId} for user ${userId}`);
+    addLabelToMail: (userId, mailId, labelId) => {
+        console.log(`[TEMP] Adding label ${labelId} to mail ${mailId} for user ${userId}`);
         return Promise.resolve();
     },
-    addLabel: async (userId, labelName) => {
-        console.log(`Creating label ${labelName} for user ${userId}`);
-        try {
-            // Create real label in database
-            const label = await Label.createLabelForUser(userId, labelName);
-            return { id: label.labelId, name: label.name };
-        } catch (error) {
-            // If label exists, find and return it
-            const existingLabels = await Label.getAllLabelsForUser(userId);
-            const existing = existingLabels.find(l => l.name === labelName);
-            if (existing) {
-                return { id: existing.labelId, name: existing.name };
-            }
-            // Return system label format as fallback
-            return { id: labelName.toLowerCase(), name: labelName };
-        }
+    addLabel: (userId, labelName) => {
+        console.log(`[TEMP] Creating label ${labelName} for user ${userId}`);
+        return { id: 'temp-' + Date.now(), name: labelName };
     }
 };
 
-// System labels that cannot be created/edited/deleted
 const SYSTEM_LABELS = ['inbox', 'sent', 'spam', 'drafts', 'starred', 'trash', 'important'];
 
 const getAllLabels = async (userId) => {
     try {
         const userLabels = await Label.getAllLabelsForUser(userId);
         
-        // Basic labels - same list as in labelsController
         const basicLabels = SYSTEM_LABELS.map(name => ({
             id: name, 
             name: name
@@ -59,36 +47,45 @@ const getAllLabels = async (userId) => {
     }
 };
 
-// Create mail function with MongoDB
+
+// Create mail function with MongoDB - FIXED for case-insensitive email handling
 const createMail = async (req, res) => {
     try {
         let { labels = ["inbox"] } = req.body;
         const { sender, recipient, recipients, subject, content } = req.body;
         const groupId = uuidv4();
 
-        // Build recipients list (back-compat)
-        const recipientsList = Array.isArray(recipients)
-            ? recipients
-            : recipient
-                ? [recipient]
+        // Normalize all email addresses to lowercase for consistent handling
+        const normalizedSender = sender ? sender.toLowerCase().trim() : null;
+        const normalizedRecipient = recipient ? recipient.toLowerCase().trim() : null;
+        const normalizedRecipients = Array.isArray(recipients) 
+            ? recipients.map(r => r.toLowerCase().trim())
+            : normalizedRecipient 
+                ? [normalizedRecipient] 
                 : [];
+
+        // Build recipients list (back-compat) - now using normalized emails
+        const recipientsList = normalizedRecipients.length > 0 
+            ? normalizedRecipients 
+            : [];
 
         // Basic validation
         if (recipientsList.length === 0) {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
-        // Check if sender exists in MongoDB
-        const senderUser = await User.findOne({ email: sender }).lean();
+        // Check if sender exists in MongoDB - use normalized email
+        const senderUser = await User.findOne({ email: normalizedSender }).lean();
         if (!senderUser) {
             return res.status(400).json({ error: "Sender does not exist" });
         }
 
-        if (sender !== req.user.email) {
+        // Compare with user's normalized email from token
+        if (normalizedSender !== req.user.email) {
             return res.status(403).json({ error: "Sender email does not match authenticated user" });
         }
 
-        // Check if all recipients exist
+        // Check if all recipients exist - use normalized emails
         for (const r of recipientsList) {
             const recipientUser = await User.findOne({ email: r }).lean();
             if (!recipientUser) {
@@ -105,18 +102,17 @@ const createMail = async (req, res) => {
 
                 const sent = [];
                 
-                // Handle recipients (not sender) - spam
-                for (const r of recipientsList.filter(r => r !== sender)) {
+                // Handle recipients (not sender) - spam - use normalized emails
+                for (const r of recipientsList.filter(r => r !== normalizedSender)) {
                     const recipientLabels = await getAllLabels(r);
-                    // FIXED: Case-sensitive label comparison
-                    let spamLabel = recipientLabels.find(l => l.name === "spam");
+                    let spamLabel = recipientLabels.find(l => l.name.toLowerCase() === "spam");
                     if (!spamLabel) {
-                        spamLabel = await labelModel.addLabel(r, "spam");
+                        spamLabel = labelModel.addLabel(r, "Spam");
                     }
 
                     const mail = new Mail({
                         mailId: uuidv4(),
-                        sender,
+                        sender: normalizedSender,
                         recipient: r,
                         recipients: recipientsList,
                         subject,
@@ -130,24 +126,23 @@ const createMail = async (req, res) => {
                     sent.push(mail);
                 }
 
-                // Handle sender - spam
-                if (recipientsList.includes(sender)) {
+                // Handle sender - spam - use normalized emails
+                if (recipientsList.includes(normalizedSender)) {
                     // Self-send case: one mail with spam label for sender
-                    const senderLabels = await getAllLabels(sender);
-                    // FIXED: Case-sensitive label comparison
-                    let spamLabel = senderLabels.find(l => l.name === "spam");
+                    const senderLabels = await getAllLabels(normalizedSender);
+                    let spamLabel = senderLabels.find(l => l.name.toLowerCase() === "spam");
                     if (!spamLabel) {
-                        spamLabel = await labelModel.addLabel(sender, "spam");
+                        spamLabel = labelModel.addLabel(normalizedSender, "Spam");
                     }
 
                     const senderMail = new Mail({
                         mailId: uuidv4(),
-                        sender,
-                        recipient: sender,
+                        sender: normalizedSender,
+                        recipient: normalizedSender,
                         recipients: recipientsList,
                         subject,
                         content,
-                        labels: [{ userEmail: sender, labelIds: [spamLabel.id] }],
+                        labels: [{ userEmail: normalizedSender, labelIds: [spamLabel.id] }],
                         groupId,
                         timestamp: new Date()
                     });
@@ -156,26 +151,25 @@ const createMail = async (req, res) => {
                     sent.push(senderMail);
                 } else {
                     // Regular case: sender gets copy with spam + sent labels
-                    const senderLabels = await getAllLabels(sender);
-                    // FIXED: Case-sensitive label comparison
-                    let spamLabel = senderLabels.find(l => l.name === "spam");
-                    let sentLabel = senderLabels.find(l => l.name === "sent");
+                    const senderLabels = await getAllLabels(normalizedSender);
+                    let spamLabel = senderLabels.find(l => l.name.toLowerCase() === "spam");
+                    let sentLabel = senderLabels.find(l => l.name.toLowerCase() === "sent");
                     
                     if (!spamLabel) {
-                        spamLabel = await labelModel.addLabel(sender, "spam");
+                        spamLabel = labelModel.addLabel(normalizedSender, "Spam");
                     }
                     if (!sentLabel) {
-                        sentLabel = await labelModel.addLabel(sender, "sent");
+                        sentLabel = labelModel.addLabel(normalizedSender, "Sent");
                     }
 
                     const senderMail = new Mail({
                         mailId: uuidv4(),
-                        sender,
-                        recipient: sender,
+                        sender: normalizedSender,
+                        recipient: normalizedSender,
                         recipients: recipientsList,
                         subject,
                         content,
-                        labels: [{ userEmail: sender, labelIds: [spamLabel.id, sentLabel.id] }],
+                        labels: [{ userEmail: normalizedSender, labelIds: [spamLabel.id, sentLabel.id] }],
                         groupId,
                         timestamp: new Date()
                     });
@@ -191,14 +185,14 @@ const createMail = async (req, res) => {
             return res.status(500).json({ error: "Failed to validate message links" });
         }
 
-        // Regular mail sending
+        // Regular mail sending - use normalized emails throughout
         const sent = [];
 
-        // Handle recipients (not sender)
-        for (const r of recipientsList.filter(r => r !== sender)) {
+        // Handle recipients (not sender) - use normalized emails
+        for (const r of recipientsList.filter(r => r !== normalizedSender)) {
             const mail = new Mail({
                 mailId: uuidv4(),
-                sender,
+                sender: normalizedSender,
                 recipient: r,
                 recipients: recipientsList,
                 subject,
@@ -212,29 +206,28 @@ const createMail = async (req, res) => {
             sent.push(mail);
         }
 
-        // Handle sender
-        if (recipientsList.includes(sender)) {
+        // Handle sender - use normalized emails
+        if (recipientsList.includes(normalizedSender)) {
             // Self-send case: one mail with inbox + sent labels
-            const senderLabels = await getAllLabels(sender);
-            // FIXED: Case-sensitive label comparison
-            let inboxLabel = senderLabels.find(l => l.name === "inbox");
-            let sentLabel = senderLabels.find(l => l.name === "sent");
+            const senderLabels = await getAllLabels(normalizedSender);
+            let inboxLabel = senderLabels.find(l => l.name.toLowerCase() === "inbox");
+            let sentLabel = senderLabels.find(l => l.name.toLowerCase() === "sent");
             
             if (!inboxLabel) {
-                inboxLabel = await labelModel.addLabel(sender, "inbox");
+                inboxLabel = labelModel.addLabel(normalizedSender, "Inbox");
             }
             if (!sentLabel) {
-                sentLabel = await labelModel.addLabel(sender, "sent");
+                sentLabel = labelModel.addLabel(normalizedSender, "Sent");
             }
 
             const senderMail = new Mail({
                 mailId: uuidv4(),
-                sender,
-                recipient: sender,
+                sender: normalizedSender,
+                recipient: normalizedSender,
                 recipients: recipientsList,
                 subject,
                 content,
-                labels: [{ userEmail: sender, labelIds: [inboxLabel.id, sentLabel.id] }],
+                labels: [{ userEmail: normalizedSender, labelIds: [inboxLabel.id, sentLabel.id] }],
                 groupId,
                 timestamp: new Date()
             });
@@ -243,22 +236,21 @@ const createMail = async (req, res) => {
             sent.push(senderMail);
         } else {
             // Regular case: sender gets copy with sent label only
-            const senderLabels = await getAllLabels(sender);
-            // FIXED: Case-sensitive label comparison
-            let sentLabel = senderLabels.find(l => l.name === "sent");
+            const senderLabels = await getAllLabels(normalizedSender);
+            let sentLabel = senderLabels.find(l => l.name.toLowerCase() === "sent");
             
             if (!sentLabel) {
-                sentLabel = await labelModel.addLabel(sender, "sent");
+                sentLabel = labelModel.addLabel(normalizedSender, "Sent");
             }
 
             const senderMail = new Mail({
                 mailId: uuidv4(),
-                sender,
-                recipient: sender,
+                sender: normalizedSender,
+                recipient: normalizedSender,
                 recipients: recipientsList,
                 subject,
                 content,
-                labels: [{ userEmail: sender, labelIds: [sentLabel.id] }],
+                labels: [{ userEmail: normalizedSender, labelIds: [sentLabel.id] }],
                 groupId,
                 timestamp: new Date()
             });
@@ -274,7 +266,6 @@ const createMail = async (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 };
-
 // Get mails function with MongoDB
 const getMails = async (req, res) => {
     try {
@@ -450,7 +441,7 @@ const updateMail = async (req, res) => {
     }
 };
 
-// Delete mail function (soft delete)
+// Delete mail function with MongoDB (soft delete)
 const deleteMailById = async (req, res) => {
     try {
         const userEmail = req.user.email;
@@ -467,13 +458,10 @@ const deleteMailById = async (req, res) => {
 
         if (mail.sender !== userEmail && mail.recipient !== userEmail &&
             (!mail.recipients || !mail.recipients.includes(userEmail))) {
-            return res.status(403).json({ error: "Not authorized for this mail" });
+            return res.status(403).json({ error: "Not authorized to delete this mail" });
         }
 
-        if (!mail.deletedBy) {
-            mail.deletedBy = [];
-        }
-
+        // Soft delete: add user to deletedBy array
         if (!mail.deletedBy.includes(userEmail)) {
             mail.deletedBy.push(userEmail);
             await mail.save();
@@ -487,87 +475,87 @@ const deleteMailById = async (req, res) => {
     }
 };
 
-// Permanently delete mail function
-const deleteMailByIdPermanently = async (req, res) => {
-    try {
-        const userEmail = req.user.email;
-        const mailId = req.params.id;
-
-        if (!mailId) {
-            return res.status(400).json({ error: "Missing mail ID" });
-        }
-
-        const mail = await Mail.findOne({ mailId });
-        if (!mail) {
-            return res.status(404).json({ error: "Mail not found" });
-        }
-
-        if (mail.sender !== userEmail) {
-            return res.status(403).json({ error: "Only sender can permanently delete" });
-        }
-
-        await Mail.findOneAndDelete({ mailId });
-
-        return res.status(200).json({ message: "Mail permanently deleted" });
-
-    } catch (err) {
-        console.error("Error permanently deleting mail:", err);
-        return res.status(500).json({ error: "Internal server error" });
-    }
-};
-
-// Search mails function
+// Search mails function with MongoDB - FIXED to respect user's delete status
+// Search mails function with MongoDB - FIXED to only search in user's labeled mails
 const searchMails = async (req, res) => {
     try {
         const userEmail = req.user.email;
-        const query = req.query.q;
+        const searchQuery = req.query.q;
 
-        if (!query) {
-            return res.status(400).json({ error: "Search query is required" });
+        if (!searchQuery) {
+            return res.status(400).json({ error: "Missing search query" });
         }
 
-        const searchCondition = {
-            $or: [
-                { subject: { $regex: query, $options: 'i' } },
-                { content: { $regex: query, $options: 'i' } },
-                { sender: { $regex: query, $options: 'i' } },
-                { recipient: { $regex: query, $options: 'i' } }
-            ],
+        const q = searchQuery.toLowerCase();
+
+        // FIXED: Search only in mails that have labels for this user AND user hasn't deleted
+        const mongoQuery = {
             $and: [
+                // Must have labels entry for this user (meaning user has access to this mail)
+                {
+                    'labels': {
+                        $elemMatch: {
+                            'userEmail': userEmail
+                        }
+                    }
+                },
+                // Must not be deleted by this user
+                {
+                    deletedBy: { $ne: userEmail }
+                },
+                // Handle drafts properly - only show non-drafts OR user's own drafts
                 {
                     $or: [
-                        { sender: userEmail },
-                        { recipient: userEmail },
-                        { recipients: { $in: [userEmail] } }
+                        { isDraft: { $ne: true } }, 
+                        { isDraft: true, sender: userEmail } 
                     ]
-                },
-                { deletedBy: { $ne: userEmail } }
+                }
             ]
         };
 
-        const mails = await Mail.find(searchCondition).lean().sort({ timestamp: -1 });
+        const mails = await Mail.find(mongoQuery).lean();
 
-        return res.status(200).json({
-            message: "Search completed",
-            query,
-            count: mails.length,
-            mails: mails.map(mail => ({
-                id: mail.mailId,
-                subject: mail.subject,
-                timestamp: mail.timestamp,
-                direction: mail.sender === userEmail ? "sent" : "received",
-                sender: mail.sender,
-                recipients: mail.recipients || [mail.recipient],
-                content: mail.content,
-            }))
+        const results = mails.filter(mail => {
+            const subject = mail.subject?.toLowerCase() || "";
+            const content = mail.content?.toLowerCase() || "";
+            const sender = mail.sender?.toLowerCase() || "";
+            const recipientsJoined = mail.recipients?.map(r => r.toLowerCase()).join(" ") || "";
+
+            return (
+                subject.includes(q) ||
+                content.includes(q) ||
+                sender.includes(q) ||
+                recipientsJoined.includes(q)
+            );
         });
+
+        if (results.length === 0) {
+            return res.status(404).json({ error: "No matching mails found" });
+        }
+
+        // Remove duplicates by groupId
+        const seenGroups = new Set();
+        const uniqueResults = results.filter(mail => {
+            if (mail.groupId && seenGroups.has(mail.groupId)) return false;
+            seenGroups.add(mail.groupId || mail.mailId);
+            return true;
+        });
+
+        return res.json(uniqueResults.map(mail => ({
+            id: mail.mailId,
+            subject: mail.subject,
+            timestamp: mail.timestamp,
+            direction: mail.sender === userEmail ? "sent" : "received",
+            sender: mail.sender,
+            recipients: mail.recipients || [mail.recipient],
+            content: mail.content,
+        })));
 
     } catch (err) {
         console.error("Error searching mails:", err);
         return res.status(500).json({ error: "Internal server error" });
     }
 };
-
 // Update mail labels function with MongoDB
 const updateMailLabelsForUser = async (req, res) => {
     try {
@@ -589,9 +577,8 @@ const updateMailLabelsForUser = async (req, res) => {
             return res.status(403).json({ error: "Not authorized for this mail" });
         }
 
-        // FIXED: Case-sensitive label validation
-        const allowed = (await getAllLabels(userEmail)).map(l => l.name);
-        const invalid = labels.filter(l => !allowed.includes(l));
+        const allowed = (await getAllLabels(userEmail)).map(l => l.name.toLowerCase());
+        const invalid = labels.filter(l => !allowed.includes(l.toLowerCase()));
 
         if (invalid.length > 0) {
             return res.status(400).json({
@@ -609,8 +596,9 @@ const updateMailLabelsForUser = async (req, res) => {
         const previousLabels = userLabelEntry.labelIds || [];
         userLabelEntry.labelIds = labels;
         
-        // FIXED: Case-sensitive spam check
-        const addedSpam = !previousLabels.includes("spam") && labels.includes("spam");
+        // Check if spam label was added manually
+        const addedSpam = !previousLabels.map(l => l.toLowerCase()).includes("spam") &&
+            labels.map(l => l.toLowerCase()).includes("spam");
 
         if (addedSpam) {
             console.log("[SpamLabel] Spam label was added manually");
@@ -640,6 +628,7 @@ const updateMailLabelsForUser = async (req, res) => {
     }
 };
 
+
 const archiveMail = async (req, res) => {
     try {
         const userEmail = req.user.email;
@@ -650,11 +639,11 @@ const archiveMail = async (req, res) => {
             return res.status(404).json({ error: "Mail not found" });
         }
 
-        // Remove inbox from user's labels
         let userLabelEntry = mail.labels.find(l => l.userEmail === userEmail);
         if (userLabelEntry) {
-            // FIXED: Case-sensitive label comparison
-            userLabelEntry.labelIds = userLabelEntry.labelIds.filter(label => label !== 'inbox');
+            userLabelEntry.labelIds = userLabelEntry.labelIds.filter(label => 
+                label.toLowerCase() !== 'inbox'
+            );
             await mail.save();
         }
 
@@ -722,9 +711,9 @@ const addLabelToMail = async (req, res) => {
             mail.labels.push(userLabelEntry);
         }
 
-        // FIXED: Case-sensitive label comparison
-        if (!userLabelEntry.labelIds.includes(labelName)) {
-            userLabelEntry.labelIds.push(labelName);
+    
+        if (!userLabelEntry.labelIds.includes(labelName.toLowerCase())) {
+            userLabelEntry.labelIds.push(labelName.toLowerCase());
             await mail.save();
         }
 
@@ -751,8 +740,7 @@ const removeLabelFromMail = async (req, res) => {
             return res.status(404).json({ error: "Mail not found" });
         }
 
-        // Cannot remove critical system labels - FIXED: Case-sensitive
-        if (['sent', 'drafts'].includes(labelName)) {
+        if (['sent', 'drafts'].includes(labelName.toLowerCase())) {
             return res.status(400).json({ 
                 error: `Cannot remove system label: ${labelName}` 
             });
@@ -760,8 +748,9 @@ const removeLabelFromMail = async (req, res) => {
 
         let userLabelEntry = mail.labels.find(l => l.userEmail === userEmail);
         if (userLabelEntry) {
-            // FIXED: Case-sensitive label comparison
-            userLabelEntry.labelIds = userLabelEntry.labelIds.filter(label => label !== labelName);
+            userLabelEntry.labelIds = userLabelEntry.labelIds.filter(label => 
+                label.toLowerCase() !== labelName.toLowerCase()
+            );
             await mail.save();
         }
 
@@ -776,14 +765,13 @@ const removeLabelFromMail = async (req, res) => {
 const getMailsByLabel = async (req, res) => {
     try {
         const userEmail = req.user.email;
-        // FIXED: Case-sensitive label parameter (no toLowerCase)
         const labelName = req.params.label;
 
         const query = {
             'labels': {
                 $elemMatch: {
                     'userEmail': userEmail,
-                    'labelIds': labelName
+                    'labelIds': { $regex: new RegExp(`^${labelName}$`, 'i') }
                 }
             },
             deletedBy: { $ne: userEmail }
@@ -832,27 +820,18 @@ const createDraft = async (req, res) => {
         const draft = new Mail({
             mailId: uuidv4(),
             sender,
-            recipient: recipientsList[0] || "",
+            recipient: recipientsList[0] || sender,
             recipients: recipientsList,
-            subject: subject || "",
-            content: content || "",
-            labels: [{ userEmail: sender, labelIds: ["drafts"] }],
+            subject: subject || '',
+            content: content || '',
+            labels: [{ userEmail: sender, labelIds: ['drafts'] }],
+            groupId: uuidv4(),
+            isDraft: true,
             timestamp: new Date()
         });
 
         await draft.save();
-
-        return res.status(201).json({
-            message: "Draft created",
-            draft: {
-                id: draft.mailId,
-                sender: draft.sender,
-                recipients: draft.recipients,
-                subject: draft.subject,
-                content: draft.content,
-                timestamp: draft.timestamp
-            }
-        });
+        return res.status(201).json({ message: "Draft created successfully", draft });
 
     } catch (err) {
         console.error("Error creating draft:", err);
@@ -866,7 +845,7 @@ const sendDraft = async (req, res) => {
         const userEmail = req.user.email;
         const draftId = req.params.id;
 
-        const draft = await Mail.findOne({ mailId: draftId });
+        const draft = await Mail.findOne({ mailId: draftId, isDraft: true });
         if (!draft) {
             return res.status(404).json({ error: "Draft not found" });
         }
@@ -875,20 +854,21 @@ const sendDraft = async (req, res) => {
             return res.status(403).json({ error: "Not authorized to send this draft" });
         }
 
-        // Remove draft label and add appropriate labels
-        let userLabelEntry = draft.labels.find(l => l.userEmail === userEmail);
-        if (userLabelEntry) {
-            userLabelEntry.labelIds = userLabelEntry.labelIds.filter(label => label !== 'drafts');
-            if (draft.recipients.includes(userEmail)) {
-                userLabelEntry.labelIds.push('inbox', 'sent');
-            } else {
-                userLabelEntry.labelIds.push('sent');
+        draft.isDraft = false;
+        
+        const senderLabels = draft.labels.find(l => l.userEmail === userEmail);
+        if (senderLabels) {
+            senderLabels.labelIds = senderLabels.labelIds.filter(label => label !== 'drafts');
+            senderLabels.labelIds.push('sent');
+            
+            const isSelfSend = draft.recipients && draft.recipients.includes(userEmail);
+            if (isSelfSend) {
+                senderLabels.labelIds.push('inbox');
             }
         }
 
         await draft.save();
 
-        // Create copies for recipients
         const sent = [draft];
         
         for (const recipient of draft.recipients.filter(r => r !== userEmail)) {
@@ -899,8 +879,8 @@ const sendDraft = async (req, res) => {
                 recipients: draft.recipients,
                 subject: draft.subject,
                 content: draft.content,
-                labels: [{ userEmail: recipient, labelIds: ["inbox"] }],
-                groupId: draft.groupId || uuidv4(),
+                labels: [{ userEmail: recipient, labelIds: ['inbox'] }],
+                groupId: draft.groupId,
                 timestamp: new Date()
             });
 
@@ -908,31 +888,33 @@ const sendDraft = async (req, res) => {
             sent.push(recipientMail);
         }
 
-        return res.status(200).json({
-            message: "Draft sent successfully",
-            sent: sent.length
-        });
+        return res.status(200).json({ message: "Draft sent successfully", sent });
 
     } catch (err) {
         console.error("Error sending draft:", err);
         return res.status(500).json({ error: "Internal server error" });
     }
 };
-
-// Get drafts function
 const getDrafts = async (req, res) => {
     try {
         const userEmail = req.user.email;
-
         const drafts = await Mail.findDraftsByUser(userEmail).lean();
 
-        const formattedDrafts = drafts.map(draft => ({
-            id: draft.mailId,
-            sender: draft.sender,
-            recipients: draft.recipients,
-            subject: draft.subject,
-            content: draft.content,
-            timestamp: draft.timestamp,
+        const getUserLabels = (mail, userEmail) => {
+            const userLabel = mail.labels?.find(l => l.userEmail === userEmail);
+            return userLabel ? userLabel.labelIds : [];
+        };
+
+        const formattedDrafts = drafts.map(mail => ({
+            id: mail.mailId,
+            sender: mail.sender,
+            recipient: mail.recipient,
+            recipients: mail.recipients,
+            subject: mail.subject,
+            content: mail.content,
+            labels: getUserLabels(mail, userEmail),
+            groupId: mail.groupId,
+            timestamp: mail.timestamp,
             isDraft: true
         }));
 
@@ -940,28 +922,62 @@ const getDrafts = async (req, res) => {
             message: "Drafts fetched successfully",
             drafts: formattedDrafts
         });
-
     } catch (err) {
         console.error("Error fetching drafts:", err);
         return res.status(500).json({ error: "Internal server error" });
     }
 };
 
+// Delete mail permanently (hard delete)
+const deleteMailByIdPermanently = async (req, res) => {
+    try {
+        const userEmail = req.user.email;
+        const mailId = req.params.id;
+
+        if (!mailId) {
+            return res.status(400).json({ error: "Missing mail ID" });
+        }
+
+        console.log(`Attempting to permanently delete mail ${mailId} by user ${userEmail}`);
+
+        const result = await Mail.findOneAndDelete({ 
+            mailId,
+            $or: [
+                { sender: userEmail },
+                { recipient: userEmail },
+                { recipients: userEmail }
+            ]
+        });
+
+        if (!result) {
+            return res.status(404).json({ error: "Mail not found or not authorized" });
+        }
+
+        console.log(`Mail ${mailId} permanently deleted by ${userEmail}`);
+        return res.status(200).json({ message: "Mail permanently deleted" });
+
+    } catch (err) {
+        console.error("Error permanently deleting mail:", err);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
 module.exports = {
     createMail,
     getMails,
     getMailById,
     updateMail,
     deleteMailById,
-    deleteMailByIdPermanently,
     searchMails,
     updateMailLabelsForUser,
+    deleteMailByIdPermanently,
+    // APIs חדשים:
     archiveMail,
     toggleStarMail,
     addLabelToMail,
     removeLabelFromMail,
     getMailsByLabel,
+    //Draft
     createDraft,
     sendDraft,
-    getDrafts
+    getDrafts 
 };

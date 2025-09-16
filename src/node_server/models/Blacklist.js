@@ -32,7 +32,7 @@ const blacklistSchema = new mongoose.Schema({
 // Static methods for easy usage
 blacklistSchema.statics.isBlacklisted = async function(url) {
     const result = await this.findOne({ url: url.trim() });
-    return !!result; // החזר true/false
+    return !!result; 
 };
 
 blacklistSchema.statics.addUrl = async function(url, addedBy = null, reason = null) {

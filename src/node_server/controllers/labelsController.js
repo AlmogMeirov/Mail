@@ -1,9 +1,8 @@
-// controllers/labelsController.js - Improved error messages
+// controllers/labelsController.js - Updated for MongoDB
 const { Label, MailLabel } = require("../models/labels");
 const { extractUrls } = require("../utils/extractUrls");
 const { addUrlToBlacklist } = require("../utils/blacklistClient");
 const Mail = require("../models/Mail");
-
 // System labels that cannot be created/edited/deleted
 const SYSTEM_LABELS = ['inbox', 'sent', 'spam', 'drafts', 'starred', 'trash', 'important'];
 
@@ -38,10 +37,7 @@ async function getAll(req, res) {
     res.json([...systemLabels, ...customLabels]);
   } catch (err) {
     console.error("Error fetching labels:", err);
-    res.status(500).json({ 
-      error: "Unable to retrieve labels",
-      message: "There was an issue loading your labels. Please try again."
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -52,10 +48,7 @@ async function getById(req, res) {
     const label = await Label.getLabelById(userId, req.params.id);
 
     if (!label) {
-      return res.status(404).json({ 
-        error: "Label not found",
-        message: "The requested label does not exist or you don't have permission to access it."
-      });
+      return res.status(404).json({ error: "Label not found" });
     }
 
     res.json({
@@ -64,127 +57,54 @@ async function getById(req, res) {
     });
   } catch (err) {
     console.error("Error fetching label:", err);
-    res.status(500).json({ 
-      error: "Unable to retrieve label",
-      message: "There was an issue loading the label details. Please try again."
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
 
-// Check if label name is reserved system label (case-insensitive)
+// Function to check if this is a system label
 function isSystemLabel(labelName) {
-    if (!labelName || typeof labelName !== 'string') {
-        return false;
-    }
-    
-    // Remove whitespace and convert to lowercase for comparison
-    const cleanName = labelName.trim().toLowerCase();
-    
-    // Check against system labels array
-    return SYSTEM_LABELS.some(systemLabel => 
-        systemLabel.toLowerCase() === cleanName
-    );
+    return SYSTEM_LABELS.includes(labelName.toLowerCase());
 }
 
-// Normalize label name for comparison (trim + lowercase)
-function normalizeLabelName(labelName) {
-    if (!labelName || typeof labelName !== 'string') {
-        return '';
-    }
-    return labelName.trim().toLowerCase();
-}
-
-// Create new custom label with strict system label validation
+// Create label function
 async function create(req, res) {
   try {
     const userId = req.user.email;
     const { name } = req.body;
 
-    // Validate input
     if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Name is required" });
+    }
+
+    // Check if this is a system label
+    if (isSystemLabel(name.trim())) {
       return res.status(400).json({ 
-        error: "Label name required",
-        message: "Please provide a valid label name. Label name cannot be empty."
+        error: "Cannot create system label. System labels are: " + SYSTEM_LABELS.join(", ") 
       });
     }
 
-    const cleanName = name.trim();
-    
-    // Check for empty name after trimming
-    if (cleanName.length === 0) {
-      return res.status(400).json({ 
-        error: "Invalid label name",
-        message: "Label name cannot consist only of spaces. Please enter a valid name."
-      });
-    }
-
-    // Check for name length limits
-    if (cleanName.length > 50) {
-      return res.status(400).json({ 
-        error: "Label name too long",
-        message: "Label name must be 50 characters or less. Please choose a shorter name."
-      });
-    }
-
-    // Block any variation of system labels (inbox, INBOX, Inbox, etc.)
-    if (isSystemLabel(cleanName)) {
-      return res.status(400).json({ 
-        error: "Reserved label name",
-        message: `"${cleanName}" is a reserved system label and cannot be used as a custom label name. System labels include: ${SYSTEM_LABELS.join(", ")}.`
-      });
-    }
-
-    // Check for duplicate labels (case-insensitive) in MongoDB
-    const normalizedName = normalizeLabelName(cleanName);
-    
+    // Check if label with this name already exists for user (case-insensitive)
     const existingLabel = await Label.findOne({
       userId,
-      $expr: {
-        $eq: [
-          { $toLower: { $trim: { input: "$name" } } },
-          normalizedName
-        ]
-      }
+      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') }
     });
 
     if (existingLabel) {
-      return res.status(409).json({ 
-        error: "Label already exists",
-        message: `A label with the name "${cleanName}" already exists. Label names are case-insensitive, so "${existingLabel.name}" and "${cleanName}" are considered the same.`
-      });
+      return res.status(409).json({ error: "Label with this name already exists" });
     }
 
-    // Double-check against system labels array for safety
-    const systemLabelConflict = SYSTEM_LABELS.some(systemLabel => 
-      systemLabel.toLowerCase() === normalizedName
-    );
-
-    if (systemLabelConflict) {
-      return res.status(400).json({ 
-        error: "System label conflict",
-        message: `Cannot create label "${cleanName}" as it conflicts with a system label. Please choose a different name.`
-      });
-    }
-
-    const label = await Label.createLabelForUser(userId, cleanName);
+    const label = await Label.createLabelForUser(userId, name);
 
     res.status(201).json({
       id: label.labelId,
-      name: label.name,
-      message: `Label "${label.name}" created successfully.`
+      name: label.name
     });
   } catch (err) {
     console.error("Error creating label:", err);
-    if (err.code === 11000) { // MongoDB duplicate key error
-      return res.status(409).json({ 
-        error: "Duplicate label",
-        message: "A label with this name already exists. Please choose a different name."
-      });
+    if (err.code === 11000) { // Duplicate key error
+      return res.status(409).json({ error: "Label with this name already exists" });
     }
-    res.status(500).json({ 
-      error: "Unable to create label",
-      message: "There was an issue creating your label. Please try again."
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -194,130 +114,82 @@ async function update(req, res) {
     const labelId = req.params.id;
     const { name } = req.body;
 
-    // Validate input
     if (!name || !name.trim()) {
-      return res.status(400).json({ 
-        error: "Label name required",
-        message: "Please provide a valid label name. Label name cannot be empty."
-      });
+      return res.status(400).json({ error: "Name is required" });
     }
 
-    const cleanName = name.trim();
-
-    // Check for name length limits
-    if (cleanName.length > 50) {
-      return res.status(400).json({ 
-        error: "Label name too long",
-        message: "Label name must be 50 characters or less. Please choose a shorter name."
-      });
-    }
-
-    // Prevent editing system labels by ID
+    // Check if trying to edit system label (before searching in database)
     if (SYSTEM_LABELS.includes(labelId)) {
       return res.status(403).json({ 
-        error: "Cannot edit system label",
-        message: `System labels like "${labelId}" cannot be modified. Only custom labels can be edited.`
+        error: "Cannot edit system labels" 
       });
     }
 
-    // Prevent renaming to system label name
-    if (isSystemLabel(cleanName)) {
+    // Check if new name is a system label
+    if (isSystemLabel(name.trim())) {
       return res.status(400).json({ 
-        error: "Reserved label name",
-        message: `"${cleanName}" is a reserved system label name and cannot be used. System labels include: ${SYSTEM_LABELS.join(", ")}.`
+        error: "Cannot use system label name. System labels are: " + SYSTEM_LABELS.join(", ") 
       });
     }
 
-    // Get the label before updating
-    const oldLabel = await Label.getLabelById(userId, labelId);
-    if (!oldLabel) {
-      return res.status(404).json({ 
-        error: "Label not found",
-        message: "The label you're trying to update doesn't exist or you don't have permission to modify it."
-      });
-    }
-
-    const oldName = oldLabel.name.toLowerCase();
-    const newName = cleanName.toLowerCase();
-
-    // Check if name actually changed
-    if (oldName === newName) {
-      return res.status(400).json({ 
-        error: "No changes made",
-        message: "The new label name is the same as the current name. Please provide a different name."
-      });
-    }
-
-    // Check for name conflicts with other labels (case-insensitive)
-    const normalizedNewName = normalizeLabelName(cleanName);
-    
-    const conflictingLabel = await Label.findOne({
+    // Check if another label with same name exists (case-insensitive)
+    const existingLabel = await Label.findOne({
       userId,
-      labelId: { $ne: labelId }, // Not the same label
-      $expr: {
-        $eq: [
-          { $toLower: { $trim: { input: "$name" } } },
-          normalizedNewName
-        ]
-      }
+      labelId: { $ne: labelId }, // Exclude current label
+      name: { $regex: new RegExp(`^${name.trim()}$`, 'i') }
     });
 
-    if (conflictingLabel) {
-      return res.status(409).json({ 
-        error: "Label name already exists",
-        message: `A label with the name "${cleanName}" already exists. Please choose a different name.`
-      });
+    if (existingLabel) {
+      return res.status(409).json({ error: "Label with this name already exists" });
     }
 
-    // Update the label in database
-    const updated = await Label.updateLabelForUser(userId, labelId, cleanName);
+    // Get old label before update
+    const oldLabel = await Label.getLabelById(userId, labelId);
+    if (!oldLabel) {
+      return res.status(404).json({ error: "Label not found" });
+    }
+
+    const oldName = oldLabel.name.toLowerCase(); // Old name
+    const newName = name.trim().toLowerCase();   // New name
+
+    // Update the label in Labels collection
+    const updated = await Label.updateLabelForUser(userId, labelId, name);
 
     if (!updated) {
-      return res.status(404).json({ 
-        error: "Update failed",
-        message: "Unable to update the label. It may have been deleted or you may not have permission."
-      });
+      return res.status(404).json({ error: "Label not found" });
     }
 
-    // Update all emails that use this label
+    // Update all mails using the old label
     console.log(`[LABEL UPDATE] Updating mails: "${oldName}" → "${newName}" for user ${userId}`);
     
     const updateResult = await Mail.updateMany(
-      { 
-        'labels.userEmail': userId,
-        'labels.labelIds': oldName 
-      },
-      { 
-        $set: { 'labels.$[userLabel].labelIds.$[labelElement]': newName } 
-      },
-      { 
-        arrayFilters: [
-          { 'userLabel.userEmail': userId },
-          { 'labelElement': oldName }
-        ] 
-      }
-    );
+  { 
+    'labels.userEmail': userId,
+    'labels.labelIds': { $regex: new RegExp(`^${oldLabel.name}$`, 'i') }  // Case-insensitive search using original name
+  },
+  { 
+    $set: { 'labels.$[userLabel].labelIds.$[labelElement]': name.trim() }  // Store with new name (preserve original case)
+  },
+  { 
+    arrayFilters: [
+      { 'userLabel.userEmail': userId },
+      { 'labelElement': { $regex: new RegExp(`^${oldLabel.name}$`, 'i') } }  // Case-insensitive search using original name
+    ] 
+  }
+);
 
     console.log(`[LABEL UPDATE] Updated ${updateResult.modifiedCount} mails`);
 
     res.status(200).json({
       id: updated.labelId,
-      name: updated.name,
-      message: `Label renamed from "${oldLabel.name}" to "${updated.name}" successfully.`,
-      emailsUpdated: updateResult.modifiedCount
+      name: updated.name
     });
   } catch (err) {
     console.error("Error updating label:", err);
     if (err.code === 11000) {
-      return res.status(409).json({ 
-        error: "Duplicate label name",
-        message: "A label with this name already exists. Please choose a different name."
-      });
+      return res.status(409).json({ error: "Label with this name already exists" });
     }
-    res.status(500).json({ 
-      error: "Unable to update label",
-      message: "There was an issue updating your label. Please try again."
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -326,53 +198,36 @@ async function remove(req, res) {
     const userId = req.user.email;
     const labelId = req.params.id;
 
-    // Prevent deleting system labels by ID
+    // Check if this is a system label first (before searching in database)
     if (SYSTEM_LABELS.includes(labelId)) {
       return res.status(403).json({ 
-        error: "Cannot delete system label",
-        message: `System labels like "${labelId}" cannot be deleted. Only custom labels can be removed. System labels include: ${SYSTEM_LABELS.join(", ")}.`
+        error: "Cannot delete system labels. System labels are: " + SYSTEM_LABELS.join(", ") 
       });
     }
 
-    // Get the label before deletion
+    // Step 1: Get the label before deletion
     const labelToDelete = await Label.getLabelById(userId, labelId);
     if (!labelToDelete) {
-      return res.status(404).json({ 
-        error: "Label not found",
-        message: "The label you're trying to delete doesn't exist or you don't have permission to remove it."
-      });
+      return res.status(404).json({ error: "Label not found" });
     }
 
-    // Additional check: prevent deleting if name is system label
-    if (isSystemLabel(labelToDelete.name)) {
-      return res.status(403).json({ 
-        error: "Cannot delete system label",
-        message: `"${labelToDelete.name}" is a system label and cannot be deleted.`
-      });
-    }
-
-    const labelName = labelToDelete.name.toLowerCase();
-
-    // Delete the label from database
+    // Step 2: Delete the label from Labels collection
     const deleted = await Label.deleteLabelForUser(userId, labelId);
 
     if (!deleted) {
-      return res.status(404).json({ 
-        error: "Deletion failed",
-        message: "Unable to delete the label. It may have already been removed."
-      });
+      return res.status(404).json({ error: "Label not found" });
     }
 
-    // Remove the label from all emails
-    console.log(`[LABEL DELETE] Removing label "${labelName}" from all mails for user ${userId}`);
+    // Step 3: Remove the label from all mails
+    console.log(`[LABEL DELETE] Removing label "${labelToDelete.name}" from all mails for user ${userId}`);
 
     const removeResult = await Mail.updateMany(
       { 
         'labels.userEmail': userId,
-        'labels.labelIds': labelName 
+        'labels.labelIds': { $regex: new RegExp(`^${labelToDelete.name}$`, 'i') }  // Case-insensitive search using original name
       },
       { 
-        $pull: { 'labels.$[userLabel].labelIds': labelName } 
+        $pull: { 'labels.$[userLabel].labelIds': { $regex: new RegExp(`^${labelToDelete.name}$`, 'i') } }  // Case-insensitive removal
       },
       { 
         arrayFilters: [
@@ -383,19 +238,13 @@ async function remove(req, res) {
 
     console.log(`[LABEL DELETE] Removed label from ${removeResult.modifiedCount} mails`);
 
-    // Clean up legacy MailLabel collection
+    // Step 4: Also clean MailLabel collection (backward compatibility)
     await MailLabel.deleteMany({ userId, labelId });
 
-    res.status(200).json({
-      message: `Label "${labelToDelete.name}" deleted successfully.`,
-      emailsUpdated: removeResult.modifiedCount
-    });
+    res.status(204).end();
   } catch (err) {
     console.error("Error deleting label:", err);
-    res.status(500).json({ 
-      error: "Unable to delete label",
-      message: "There was an issue deleting your label. Please try again."
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -405,13 +254,6 @@ async function search(req, res) {
     const userId = req.user.email;
     const query = req.params.query?.toLowerCase() || "";
 
-    if (query.length === 0) {
-      return res.status(400).json({ 
-        error: "Search query required",
-        message: "Please provide a search term to find labels."
-      });
-    }
-
     const labels = await Label.searchLabelsForUser(userId, query);
 
     const formattedLabels = labels.map(label => ({
@@ -419,28 +261,14 @@ async function search(req, res) {
       name: label.name
     }));
 
-    if (formattedLabels.length === 0) {
-      return res.status(404).json({ 
-        error: "No labels found",
-        message: `No labels found matching "${query}". Try a different search term.`
-      });
-    }
-
-    res.json({
-      query: query,
-      count: formattedLabels.length,
-      labels: formattedLabels
-    });
+    res.json(formattedLabels);
   } catch (err) {
     console.error("Error searching labels:", err);
-    res.status(500).json({ 
-      error: "Search failed",
-      message: "There was an issue searching your labels. Please try again."
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
 
-// Add a label to an email
+// Add a label to a mail
 async function tagMail(req, res) {
   try {
     const userId = req.user.email;
@@ -449,51 +277,39 @@ async function tagMail(req, res) {
     console.log(">> Entered tagMail! mailId =", mailId, "labelId =", labelId);
 
     if (!mailId || !labelId) {
-      return res.status(400).json({ 
-        error: "Missing required information",
-        message: "Both email ID and label ID are required to add a label to an email."
-      });
+      return res.status(400).json({ error: "mailId and labelId are required" });
     }
 
     // Verify label exists and belongs to user
     const label = await Label.getLabelById(userId, labelId);
     if (!label) {
-      return res.status(404).json({ 
-        error: "Label not found",
-        message: "The label you're trying to add doesn't exist or you don't have permission to use it."
-      });
+      return res.status(404).json({ error: "Label not found" });
     }
 
-    // Verify email exists and user has access
+    // Verify mail exists and user has access to it
     const mail = await Mail.findOne({ mailId });
     if (!mail) {
-      return res.status(404).json({ 
-        error: "Email not found",
-        message: "The email you're trying to label doesn't exist or you don't have access to it."
-      });
+      return res.status(404).json({ error: "Mail not found" });
     }
 
     if (!mail.isAccessibleBy(userId)) {
-      return res.status(403).json({ 
-        error: "Access denied",
-        message: "You don't have permission to modify labels on this email."
-      });
+      return res.status(403).json({ error: "Not authorized for this mail" });
     }
 
-    // Add label to email in MailLabel collection
+    // Add label to mail in MailLabel collection
     await MailLabel.findOneAndUpdate(
       { userId, mailId, labelId },
       { userId, mailId, labelId },
       { upsert: true, new: true }
     );
 
-    // Update Mail document labels array for this user
+    // Also update Mail document labels array for this user
     await Mail.findOneAndUpdate(
       { mailId, 'labels.userEmail': userId },
       { $addToSet: { 'labels.$.labelIds': labelId } }
     );
 
-    // Create labels entry if none exists for this user
+    // If no labels entry exists for this user, create one
     const mailDoc = await Mail.findOne({ mailId, 'labels.userEmail': userId });
     if (!mailDoc) {
       await Mail.findOneAndUpdate(
@@ -502,7 +318,7 @@ async function tagMail(req, res) {
       );
     }
 
-    // If user tagged email as spam, add URLs to blacklist
+    // If user tagged this mail with "Spam", add all its URLs to the blacklist
     if (label.name.toLowerCase() === "spam") {
       console.log("[SPAM] Mail tagged as spam, extracting URLs for blacklist");
       const urls = extractUrls(`${mail.subject} ${mail.content}`);
@@ -518,118 +334,72 @@ async function tagMail(req, res) {
       }
     }
 
-    res.status(200).json({ 
-      success: true,
-      message: `Label "${label.name}" added to email successfully.`
-    });
+    res.status(200).json({ success: true });
   } catch (err) {
     console.error("Error tagging mail:", err);
-    res.status(500).json({ 
-      error: "Unable to add label",
-      message: "There was an issue adding the label to your email. Please try again."
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
 
-// Remove a label from an email
+// Remove a label from a mail
 async function untagMail(req, res) {
   try {
     const userId = req.user.email;
     const { mailId, labelId } = req.body;
 
     if (!mailId || !labelId) {
-      return res.status(400).json({ 
-        error: "Missing required information",
-        message: "Both email ID and label ID are required to remove a label from an email."
-      });
+      return res.status(400).json({ error: "mailId and labelId are required" });
     }
 
     // Remove from MailLabel collection
     const removed = await MailLabel.findOneAndDelete({ userId, mailId, labelId });
 
     if (!removed) {
-      return res.status(404).json({ 
-        error: "Label not found on email",
-        message: "The label you're trying to remove is not currently applied to this email."
-      });
+      return res.status(404).json({ error: "Label not found for mail" });
     }
 
-    // Remove from Mail document labels array
+    // Also remove from Mail document labels array
     await Mail.findOneAndUpdate(
       { mailId, 'labels.userEmail': userId },
       { $pull: { 'labels.$.labelIds': labelId } }
     );
 
-    res.status(200).json({ 
-      success: true,
-      message: "Label removed from email successfully."
-    });
+    res.status(200).json({ success: true });
   } catch (err) {
     console.error("Error untagging mail:", err);
-    res.status(500).json({ 
-      error: "Unable to remove label",
-      message: "There was an issue removing the label from your email. Please try again."
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
 
-// Get all emails associated with a label
+// Get all mails associated with a label
 async function getMailsByLabel(req, res) {
   try {
     const userId = req.user.email;
     const { labelId } = req.params;
 
-    if (!labelId) {
-      return res.status(400).json({ 
-        error: "Label ID required",
-        message: "Please provide a valid label ID to retrieve emails."
-      });
-    }
-
     const mailLabels = await MailLabel.getMailsByLabel(userId, labelId);
     const mailIds = mailLabels.map(ml => ml.mailId);
 
-    res.json({
-      labelId: labelId,
-      count: mailIds.length,
-      mailIds: mailIds
-    });
+    res.json(mailIds);
   } catch (err) {
     console.error("Error fetching mails by label:", err);
-    res.status(500).json({ 
-      error: "Unable to retrieve emails",
-      message: "There was an issue retrieving emails for this label. Please try again."
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
 
-// Get all labels for a specific email
+// Get all labels for a specific mail
 async function getLabelsForMail(req, res) {
   try {
     const userId = req.user.email;
     const { mailId } = req.params;
 
-    if (!mailId) {
-      return res.status(400).json({ 
-        error: "Email ID required",
-        message: "Please provide a valid email ID to retrieve labels."
-      });
-    }
-
     const mailLabels = await MailLabel.getLabelsForMail(userId, mailId);
     const labelIds = mailLabels.map(ml => ml.labelId);
 
-    res.json({
-      mailId: mailId,
-      count: labelIds.length,
-      labelIds: labelIds
-    });
+    res.json(labelIds);
   } catch (err) {
     console.error("Error fetching labels for mail:", err);
-    res.status(500).json({ 
-      error: "Unable to retrieve labels",
-      message: "There was an issue retrieving labels for this email. Please try again."
-    });
+    res.status(500).json({ error: "Internal server error" });
   }
 }
 
@@ -643,8 +413,5 @@ module.exports = {
   tagMail,
   untagMail,
   getMailsByLabel,
-  getLabelsForMail,
-  // Export helper functions for testing
-  isSystemLabel,
-  normalizeLabelName
+  getLabelsForMail
 };

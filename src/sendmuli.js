@@ -1,11 +1,9 @@
 const axios = require('axios');
 
-// הגדרות
 const BASE_URL = 'http://localhost:3000/api';
-const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGI3ZmExOGRlYzE2MDJhYTUwMWQ4MGIiLCJlbWFpbCI6ImFsQGdtYWlsLmNvbSIsImlhdCI6MTc1NjkwMDY2NywiZXhwIjoxNzU2OTA0MjY3fQ.lmPaukpeazhfK60Xz6a263GIHBDt7goYx_hokBjO88o'; // החלף בטוקן האמיתי שלך
-const USER_EMAIL = 'al@gmail.com'; // החלף במייל שלך
+const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OGM2ODU4Mzk4ZTc0NmY2M2ViYWM4NzgiLCJlbWFpbCI6ImJAZ21haWwuY29tIiwiaWF0IjoxNzU3ODQxODIzLCJleHAiOjE3NTc4NDU0MjN9.otBm9Y5R1OCoKFqvZ5olB6prowZaw_XIusNSEQbvDaU'; // החלף בטוקן האמיתי שלך
+const USER_EMAIL = 'b@gmail.com'; // החלף במייל שלך
 
-// פונקציה לשליחת מייל אחד
 async function sendEmail(index) {
     const subjects = [
         'דוח שבועי',

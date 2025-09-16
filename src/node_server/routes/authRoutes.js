@@ -11,6 +11,8 @@ router.post('/register', upload.single('profilePicture'), authController.registe
 // Login route (issues JWT token)
 router.post('/login', authController.login);
 router.get("/me", authenticateToken, authController.getCurrentUser); // Get current user profile (protected route)
+router.get('/avatar-by-email/:email', authController.getAvatarByEmail);//for the pictures
 router.get('/avatar/:userId', authController.getAvatar);
+
 
 module.exports = router;

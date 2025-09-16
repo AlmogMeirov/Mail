@@ -10,15 +10,32 @@
     android:padding="16dp"
     android:gravity="center_vertical">
 
-    <!-- Avatar Circle -->
-    <TextView
-        android:id="@+id/tvSenderAvatar"
-        style="@style/GmailAvatar"
+    <!-- Avatar Container - Either Letter or Image -->
+    <FrameLayout
         android:layout_width="40dp"
         android:layout_height="40dp"
-        android:text="A"
-        android:textSize="16sp"
-        android:layout_marginEnd="12dp" />
+        android:layout_marginEnd="12dp">
+
+        <!-- Letter Avatar (default) -->
+        <TextView
+            android:id="@+id/tvSenderAvatar"
+            style="@style/GmailAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:text="A"
+            android:textSize="16sp"
+            android:visibility="visible" />
+
+        <!-- Image Avatar (when available) -->
+        <ImageView
+            android:id="@+id/ivSenderAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            android:contentDescription="Sender Avatar" />
+
+    </FrameLayout>
 
     <!-- Main Content Area -->
     <LinearLayout

@@ -2,15 +2,15 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
 
-    <!-- רקע לבן עם אטימות מלאה -->
+
     <solid android:color="#FFFFFF" />
 
-    <!-- מסגרת כחולה בולטת -->
+
     <stroke
         android:width="2dp"
         android:color="@color/gmail_blue" />
 
-    <!-- פינות מעוגלות -->
+
     <corners android:radius="16dp" />
 
 </shape>

@@ -1,6 +1,7 @@
 package com.example.gmailapplication.adapters;
 
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -23,6 +24,12 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
     private OnStarClickListener starListener;
     private OnEditDraftListener editDraftListener;
     private String currentUserEmail;
+    private ReadStatusChecker readStatusChecker;
+
+
+    public interface ReadStatusChecker {
+        boolean isEmailRead(String emailId);
+    }
 
     // Interfaces remain the same
     public interface OnEmailClickListener {
@@ -41,9 +48,11 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
         void onEditDraft(Email email);
     }
 
-    public EmailAdapter(OnEmailClickListener listener, String currentUserEmail) {
+    // עדכון הקונסטרקטור
+    public EmailAdapter(OnEmailClickListener listener, String currentUserEmail, ReadStatusChecker readStatusChecker) {
         this.listener = listener;
         this.currentUserEmail = currentUserEmail;
+        this.readStatusChecker = readStatusChecker;
     }
 
     // Setters remain the same
@@ -83,7 +92,11 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
     @Override
     public void onBindViewHolder(@NonNull EmailViewHolder holder, int position) {
-        holder.bind(emails.get(position));
+        Email email = emails.get(position);
+
+        boolean isRead = readStatusChecker != null && readStatusChecker.isEmailRead(email.id);
+
+        holder.bind(email, isRead);
     }
 
     @Override
@@ -93,6 +106,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
     class EmailViewHolder extends RecyclerView.ViewHolder {
         private TextView tvSenderAvatar, tvSender, tvSubject, tvPreview, tvTime;
+        private ImageView ivSenderAvatar;
         private TextView tvLabels;
         private LinearLayout layoutLabels, layoutIndicators;
         private ImageView ivStar, ivMore, ivAttachment, ivImportant, ivSpamIndicator;
@@ -101,6 +115,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
             super(itemView);
             // Views from new layout
             tvSenderAvatar = itemView.findViewById(R.id.tvSenderAvatar);
+            ivSenderAvatar = itemView.findViewById(R.id.ivSenderAvatar);
             tvSender = itemView.findViewById(R.id.tvSender);
             tvSubject = itemView.findViewById(R.id.tvSubject);
             tvPreview = itemView.findViewById(R.id.tvPreview);
@@ -154,36 +169,26 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
             }
         }
 
-        public void bind(Email email) {
+        public void bind(Email email, boolean isRead) {
             boolean isDraft = isDraft(email);
             boolean isSpam = isSpam(email);
             boolean isImportant = isImportant(email);
+            boolean isInInbox = email.labels != null && email.labels.contains("inbox");
 
             // Avatar - first letter of sender
             setupSenderAvatar(email);
 
-            // Sender
-            setupSender(email);
+            setupSender(email, isRead, isInInbox);
 
-            // Subject - add indication for draft and spam
-            setupSubject(email, isDraft, isSpam);
+            setupSubject(email, isDraft, isSpam, isRead, isInInbox);
 
-            // Preview
-            setupPreview(email);
+            setupPreview(email, isRead, isInInbox);
 
-            // Time - better format
-            setupTime(email);
+            setupTime(email, isRead, isInInbox);
 
-            // Labels
             setupLabels(email);
-
-            // Set indicators (attachments, importance, spam)
             setupIndicators(email, isImportant, isSpam);
-
-            // Set star button
             setupStarButton(email);
-
-            // Set More button
             setupMoreButton();
         }
 
@@ -204,40 +209,135 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
 
             int colorIndex = Math.abs(firstLetter.hashCode()) % colors.length;
             tvSenderAvatar.setBackgroundColor(colors[colorIndex]);
+
+            tvSenderAvatar.setVisibility(View.VISIBLE);
+            ivSenderAvatar.setVisibility(View.GONE);
+
+            loadProfileImageByEmail(senderEmail);
         }
 
-        private void setupSender(Email email) {
+        private void loadCurrentUserProfileImage() {
+            loadProfileImageByEmail(currentUserEmail);
+        }
+
+        private void loadProfileImageByEmail(String email) {
+            if (email == null || email.isEmpty()) {
+                return;
+            }
+
+            //  UserAPI instance
+            com.example.gmailapplication.API.UserAPI userAPI =
+                    com.example.gmailapplication.API.BackendClient.get(itemView.getContext())
+                            .create(com.example.gmailapplication.API.UserAPI.class);
+
+            userAPI.getAvatarByEmail(email).enqueue(new retrofit2.Callback<okhttp3.ResponseBody>() {
+                @Override
+                public void onResponse(retrofit2.Call<okhttp3.ResponseBody> call, retrofit2.Response<okhttp3.ResponseBody> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        try {
+                            byte[] imageBytes = response.body().bytes();
+                            android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+
+                            if (bitmap != null) {
+                                if (itemView.getContext() instanceof android.app.Activity) {
+                                    ((android.app.Activity) itemView.getContext()).runOnUiThread(() -> {
+                                        tvSenderAvatar.setVisibility(View.GONE);
+                                        ivSenderAvatar.setVisibility(View.VISIBLE);
+
+                                        android.graphics.Bitmap circularBitmap = createCircularBitmap(bitmap);
+                                        ivSenderAvatar.setImageBitmap(circularBitmap);
+                                    });
+                                }
+                            }
+                        } catch (Exception e) {
+                            System.out.println("Error loading profile image by email: " + e.getMessage());
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(retrofit2.Call<okhttp3.ResponseBody> call, Throwable t) {
+                    System.out.println("Failed to load profile image by email: " + t.getMessage());
+                }
+            });
+        }
+
+        private android.graphics.Bitmap createCircularBitmap(android.graphics.Bitmap bitmap) {
+            int width = bitmap.getWidth();
+            int height = bitmap.getHeight();
+            int size = Math.min(width, height);
+
+            android.graphics.Bitmap output = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas canvas = new android.graphics.Canvas(output);
+
+            android.graphics.Paint paint = new android.graphics.Paint();
+            paint.setAntiAlias(true);
+
+            canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint);
+            paint.setXfermode(new android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN));
+
+            canvas.drawBitmap(bitmap, (size - width) / 2f, (size - height) / 2f, paint);
+
+            return output;
+        }
+
+
+
+        private void setupSender(Email email, boolean isRead, boolean isInInbox) {
             String senderText = email.sender != null ? email.sender : itemView.getContext().getString(R.string.unknown_sender);
             tvSender.setText(senderText);
+
+            if (isInInbox && !isRead) {
+                tvSender.setTypeface(Typeface.DEFAULT_BOLD);
+                tvSender.setTextColor(itemView.getContext().getColor(R.color.gmail_text_primary)); // דינמי
+            } else {
+                tvSender.setTypeface(Typeface.DEFAULT);
+                tvSender.setTextColor(itemView.getContext().getColor(R.color.gmail_text_secondary)); // דינמי
+            }
         }
 
-        private void setupSubject(Email email, boolean isDraft, boolean isSpam) {
+        private void setupSubject(Email email, boolean isDraft, boolean isSpam, boolean isRead, boolean isInInbox) {
             String subject = email.subject != null && !email.subject.trim().isEmpty()
                     ? email.subject : itemView.getContext().getString(R.string.no_subject);
 
             if (isDraft) {
                 subject = itemView.getContext().getString(R.string.draft_prefix, subject);
                 tvSubject.setTextColor(Color.parseColor("#ff6f00")); // Orange
+                tvSubject.setTypeface(Typeface.DEFAULT); // Drafts are not bold
             } else if (isSpam) {
                 tvSubject.setTextColor(Color.parseColor("#ea4335")); // Red
+                tvSubject.setTypeface(Typeface.DEFAULT); // Spam is not bold
             } else {
-                tvSubject.setTextColor(itemView.getContext().getColor(R.color.gmail_text_primary));
+                if (isInInbox && !isRead) {
+                    tvSubject.setTypeface(Typeface.DEFAULT_BOLD);
+                    tvSubject.setTextColor(itemView.getContext().getColor(R.color.gmail_text_primary)); // דינמי
+                } else {
+                    tvSubject.setTypeface(Typeface.DEFAULT);
+                    tvSubject.setTextColor(itemView.getContext().getColor(R.color.gmail_text_secondary)); // דינמי
+                }
             }
             tvSubject.setText(subject);
         }
 
-        private void setupPreview(Email email) {
+        private void setupPreview(Email email, boolean isRead, boolean isInInbox) {
             String preview = email.content;
             if (preview != null && preview.length() > 100) {
                 preview = preview.substring(0, 100) + "...";
             }
             tvPreview.setText(preview != null ? preview : itemView.getContext().getString(R.string.no_content));
+
+            if (isInInbox && !isRead) {
+                tvPreview.setTypeface(Typeface.DEFAULT_BOLD);
+                tvPreview.setTextColor(itemView.getContext().getColor(R.color.gmail_text_primary)); // דינמי
+            } else {
+                tvPreview.setTypeface(Typeface.DEFAULT);
+                tvPreview.setTextColor(itemView.getContext().getColor(R.color.gmail_text_secondary)); // דינמי
+            }
         }
 
-        private void setupTime(Email email) {
+        private void setupTime(Email email, boolean isRead, boolean isInInbox) {
             if (email.timestamp != null) {
                 try {
-                    // Better time format - just hour:minute
                     String timeStr = email.timestamp.length() > 16
                             ? email.timestamp.substring(11, 16)
                             : email.timestamp;
@@ -247,6 +347,14 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
                 }
             } else {
                 tvTime.setText(itemView.getContext().getString(R.string.unknown_time));
+            }
+
+            if (isInInbox && !isRead) {
+                tvTime.setTypeface(Typeface.DEFAULT_BOLD);
+                tvTime.setTextColor(itemView.getContext().getColor(R.color.gmail_text_primary)); // דינמי
+            } else {
+                tvTime.setTypeface(Typeface.DEFAULT);
+                tvTime.setTextColor(itemView.getContext().getColor(R.color.gmail_text_secondary)); // דינמי
             }
         }
 
@@ -353,5 +461,7 @@ public class EmailAdapter extends RecyclerView.Adapter<EmailAdapter.EmailViewHol
         private boolean isImportant(Email email) {
             return (email.labels != null && email.labels.contains("important"));
         }
+
+
     }
 }

@@ -6,13 +6,20 @@ const bcrypt = require("bcrypt");
 const User = require("../models/User"); // Mongoose model (see models/User.js)
 const Labels = require("../models/labels"); // optional; keep if you already have one
 
+// inboxMap is in-memory; 
+// remove it for production. Keeping a guarded call:
+let inboxMap;
+try {
+  inboxMap = require("../utils/inboxMap");
+} catch {
+  inboxMap = null;
+}
 
 const SECRET = process.env.JWT_SECRET || "dev_only_replace";
 
 // --- helpers ---
 const dataUrlRegex = /^data:(image\/(png|jpeg|jpg|webp));base64,/i;
 
-// הוסף debug מפורט ב-authController.js:
 
 async function register(req, res) {
   try {
@@ -33,8 +40,8 @@ async function register(req, res) {
     } = req.body;
 
     // image source priority:
-    // 1) multer file (req.file)
-    // 2) JSON field "profilePicture" (data URL or base64)
+    // multer file (req.file)
+    // JSON field "profilePicture" (data URL or base64)
     const profilePicture = req.body.profilePicture || null;
     
     console.log("=== AVATAR PROCESSING ===");
@@ -103,7 +110,15 @@ async function register(req, res) {
     console.log("User ID:", user._id.toString());
     console.log("User has avatar:", !!user.avatar);
 
-  
+    // FIXED: Add user to inboxMap (temporary until we migrate fully to MongoDB)
+    if (inboxMap) {
+      try {
+        inboxMap.set(user.email, []);
+        console.log(`Added ${user.email} to inboxMap`);
+      } catch (err) {
+        console.log("Failed to add user to inboxMap:", err.message);
+      }
+    }
 
     // Create default labels
     if (Labels?.createLabel) {
@@ -126,7 +141,7 @@ async function register(req, res) {
   }
 }
 
-// גם תוסיף debug ב-parseAvatarFromDataUrlOrBase64:
+
 function parseAvatarFromDataUrlOrBase64(avatarStr) {
   console.log("=== PARSE AVATAR DEBUG ===");
   console.log("Input type:", typeof avatarStr);
@@ -174,7 +189,6 @@ function parseAvatarFromDataUrlOrBase64(avatarStr) {
   
   return result;
 }
-// --- Controller: POST /login ---
 async function login(req, res) {
   try {
     const email = (req.body.email || "").toLowerCase().trim();
@@ -194,6 +208,15 @@ async function login(req, res) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
+    // Add user to inboxMap if not exists (for existing users)
+    if (inboxMap && !inboxMap.has(user.email)) {
+      try {
+        inboxMap.set(user.email, []);
+        console.log(`Added existing user ${user.email} to inboxMap`);
+      } catch (err) {
+        console.log("Failed to add existing user to inboxMap:", err.message);
+      }
+    }
 
     // sign with sub = user._id for consistency with auth middleware
     const token = jwt.sign(
@@ -289,4 +312,51 @@ const getAvatar = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-module.exports = { register, login, getCurrentUser, getAvatar };
+
+const getAvatarByEmail = async (req, res) => {
+  try {
+    const email = req.params.email.toLowerCase().trim();
+    console.log(`[AVATAR-BY-EMAIL] Getting avatar for email: ${email}`);
+    
+    const user = await User.findOne({ email }).select('avatar');
+    if (!user) {
+      console.log(`[AVATAR-BY-EMAIL] User not found: ${email}`);
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    if (!user.avatar || !user.avatar.data) {
+      console.log(`[AVATAR-BY-EMAIL] Avatar not found for email: ${email}`);
+      return res.status(404).json({ error: "Avatar not found" });
+    }
+
+    console.log(`[AVATAR-BY-EMAIL] Found avatar data for: ${email}`);
+
+    res.set({
+      'Content-Type': user.avatar.contentType || 'image/png',
+      'Cache-Control': 'public, max-age=86400'
+    });
+    
+    if (Buffer.isBuffer(user.avatar.data)) {
+      return res.send(user.avatar.data);
+    }
+    
+    if (user.avatar.data && user.avatar.data.buffer) {
+      const buffer = Buffer.from(user.avatar.data.buffer);
+      return res.send(buffer);
+    }
+    
+    if (typeof user.avatar.data === 'string') {
+      const buffer = Buffer.from(user.avatar.data, 'base64');
+      return res.send(buffer);
+    }
+    
+    const buffer = Buffer.from(user.avatar.data);
+    return res.send(buffer);
+    
+  } catch (err) {
+    console.error("Error getting avatar by email:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+module.exports = { register, login, getCurrentUser, getAvatar,getAvatarByEmail };

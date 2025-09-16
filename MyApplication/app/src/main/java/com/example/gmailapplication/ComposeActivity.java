@@ -330,12 +330,10 @@ public class ComposeActivity extends AppCompatActivity {
         isSending = true;
         invalidateOptionsMenu();
 
-        // עדכן את הdraft במסד הנתונים
         emailAPI.updateEmail(draftId, updateRequest).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) {
-                    // עכשיו שלח את הdraft המעודכן
                     emailAPI.sendDraft(draftId).enqueue(new Callback<Void>() {
                         @Override
                         public void onResponse(Call<Void> call, Response<Void> response) {

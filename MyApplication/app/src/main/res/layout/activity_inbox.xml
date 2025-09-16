@@ -36,7 +36,7 @@
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:src="@drawable/ic_hamburger_menu"
-                    android:tint="@color/gmail_text_secondary"
+                    app:tint="@color/gmail_text_secondary"
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
@@ -45,14 +45,6 @@
                     android:contentDescription="Menu" />
 
                 <!-- Profile Image in Header -->
-                <ImageView
-                    android:id="@+id/ivProfileImageHeader"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:scaleType="centerCrop"
-                    android:layout_marginEnd="12dp"
-                    android:layout_marginStart="4dp"
-                    android:contentDescription="Profile Picture" />
 
                 <LinearLayout
                     android:id="@+id/searchBar"
@@ -93,14 +85,24 @@
                     android:layout_width="32dp"
                     android:layout_height="32dp"
                     android:src="@drawable/ic_theme_light"
-                    android:tint="@color/gmail_text_secondary"
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:padding="6dp"
                     android:layout_marginStart="4dp"
                     android:layout_marginEnd="8dp"
-                    android:contentDescription="Toggle Theme" />
+                    android:contentDescription="Toggle Theme"
+                    app:tint="@color/gmail_text_secondary" />
+
+                <ImageView
+                    android:id="@+id/ivProfileImageHeader"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:scaleType="centerCrop"
+                    android:layout_marginEnd="12dp"
+                    android:layout_marginStart="4dp"
+                    android:contentDescription="Profile Picture" />
+
 
                 <!-- Profile Icon -->
                 <TextView
@@ -150,6 +152,7 @@
                     android:src="@android:drawable/ic_dialog_email"
                     android:tint="@color/gmail_text_disabled"
                     android:layout_marginBottom="24dp"
+                    android:translationY="-20dp"
                     android:alpha="0.6" />
 
                 <TextView
@@ -231,18 +234,18 @@
 
         </FrameLayout>
 
+        <!-- Floating Action Button -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabCompose"
             style="@style/GmailFAB"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
-            android:layout_marginStart="64dp"
-            android:layout_marginTop="64dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginBottom="100dp"
+            android:layout_margin="16dp"
+            android:translationY="-72dp"
             android:src="@drawable/fab_compose_icon"
             android:contentDescription="Write new email" />
+
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
     <!-- Navigation Drawer -->

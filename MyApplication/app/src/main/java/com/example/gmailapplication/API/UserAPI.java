@@ -27,4 +27,7 @@ public interface UserAPI {
     @GET("users/avatar/{userId}")
     Call<ResponseBody> getAvatar(@Path("userId") String userId);
 
+    @GET("users/avatar-by-email/{email}")
+    Call<ResponseBody> getAvatarByEmail(@Path("email") String email);
+
 }

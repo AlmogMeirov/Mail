@@ -20,14 +20,13 @@ router.patch('/:id/label', authenticateToken, mailController.updateMailLabelsFor
 router.patch('/:id/labels', authenticateToken, mailController.updateMailLabelsForUser); // for backward compatibility, also allow /labels endpoint. Added by Meir in exercise 4
 router.get('/:id', authenticateToken, mailController.getMailById);
 router.patch('/:id', authenticateToken, mailController.updateMail);
-//delete orders
+
+
 router.delete('/:id/permanent', authenticateToken, mailController.deleteMailByIdPermanently);
 router.delete('/:id', authenticateToken, mailController.deleteMailById);
 
 router.get('/', authenticateToken, mailController.getMails);
 router.post('/', authenticateToken, mailController.createMail);
-
-//Drafts orders
 router.post('/drafts', authenticateToken, mailController.createDraft);
 router.post('/drafts/:id/send', authenticateToken, mailController.sendDraft);
 router.get('/drafts', authenticateToken, mailController.getDrafts);
