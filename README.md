@@ -14,7 +14,7 @@ A Gmail-like email application with a **Node.js/Express backend**, **Android (Ja
 
 ### Run the Application
 ```bash
-# From the project root
+# From the** src folder**
 docker-compose up -d
 ```
 
