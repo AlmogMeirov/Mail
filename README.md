@@ -69,5 +69,8 @@ add in here project strucute
   * *Bloom Filter* for blacklist
   * *TCP Socket Communication*
 
-** Enjoy exploring the Gmail Application! **
 
+
+** Enjoy exploring the Gmail Application!
+
+**
