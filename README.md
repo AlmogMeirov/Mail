@@ -17,9 +17,7 @@ Run the server from the **src folder**
 docker-compose up -d
 ```
 
-📱 Android Client: All mobile app files are in the /myapplication directory,
-
-please ensure your emulator/device is set to English language before running the app
+📱 Android Client: All mobile app files are in the /myapplication directory, please ensure your emulator/device is set to English language before running the app
 
 ## Features
 
