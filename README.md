@@ -6,8 +6,8 @@ A full-stack Gmail-like email application with Node.js/Express backend, Android 
  ```
  docker-compose up -d
  ```
-📱 Android Client: All mobile app files are in the /myapplication directory
-Ensure your emulator/device is set to English language before running the app
+📱 Android Client: All mobile app files are in the /myapplication directory,
+please ensure your emulator/device is set to English language before running the app
 
 Features: User registration & authentication, Gmail-style labels, email search, spam detection, drafts, custom labels, archive & star functionality.
 
