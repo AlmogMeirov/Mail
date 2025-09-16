@@ -26,14 +26,14 @@ Documentation: See /wiki directory for detailed guides and API reference.
 
 
 ## Technologies Used
-  * *React 19.1.0* 
-  * *React Router 7.6.2*
-  * *React Icons 5.5.0*
-  * *CSS Variables*
-  * *Node.js + Express*
+  * *Android (Java) - Mobile client with MVVM pattern* 
+  * *Node.js + Express - REST API server*
+  * *MongoDB - Document database*
+  * *C++17 (multi-threaded) - Blacklist server*
+  * *Docker + Docker Compose - Containerization*
   * *C++17 (multi-threaded)*
   * *Docker + Docker Compose*
-  * *JWT Authentication*
+  * *JWT Authentication - Secure token-based auth*
   * *Bloom Filter* for blacklist
   * *TCP Socket Communication*
 
