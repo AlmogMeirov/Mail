@@ -23,19 +23,19 @@ please ensure your emulator/device is set to English language before running the
 
 Features
 
-User registration & JWT authentication
+ *User registration & JWT authentication
 
-Gmail-style labels (system & custom)
+ *Gmail-style labels (system & custom)
 
-Email sending, receiving, drafts, and multi-recipient support (To, CC, BCC)
+ *Email sending, receiving, drafts, and multi-recipient support (To, CC, BCC)
 
-Spam detection with automated blacklist filtering
+ *Spam detection with automated blacklist filtering
 
-Archive, Star, and Search functionality
+ *Delete, Star, and Search functionality
 
-Dark mode with full UI adaptation
+ *Dark mode with full UI adaptation
 
-Architecture: RESTful API with JWT auth, MVVM Android client, automated blacklist filtering.
+ *Architecture: RESTful API with JWT auth, MVVM Android client, automated blacklist filtering.
 
 Project Management: Development progress tracked in JIRA
 
