@@ -21,7 +21,19 @@ docker-compose up -d
 📱 Android Client: All mobile app files are in the /myapplication directory,
 please ensure your emulator/device is set to English language before running the app
 
-Features: User registration & authentication, Gmail-style labels, email search, spam detection, drafts, custom labels, archive & star functionality.
+Features
+
+User registration & JWT authentication
+
+Gmail-style labels (system & custom)
+
+Email sending, receiving, drafts, and multi-recipient support (To, CC, BCC)
+
+Spam detection with automated blacklist filtering
+
+Archive, Star, and Search functionality
+
+Dark mode with full UI adaptation
 
 Architecture: RESTful API with JWT auth, MVVM Android client, automated blacklist filtering.
 
