@@ -13,7 +13,7 @@ A Gmail-like email application with a **Node.js/Express backend**, **Android (Ja
 
 Run the server from the **src folder**
 ```bash
-docker-compose up -d
+ docker compose up -d --build
 ```
 
 📱 Android Client: All mobile app files are in the /myapplication directory, please ensure your emulator/device is set to English language before running the app
