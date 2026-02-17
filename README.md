@@ -7,7 +7,10 @@ The system allows:
 - Dynamic creation of a Bloom Filter based on user input
 - Adding and querying URLs
 - Running entirely inside a Docker container via command-line interface
-
+  
+> ⚠️ **Note:** The `main` branch contains the base version of the project. 
+> To view the full **web client** (React), switch to the `exercise-4` branch. 
+> To view the **Android mobile client**, switch to the `exercise-5` branch.
 ---
 
 ## Project Structure
