@@ -3,6 +3,7 @@
 you can find our repository in the link: https://github.com/AlmogMeirov/Mail.git
 
 **This part implements a complete Gmail-like mail client system with a React frontend (Exercise 4), building upon the Node.js web server from Exercise 3 and the C++ blacklist server from Exercise 2.**
+📱 **Looking for the Android mobile version?** Switch to the [`exercise-5`](https://github.com/AlmogMeirov/Mail/tree/exercise-5) branch.
 
 ## Purpose
 
